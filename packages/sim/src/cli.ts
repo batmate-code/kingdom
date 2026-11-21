@@ -14,11 +14,14 @@
  *   --errors file.json  записи партий с ошибкой (по умолчанию sim-errors.json, если ошибки есть)
  *   --check-every N     проверять инварианты каждые N ходов (по умолчанию — только в конце партии)
  *   --check-all         проверять инварианты после каждого хода (медленно)
+ *   --stats file.json   собрать статистику локаций, персонажей и ресурсов (сводка в JSON)
+ *   --report file.md    то же, отчёт в Markdown
  */
 import { writeFileSync } from 'node:fs';
 import { BOT_FACTORIES } from '@vampire/bots';
 import { DEFAULT_RULES, RULE_CHOICES, resolveConfig, type RuleToggles } from '@vampire/core';
 import { runSimulation, toCsv, type GameResult } from './index';
+import { renderReport } from './report';
 
 interface Args {
   games: number;
@@ -30,6 +33,8 @@ interface Args {
   errors: string;
   checkEvery: number;
   checkAll: boolean;
+  stats: string | null;
+  report: string | null;
 }
 
 function parseRule(raw: string, rules: Partial<RuleToggles>): void {
@@ -66,6 +71,8 @@ function parseArgs(argv: readonly string[]): Args {
     errors: 'sim-errors.json',
     checkEvery: 0,
     checkAll: false,
+    stats: null,
+    report: null,
   };
   let players = 3;
   let bot = 'random';
@@ -107,6 +114,12 @@ function parseArgs(argv: readonly string[]): Args {
       case '--check-every':
         args.checkEvery = Number(next());
         break;
+      case '--stats':
+        args.stats = next();
+        break;
+      case '--report':
+        args.report = next();
+        break;
       case '--check-all':
         args.checkAll = true;
         break;
@@ -135,13 +148,14 @@ function parseArgs(argv: readonly string[]): Args {
 const args = parseArgs(process.argv.slice(2));
 const step = Math.max(1, Math.floor(args.games / 20));
 const errors: GameResult[] = [];
-const { results, summary } = runSimulation({
+const { results, summary, stats } = runSimulation({
   games: args.games,
   bots: args.bots,
   baseSeed: args.seed,
   rules: args.rules,
   checkEveryAction: args.checkAll,
   checkEvery: args.checkEvery,
+  collectStats: Boolean(args.stats || args.report),
   onResult(r, i) {
     if (r.error) {
       errors.push(r);
@@ -155,6 +169,11 @@ const { results, summary } = runSimulation({
 if (process.stdout.isTTY) process.stdout.write('\n');
 
 if (args.out) writeFileSync(args.out, toCsv(results));
+if (stats && args.stats) writeFileSync(args.stats, JSON.stringify(stats, null, 2));
+if (stats && args.report) {
+  const title = `Статистика: ${args.games} партий, боты ${args.bots.join(', ')}`;
+  writeFileSync(args.report, renderReport(stats, title));
+}
 if (args.json)
   writeFileSync(
     args.json,

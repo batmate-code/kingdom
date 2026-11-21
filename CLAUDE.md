@@ -25,7 +25,7 @@ npm workspaces, пакеты в packages/. Зависимости идут то�
 | @vampire/data | Таблицы правил как чистые данные (без логики) | —                 |
 | @vampire/core | Чистый движок правил                          | data              |
 | @vampire/bots | Боты: случайный, эвристический, ISMCTS        | core, data        |
-| @vampire/sim  | Консольный симулятор, CSV/JSON                | core, bots        |
+| @vampire/sim  | Консольный симулятор, CSV/JSON                | core, bots, data  |
 | @vampire/web  | Vite + React + Zustand, CSS-модули            | core, bots        |
 
 Пакеты экспортируют исходники TypeScript (`exports: ./src/index.ts`), отдельной сборки библиотек нет. Импорт между пакетами — только через `@vampire/*`, без относительных путей.

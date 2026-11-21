@@ -2,6 +2,7 @@ import { BOT_FACTORIES, type Bot } from '@vampire/bots';
 import {
   applyAction,
   createGame,
+  createGameWithEvents,
   findInvariantViolations,
   getLegalActions,
   getObservation,
@@ -14,6 +15,14 @@ import {
 } from '@vampire/core';
 
 /** Запись партии: по ней партию можно воспроизвести целиком. */
+import {
+  StatsCollector,
+  emptyAggregate,
+  mergeStats,
+  type AggregateStats,
+  type GameStats,
+} from './stats';
+
 export interface GameRecord {
   config: GameConfigInput;
   seed: number;
@@ -35,6 +44,8 @@ export interface GameResult {
   error: string | null;
   /** Есть только у партий с ошибкой. */
   record?: GameRecord;
+  /** Статистика партии (если собиралась). */
+  stats?: GameStats;
 }
 
 /** Предел ходов на партию: если превышен — движок зациклился. */
@@ -64,8 +75,9 @@ export function playRecordedGame(
   seed: number,
   botNames: readonly string[],
   checkEvery = 0,
+  collectStats = false,
 ): GameResult {
-  return playWithBots(config, seed, makeBots(botNames, seed), botNames, checkEvery);
+  return playWithBots(config, seed, makeBots(botNames, seed), botNames, checkEvery, collectStats);
 }
 
 /** То же с готовыми ботами (имена — для отчёта). */
@@ -75,13 +87,17 @@ export function playWithBots(
   bots: readonly Bot[],
   botNames: readonly string[],
   checkEvery = 0,
+  collectStats = false,
 ): GameResult {
   const started = performance.now();
+  const collector = collectStats ? new StatsCollector() : null;
   const actions: Action[] = [];
   let state: GameState | null = null;
   let error: string | null = null;
   try {
-    state = createGame(config, seed);
+    const created = createGameWithEvents(config, seed);
+    state = created.state;
+    collector?.onEvents(created.events, state);
     while (!isTerminal(state)) {
       if (actions.length >= MAX_ACTIONS_PER_GAME) throw new Error('Превышен предел ходов');
       const current: GameState = state;
@@ -94,7 +110,9 @@ export function playWithBots(
         getLegalActions(current),
       );
       actions.push(action);
-      state = applyAction(current, action).state;
+      const applied = applyAction(current, action);
+      state = applied.state;
+      collector?.onEvents(applied.events, state);
       if (checkEvery > 0 && actions.length % checkEvery === 0) assertValid(state);
     }
     assertValid(state);
@@ -112,6 +130,7 @@ export function playWithBots(
     winners: scores.filter((s) => s.rank === 1).map((s) => s.player),
     error,
   };
+  if (collector && state && !error) result.stats = collector.finish(state);
   if (error) {
     result.record = {
       config,
@@ -146,6 +165,8 @@ export interface SimulationOptions {
   checkEveryAction?: boolean;
   /** Проверка инвариантов каждые N ходов (по умолчанию только в конце партии). */
   checkEvery?: number;
+  /** Собирать статистику локаций, персонажей и ресурсов. */
+  collectStats?: boolean;
   onResult?: (result: GameResult, index: number) => void;
 }
 
@@ -164,6 +185,7 @@ export interface SimulationSummary {
 export function runSimulation(opts: SimulationOptions): {
   results: GameResult[];
   summary: SimulationSummary;
+  stats: AggregateStats | null;
 } {
   const config: GameConfigInput = {
     playerCount: opts.bots.length,
@@ -171,12 +193,23 @@ export function runSimulation(opts: SimulationOptions): {
     ...(opts.rules ? { rules: opts.rules } : {}),
   };
   const results: GameResult[] = [];
+  const stats = opts.collectStats ? emptyAggregate() : null;
   for (let i = 0; i < opts.games; i++) {
-    const r = playRecordedGame(config, opts.baseSeed + i, opts.bots, opts.checkEvery ?? 0);
+    const r = playRecordedGame(
+      config,
+      opts.baseSeed + i,
+      opts.bots,
+      opts.checkEvery ?? 0,
+      opts.collectStats ?? false,
+    );
+    if (stats && r.stats) {
+      mergeStats(stats, r.stats);
+      delete r.stats; // по партиям не храним — память
+    }
     results.push(r);
     opts.onResult?.(r, i);
   }
-  return { results, summary: summarize(results, opts.bots.length) };
+  return { results, summary: summarize(results, opts.bots.length), stats };
 }
 
 export function summarize(results: readonly GameResult[], seats: number): SimulationSummary {

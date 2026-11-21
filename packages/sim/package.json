@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@vampire/bots": "0.0.0",
-    "@vampire/core": "0.0.0"
+    "@vampire/core": "0.0.0",
+    "@vampire/data": "0.0.0"
   }
 }
