@@ -5,7 +5,7 @@ import {
   PROFESSIONS,
   type SlotIndex,
 } from '@vampire/data';
-import { distinctWorkers, getWorker, reserveWorkers, workersAt } from './board';
+import { distinctWorkers, getWorker, reserveWorkers, slotCapacity, workersAt } from './board';
 import type { Ctx } from './context';
 import { canAfford, changeResources, cityEntryCost, pay } from './economy';
 import type { Action, GameState, PlayerId, Worker } from './types';
@@ -50,8 +50,8 @@ export function placementActions(state: GameState, player: PlayerId): PlaceActio
       const slot1 = workersAt(state, location, 1);
       const slot2 = workersAt(state, location, 2);
       const base = { type: 'place', workerId: worker.id, location } as const;
-      if (slot1.length === 0) out.push({ ...base, slot: 1, displace: false });
-      if (slot2.length === 0 && !state.locations[location].slot2Locked) {
+      if (slot1.length < slotCapacity(location, 1)) out.push({ ...base, slot: 1, displace: false });
+      if (slot2.length < slotCapacity(location, 2) && !state.locations[location].slot2Locked) {
         out.push({ ...base, slot: 2, displace: false });
         if (canDisplace(state, player, worker, slot1, location)) {
           out.push({ ...base, slot: 2, displace: true });
@@ -89,6 +89,7 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
         workerId: victim.id,
         owner: victim.owner,
         location: a.location,
+        method: 'slot2',
       });
     }
     // Вытесняющий выполняет действие второго слота, но встаёт в первый; второй слот закрывается.
@@ -106,12 +107,21 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
     slot: worker.position.kind === 'slot' ? worker.position.slot : a.slot,
   });
 
+  // Палач срабатывает при размещении в первый слот; переход туда вытеснением — OQ-16.
+  // OQ-21 (автор): способности при выставлении идут по порядку персонаж → локация → профессия,
+  // поэтому Палач вытесняет после действия локации.
+  const executioner =
+    worker.profession === 'executioner' &&
+    (a.slot === 1 || (a.displace && d.config.rules.executionerOnDisplacement))
+      ? [{ t: 'askExecutioner' as const, player, workerId: worker.id }]
+      : [];
   d.tasks.unshift(
     {
       t: 'askLocationAction',
       player,
       context: { workerId: worker.id, location: a.location, slot: actionSlot, copy: false },
     },
+    ...executioner,
     { t: 'placementTurn', first: false },
   );
 }

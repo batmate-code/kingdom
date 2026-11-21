@@ -263,8 +263,41 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
-  // Замена пары в Таверне — этап 2. Рабочий без улучшения ничего не получает (ответ автора).
-  tavernSwap: notYetImplemented as SlotHandler<SlotActionOf<'tavernSwap'>>,
+  // Замена пары на оставшуюся после драфта, без отступных. Рабочий без улучшения ничего
+  // не получает (ответ автора). Старая пара возвращается в пул Таверны.
+  tavernSwap: {
+    mandatory: false,
+    options(state, _player, ctx) {
+      const worker = getWorker(state, ctx.workerId);
+      if (worker.character === null) return [];
+      const out: LocationChoice[] = [];
+      for (const character of state.offer.characters) {
+        for (const profession of state.offer.professions) {
+          out.push({ kind: 'tavernSwap', character, profession });
+        }
+      }
+      return out;
+    },
+    apply(c, player, ctx, _action, choice) {
+      if (choice.kind !== 'tavernSwap') mismatch(choice);
+      const worker = c.draft.workers.find((w) => w.id === ctx.workerId);
+      if (!worker || worker.character === null || worker.profession === null) {
+        throw new Error('У рабочего нет пары для замены');
+      }
+      const offer = c.draft.offer;
+      offer.characters.splice(offer.characters.indexOf(choice.character), 1, worker.character);
+      offer.professions.splice(offer.professions.indexOf(choice.profession), 1, worker.profession);
+      worker.character = choice.character;
+      worker.profession = choice.profession;
+      c.events.push({
+        type: 'tavernSwapped',
+        player,
+        workerId: worker.id,
+        character: choice.character,
+        profession: choice.profession,
+      });
+    },
+  },
 
   cityHall: {
     mandatory: false,

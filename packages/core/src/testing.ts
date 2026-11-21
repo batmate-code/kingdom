@@ -5,8 +5,38 @@ import type { GameConfigInput } from './config';
 import { applyAction, createGame, getLegalActions } from './engine';
 import type { Action, GameEvent, GameState, LocationChoice, PlayerId, Position } from './types';
 
-export function newGame(config: GameConfigInput = {}, seed = 1): GameState {
-  return createGame(config, seed);
+/**
+ * Новая партия сразу на шаге размещения 1-го раунда: драфт и улучшение пропущены
+ * (выложенные персонажи возвращаются в колоду), у рабочих нет улучшений.
+ * Для сценариев драфта — createGame или newGame(..., { withDraft: true }).
+ */
+export function newGame(
+  config: GameConfigInput = {},
+  seed = 1,
+  opts: { withDraft?: boolean } = {},
+): GameState {
+  const s = createGame(config, seed);
+  return opts.withDraft ? s : skipDraft(s);
+}
+
+/** Пропустить драфт и улучшение текущего раунда без изменения ресурсов. */
+export function skipDraft(state: GameState): GameState {
+  const kind = state.pending?.kind;
+  if (kind !== 'draftPick' && kind !== 'upgrade') return state;
+  return edit(state, (d) => {
+    for (const p of d.players) {
+      if (p.draftPick.character) d.deck.unshift(p.draftPick.character);
+      p.draftPick = { character: null, profession: null };
+    }
+    d.deck.unshift(...d.offer.characters);
+    d.offer = { characters: [], professions: [] };
+    d.tasks = d.tasks.filter(
+      (t) => t.t !== 'askDraft' && t.t !== 'askUpgrade' && t.t !== 'placementTurn',
+    );
+    d.phase = 'placement';
+    d.placementCurrent = d.firstPlayer;
+    d.pending = { kind: 'placement', player: d.firstPlayer };
+  });
 }
 
 /** Произвольно поправить состояние для подготовки сценария. */
@@ -40,6 +70,10 @@ export function moveWorker(state: GameState, workerId: string, position: Positio
   });
 }
 
+/**
+ * Дать рабочему профессию и/или персонажа, сохраняя инварианты: персонаж берётся из колоды
+ * (если не указан — первая карта колоды), снятый персонаж возвращается в колоду.
+ */
 export function setWorker(
   state: GameState,
   workerId: string,
@@ -48,7 +82,24 @@ export function setWorker(
   return edit(state, (d) => {
     const w = d.workers.find((x) => x.id === workerId);
     if (!w) throw new Error(`Нет рабочего ${workerId}`);
-    Object.assign(w, patch);
+    const profession = patch.profession !== undefined ? patch.profession : w.profession;
+    if (profession === null) {
+      if (w.character) d.deck.unshift(w.character);
+      w.character = null;
+      w.profession = null;
+      return;
+    }
+    let character = patch.character !== undefined ? patch.character : w.character;
+    if (character === null) character = d.deck[0] ?? null;
+    if (character === null) throw new Error('Колода пуста');
+    if (character !== w.character) {
+      const i = d.deck.indexOf(character);
+      if (i < 0) throw new Error(`Персонажа ${character} нет в колоде`);
+      d.deck.splice(i, 1);
+      if (w.character) d.deck.unshift(w.character);
+    }
+    w.character = character;
+    w.profession = profession;
   });
 }
 
@@ -97,14 +148,17 @@ export function locationOptions(state: GameState): LocationChoice[] {
 }
 
 /**
- * Все пасуют до конца размещения текущего раунда; бои и конец раунда проходят автоматически.
- * Останавливается в начале следующего раунда (или в конце партии).
+ * Доиграть текущий раунд: все пасуют, в остальных решениях (награда за бой, содержание) берётся
+ * первый вариант — для содержания это «оплатить», если хватает крови.
+ * Останавливается на размещении следующего раунда (драфт пропускается) или в конце партии.
  */
 export function passAll(state: GameState, log?: GameEvent[]): GameState {
   let s = state;
   const round = s.round;
-  while (s.pending?.kind === 'placement' && s.round === round) {
-    s = act(s, { type: 'pass' }, log);
+  while (s.round === round && s.pending) {
+    const action: Action =
+      s.pending.kind === 'placement' ? { type: 'pass' } : (getLegalActions(s)[0] as Action);
+    s = act(s, action, log);
   }
-  return s;
+  return skipDraft(s);
 }

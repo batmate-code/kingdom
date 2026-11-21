@@ -14,6 +14,10 @@ export interface RuleToggles {
   cityHallAllowsFullTrack: boolean;
   /** OQ-6 (закрыт, автор: да): в Подполье можно оплатить копию, которую потом нечем выполнить. */
   copyAllowsUselessTarget: boolean;
+  /** OQ-15 (закрыт, автор: нет): Палач может вытеснить рабочего и из второго слота. */
+  executionerTargetsSecondSlot: boolean;
+  /** OQ-16 (закрыт, автор: нет): Палач срабатывает и когда попадает в первый слот вытеснением. */
+  executionerOnDisplacement: boolean;
 }
 
 export interface GameConfig {
@@ -36,6 +40,8 @@ export const DEFAULT_RULES: RuleToggles = {
   allowDisplaceOwnWorker: true,
   cityHallAllowsFullTrack: true,
   copyAllowsUselessTarget: true,
+  executionerTargetsSecondSlot: false,
+  executionerOnDisplacement: false,
 };
 
 export function resolveConfig(input: GameConfigInput = {}): GameConfig {

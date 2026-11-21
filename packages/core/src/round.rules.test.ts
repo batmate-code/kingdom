@@ -84,8 +84,15 @@ describe('Конец раунда', () => {
     expect(log.at(-1)).toEqual({ type: 'gameOver' });
   });
 
-  it('Профессия рабочего сохраняется между раундами', () => {
-    const s = passAll(setWorker(newGame(), 'p0w0', { profession: 'spy' }));
-    expect(s.workers.find((w) => w.id === 'p0w0')?.profession).toBe('spy');
+  it('Улучшение (персонаж + профессия) сохраняется между раундами, если содержание оплачено', () => {
+    let s = setWorker(newGame(), 'p0w0', { profession: 'spy', character: 'officer' });
+    s = edit(s, (d) => {
+      (d.players[0] as (typeof d.players)[number]).resources.blood = 5;
+    });
+    s = passAll(s);
+    expect(s.workers.find((w) => w.id === 'p0w0')).toMatchObject({
+      profession: 'spy',
+      character: 'officer',
+    });
   });
 });

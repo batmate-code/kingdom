@@ -1,6 +1,7 @@
 export {
   applyAction,
   createGame,
+  createGameWithEvents,
   currentPlayer,
   getLegalActions,
   getObservation,

@@ -8,6 +8,11 @@ export function workersAt(state: GameState, location: LocationId, slot: SlotInde
   );
 }
 
+/** Сколько рабочих помещается в слот. Лазутчик (этап 5) разрешит второго в первом слоте. */
+export function slotCapacity(_location: LocationId, _slot: SlotIndex): number {
+  return 1;
+}
+
 export function regionOfWorker(w: Worker): RegionId | null {
   const pos = w.position;
   if (pos.kind === 'slot') return LOCATIONS[pos.location].region;

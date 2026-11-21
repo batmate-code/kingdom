@@ -31,6 +31,8 @@ export interface PlayerState {
   influence: Record<RegionId, number>;
   /** Спасовал в текущем размещении (окончательно до боя). */
   passed: boolean;
+  /** Взятое на драфте этого раунда (до шага улучшения). */
+  draftPick: { character: CharacterId | null; profession: ProfessionId | null };
 }
 
 export interface LocationState {
@@ -46,7 +48,7 @@ export interface PowerToken {
   count: number;
 }
 
-export type Phase = 'placement' | 'combat' | 'gameOver';
+export type Phase = 'draft' | 'upgrade' | 'placement' | 'combat' | 'upkeep' | 'gameOver';
 
 /** Где выполняется действие слота: настоящее размещение или копирование (Подполье). */
 export interface LocationActionContext {
@@ -61,7 +63,15 @@ export interface LocationActionContext {
 export type Decision =
   | { kind: 'placement'; player: PlayerId }
   | { kind: 'locationAction'; player: PlayerId; context: LocationActionContext }
-  | { kind: 'combatReward'; player: PlayerId; region: RegionId };
+  | { kind: 'combatReward'; player: PlayerId; region: RegionId }
+  /** Драфт: круг 1 — персонаж или профессия, круг 2 — недостающее. */
+  | { kind: 'draftPick'; player: PlayerId; circle: 1 | 2 }
+  /** Улучшение: назначить взятую пару на рабочего или сбросить её за отступные. */
+  | { kind: 'upgrade'; player: PlayerId }
+  /** Конец раунда: оплатить содержание персонажа рабочего или сбросить пару за отступные. */
+  | { kind: 'upkeep'; player: PlayerId; workerId: string }
+  /** Палач в первом слоте: вытеснить чужого рабочего из другой локации региона (или нет). */
+  | { kind: 'executioner'; player: PlayerId; workerId: string };
 
 /** Шаги партии, которые выполняются автоматически, пока не потребуется чьё-то решение. */
 export type Task =
@@ -69,7 +79,14 @@ export type Task =
   | { t: 'placementTurn'; first: boolean }
   | { t: 'askLocationAction'; player: PlayerId; context: LocationActionContext }
   | { t: 'combat'; region: RegionId }
-  | { t: 'endRound' };
+  | { t: 'askDraft'; player: PlayerId; circle: 1 | 2 }
+  | { t: 'askUpgrade'; player: PlayerId }
+  | { t: 'askExecutioner'; player: PlayerId; workerId: string }
+  /** Конец раунда, часть 1: содержание (пока рабочие ещё на поле и в госпитале). */
+  | { t: 'startUpkeep' }
+  | { t: 'askUpkeep'; player: PlayerId; workerId: string }
+  /** Конец раунда, часть 2: возврат рабочих, замки, Логово, первый игрок. */
+  | { t: 'finishRound' };
 
 /** Доля «любых N золота/крови». */
 export interface GoldBlood {
@@ -91,13 +108,23 @@ export type LocationChoice =
   | { kind: 'chancery'; conversions: ChanceryConversion[] }
   | { kind: 'cityHall'; offer: number; region: RegionId }
   | { kind: 'copy'; location: LocationId; slot: SlotIndex }
-  | { kind: 'revive'; workerId: string };
+  | { kind: 'revive'; workerId: string }
+  | { kind: 'tavernSwap'; character: CharacterId; profession: ProfessionId };
+
+export type DraftPick =
+  { kind: 'character'; character: CharacterId } | { kind: 'profession'; profession: ProfessionId };
+
+export type UpgradeChoice = { kind: 'assign'; workerId: string } | { kind: 'discard' };
 
 export type Action =
   | { type: 'place'; workerId: string; location: LocationId; slot: SlotIndex; displace: boolean }
   | { type: 'pass' }
   | { type: 'locationAction'; choice: LocationChoice }
-  | { type: 'combatReward'; choice: 'influence' };
+  | { type: 'combatReward'; choice: 'influence' }
+  | { type: 'draftPick'; pick: DraftPick }
+  | { type: 'upgrade'; choice: UpgradeChoice }
+  | { type: 'upkeep'; choice: 'pay' | 'discard' }
+  | { type: 'executioner'; target: string | null };
 
 /** Причина изменения ресурсов (для журнала и статистики). */
 export type ResourceReason =
@@ -110,7 +137,10 @@ export type ResourceReason =
   | 'revive'
   | 'cityHall'
   | 'cityEntry'
-  | 'displaced';
+  | 'displaced'
+  | 'executioner'
+  | 'severance'
+  | 'upkeep';
 
 export interface CombatStrength {
   player: PlayerId;
@@ -135,6 +165,8 @@ export type GameEvent =
       workerId: string;
       owner: PlayerId;
       location: LocationId;
+      /** slot2 — обычное вытеснение из второго слота; executioner — Палач. */
+      method: 'slot2' | 'executioner';
     }
   | { type: 'passed'; player: PlayerId }
   | {
@@ -160,6 +192,34 @@ export type GameEvent =
       strengths: CombatStrength[];
       winner: PlayerId | null;
     }
+  | {
+      type: 'draftOffered';
+      characters: CharacterId[];
+      professions: ProfessionId[];
+    }
+  | { type: 'draftPicked'; player: PlayerId; pick: DraftPick }
+  | {
+      type: 'workerUpgraded';
+      player: PlayerId;
+      workerId: string;
+      character: CharacterId;
+      profession: ProfessionId;
+    }
+  | {
+      type: 'pairDiscarded';
+      player: PlayerId;
+      character: CharacterId;
+      profession: ProfessionId;
+      reason: 'draft' | 'replaced' | 'upkeep';
+    }
+  | { type: 'upkeepPaid'; player: PlayerId; workerId: string; blood: number }
+  | {
+      type: 'tavernSwapped';
+      player: PlayerId;
+      workerId: string;
+      character: CharacterId;
+      profession: ProfessionId;
+    }
   | { type: 'roundEnded'; round: number }
   | { type: 'gameOver' };
 
@@ -179,6 +239,12 @@ export interface GameState {
   powerTokens: PowerToken[];
   /** Чей ход размещения сейчас (или был последним). */
   placementCurrent: PlayerId;
+  /** Колода персонажей. Порядок скрыт от игроков. */
+  deck: CharacterId[];
+  /** Сброшенные персонажи (из игры не возвращаются: 30 карт = 6 раундов × 5). */
+  discard: CharacterId[];
+  /** Выложенное на драфт; после драфта — пары, оставшиеся для Таверны. Открыто. */
+  offer: { characters: CharacterId[]; professions: ProfessionId[] };
   tasks: Task[];
   pending: Decision | null;
   /** Состояние генератора случайных чисел. Скрыто от игроков. */
@@ -200,6 +266,10 @@ export interface Observation {
   firstToMax: GameState['firstToMax'];
   powerTokens: PowerToken[];
   placementCurrent: PlayerId;
+  /** Сколько карт осталось в колоде (порядок скрыт). */
+  deckSize: number;
+  discard: CharacterId[];
+  offer: GameState['offer'];
   pending: Decision | null;
 }
 

@@ -68,7 +68,9 @@ describe('Размещение', () => {
     ] as const;
     for (const [loc, slot] of order) s = place(s, loc, slot);
     expect(s.round).toBe(2);
-    expect(s.phase).toBe('placement');
+    // Новый раунд начинается с драфта.
+    expect(s.phase).toBe('draft');
+    expect(s.pending).toMatchObject({ kind: 'draftPick', player: s.firstPlayer, circle: 1 });
   });
 
   it('Рабочего из запаса можно выбрать любого — одинаковые рабочие дают одно действие', () => {

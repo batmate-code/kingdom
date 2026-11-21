@@ -7,13 +7,17 @@ import {
   type ProfessionId,
 } from '@vampire/data';
 import type { Ctx } from './context';
+import { clearOffer, dealDraft } from './draft';
 import { canTakePlacementTurn } from './placement';
 import { shuffleInPlace } from './rng';
 
-/** Подготовка раунда: открыто раздать жетоны профессий локаций. Драфт и улучшение — этап 2. */
+/**
+ * Подготовка раунда: открыто раздать жетоны профессий локаций, выложить драфт.
+ * Дальше в очереди: драфт → улучшение → размещение.
+ */
 export function startRound(c: Ctx): void {
   const d = c.draft;
-  d.phase = 'placement';
+  d.phase = 'draft';
   c.events.push({ type: 'roundStarted', round: d.round, firstPlayer: d.firstPlayer });
 
   const tokens = [...LOCATION_PROFESSION_TOKENS];
@@ -28,7 +32,7 @@ export function startRound(c: Ctx): void {
 
   for (const p of d.players) p.passed = false;
   d.placementCurrent = d.firstPlayer;
-  d.tasks.unshift({ t: 'placementTurn', first: true });
+  d.tasks.unshift(...dealDraft(c), { t: 'placementTurn', first: true });
 }
 
 /**
@@ -37,6 +41,7 @@ export function startRound(c: Ctx): void {
  */
 export function placementTurn(c: Ctx, first: boolean): void {
   const d = c.draft;
+  d.phase = 'placement';
   const n = d.players.length;
   const start = first ? d.placementCurrent : d.placementCurrent + 1;
   for (let k = 0; k < n; k++) {
@@ -49,19 +54,20 @@ export function placementTurn(c: Ctx, first: boolean): void {
   }
   d.phase = 'combat';
   d.tasks.unshift(...REGION_ORDER.map((region) => ({ t: 'combat' as const, region })), {
-    t: 'endRound' as const,
+    t: 'startUpkeep' as const,
   });
 }
 
 /**
- * Конец раунда: все рабочие возвращаются, снимаются жетоны силы и замки, копилка Логова,
- * переход первого игрока. Содержание персонажей — этап 2.
+ * Конец раунда, часть 2: все рабочие возвращаются, снимаются жетоны силы и замки, пул Таверны
+ * уходит в сброс, копилка Логова, переход первого игрока.
  */
-export function endRound(c: Ctx): void {
+export function finishRound(c: Ctx): void {
   const d = c.draft;
   for (const w of d.workers) w.position = { kind: 'reserve' };
   for (const loc of LOCATION_ORDER) d.locations[loc].slot2Locked = false;
   d.powerTokens = [];
+  clearOffer(c);
   if (!d.lair.visited) d.lair.stash += LAIR_STASH_PER_ROUND;
   d.lair.visited = false;
   c.events.push({ type: 'roundEnded', round: d.round });

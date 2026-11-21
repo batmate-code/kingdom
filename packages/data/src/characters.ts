@@ -175,6 +175,9 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   },
 };
 
+/** Порядок колоды до перемешивания. */
+export const CHARACTER_ORDER = Object.keys(CHARACTERS) as CharacterId[];
+
 /** Отступные и престиж в зависимости от содержания персонажа (совпадают с картами). */
 export const UPKEEP_TIERS: readonly UpkeepTier[] = [
   { upkeep: 0, severance: { ore: 1 }, endPrestige: 1 },

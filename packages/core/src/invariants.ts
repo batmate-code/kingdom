@@ -1,5 +1,13 @@
-import { GAME, LOCATION_ORDER, REGION_ORDER, TRACKS, type ResourceId } from '@vampire/data';
-import { workersAt } from './board';
+import {
+  CHARACTERS,
+  GAME,
+  LOCATION_ORDER,
+  REGION_ORDER,
+  TRACKS,
+  type CharacterId,
+  type ResourceId,
+} from '@vampire/data';
+import { slotCapacity, workersAt } from './board';
 import type { GameState } from './types';
 
 const RESOURCES: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -26,14 +34,35 @@ export function findInvariantViolations(state: GameState): string[] {
   }
   for (const loc of LOCATION_ORDER) {
     // Лазутчик (этап 5) разрешит двух рабочих в первом слоте.
-    if (workersAt(state, loc, 1).length > 1)
+    if (workersAt(state, loc, 1).length > slotCapacity(loc, 1))
       errors.push(`${loc}: больше одного рабочего в слоте 1`);
     const slot2 = workersAt(state, loc, 2).length;
-    if (slot2 > 1) errors.push(`${loc}: больше одного рабочего в слоте 2`);
+    if (slot2 > slotCapacity(loc, 2)) errors.push(`${loc}: больше одного рабочего в слоте 2`);
     if (state.locations[loc].slot2Locked && slot2 > 0)
       errors.push(`${loc}: рабочий в закрытом слоте 2`);
   }
   if (state.lair.stash < 0) errors.push('копилка Логова отрицательна');
+
+  // Персонаж и профессия у рабочего всегда вместе.
+  for (const w of state.workers) {
+    if ((w.character === null) !== (w.profession === null)) {
+      errors.push(`${w.id}: персонаж без профессии или наоборот`);
+    }
+  }
+  // Каждая карта персонажа ровно в одном месте: колода, сброс, драфт/Таверна, выбор игрока, рабочий.
+  const cards: CharacterId[] = [
+    ...state.deck,
+    ...state.discard,
+    ...state.offer.characters,
+    ...state.players.flatMap((p) => (p.draftPick.character ? [p.draftPick.character] : [])),
+    ...state.workers.flatMap((w) => (w.character ? [w.character] : [])),
+  ];
+  const all = Object.keys(CHARACTERS);
+  if (cards.length !== all.length || new Set(cards).size !== all.length) {
+    errors.push(
+      `карт персонажей ${cards.length} (уникальных ${new Set(cards).size}), должно быть ${all.length}`,
+    );
+  }
   if (state.round < 1 || state.round > state.config.rounds) errors.push(`раунд ${state.round}`);
   if (state.phase !== 'gameOver' && state.pending === null) errors.push('нет ожидаемого решения');
   return errors;
