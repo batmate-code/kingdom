@@ -1,0 +1,13 @@
+{
+  "name": "@vampire/data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Таблицы правил: локации, слоты, персонажи, профессии, здания, участки, треки, пороги, жетоны боя",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

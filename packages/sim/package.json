@@ -1,0 +1,18 @@
+{
+  "name": "@vampire/sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Консольный симулятор: прогон N партий, статистика в CSV/JSON",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@vampire/bots": "0.0.0",
+    "@vampire/core": "0.0.0"
+  }
+}

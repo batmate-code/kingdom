@@ -1,0 +1,39 @@
+{
+  "name": "vampire-game",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/data",
+    "packages/core",
+    "packages/bots",
+    "packages/sim",
+    "packages/web"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "sim": "npm run start --workspace @vampire/sim --",
+    "dev": "npm run dev --workspace @vampire/web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.19.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^3.2.7"
+  }
+}

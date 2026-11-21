@@ -1,0 +1,16 @@
+{
+  "name": "@vampire/bots",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Боты: случайный, эвристический, ISMCTS",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vampire/core": "0.0.0"
+  }
+}
