@@ -18,6 +18,12 @@ export interface RuleToggles {
   executionerTargetsSecondSlot: boolean;
   /** OQ-16 (закрыт, автор: нет): Палач срабатывает и когда попадает в первый слот вытеснением. */
   executionerOnDisplacement: boolean;
+  /** OQ-23 (закрыт, автор: да): жетон боя кладут, даже если в регионе нет соперников. */
+  combatTokensWithoutOpponents: boolean;
+  /** OQ-24 (закрыт, автор: нет): владелец жетона Комиссариата участвует в бою без своих рабочих в регионе. */
+  commissariatWithoutWorkers: boolean;
+  /** OQ-25 (закрыт, автор: да): Склеп даёт силу и за своего рабочего во втором слоте соседней локации. */
+  cryptCountsSecondSlot: boolean;
 }
 
 export interface GameConfig {
@@ -42,6 +48,9 @@ export const DEFAULT_RULES: RuleToggles = {
   copyAllowsUselessTarget: true,
   executionerTargetsSecondSlot: false,
   executionerOnDisplacement: false,
+  combatTokensWithoutOpponents: true,
+  commissariatWithoutWorkers: false,
+  cryptCountsSecondSlot: true,
 };
 
 export function resolveConfig(input: GameConfigInput = {}): GameConfig {

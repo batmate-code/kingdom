@@ -1,5 +1,7 @@
 import type {
+  BuildingId,
   CharacterId,
+  CombatTokenId,
   LocationId,
   ProfessionId,
   RegionId,
@@ -33,6 +35,32 @@ export interface PlayerState {
   passed: boolean;
   /** Взятое на драфте этого раунда (до шага улучшения). */
   draftPick: { character: CharacterId | null; profession: ProfessionId | null };
+  /**
+   * Жетоны боя в руке и в сбросе. Открыто: рука выводится из сброса. Положенный в закрытую жетон
+   * остаётся в руке до вскрытия, иначе рука выдала бы его.
+   */
+  combatTokens: { hand: Record<CombatTokenId, number>; discard: Record<CombatTokenId, number> };
+}
+
+/** Постройка. Цитадель стоит на звезде региона (plot = null), остальные — на участке. */
+export interface Building {
+  type: BuildingId;
+  owner: PlayerId;
+  region: RegionId;
+  plot: string | null;
+}
+
+/** Жетон боя, положенный игроком в закрытую. Игрок без жетонов в руке ничего не кладёт. */
+export interface CombatPlay {
+  player: PlayerId;
+  token: CombatTokenId;
+}
+
+/** Текущий бой: кто какой жетон положил. До вскрытия жетоны соперников скрыты. */
+export interface CombatState {
+  region: RegionId;
+  plays: CombatPlay[];
+  revealed: boolean;
 }
 
 export interface LocationState {
@@ -71,14 +99,28 @@ export type Decision =
   /** Конец раунда: оплатить содержание персонажа рабочего или сбросить пару за отступные. */
   | { kind: 'upkeep'; player: PlayerId; workerId: string }
   /** Палач в первом слоте: вытеснить чужого рабочего из другой локации региона (или нет). */
-  | { kind: 'executioner'; player: PlayerId; workerId: string };
+  | { kind: 'executioner'; player: PlayerId; workerId: string }
+  /** Перед боями: Шпион может перейти в другой регион (к месту Цитадели) или остаться. */
+  | { kind: 'spyMove'; player: PlayerId; workerId: string }
+  /** Перед боем региона: положить в закрытую жетон боя. */
+  | { kind: 'combatToken'; player: PlayerId; region: RegionId }
+  /** Отступление: выбрать регион, где боя ещё не было. */
+  | { kind: 'retreat'; player: PlayerId; region: RegionId };
 
 /** Шаги партии, которые выполняются автоматически, пока не потребуется чьё-то решение. */
 export type Task =
   | { t: 'startRound' }
   | { t: 'placementTurn'; first: boolean }
   | { t: 'askLocationAction'; player: PlayerId; context: LocationActionContext }
+  /** Перед боями: Шпионы по очереди с первого игрока. */
+  | { t: 'spyMoves' }
+  | { t: 'askSpyMove'; player: PlayerId; workerId: string }
+  /** Бой региона: розыгрыш жетонов → вскрытие → Отступления → итог. */
   | { t: 'combat'; region: RegionId }
+  | { t: 'askCombatToken'; player: PlayerId; region: RegionId }
+  | { t: 'revealCombat'; region: RegionId }
+  | { t: 'askRetreat'; player: PlayerId; region: RegionId }
+  | { t: 'combatOutcome'; region: RegionId }
   | { t: 'askDraft'; player: PlayerId; circle: 1 | 2 }
   | { t: 'askUpgrade'; player: PlayerId }
   | { t: 'askExecutioner'; player: PlayerId; workerId: string }
@@ -109,6 +151,7 @@ export type LocationChoice =
   | { kind: 'cityHall'; offer: number; region: RegionId }
   | { kind: 'copy'; location: LocationId; slot: SlotIndex }
   | { kind: 'revive'; workerId: string }
+  | { kind: 'commissariat'; region: RegionId }
   | { kind: 'tavernSwap'; character: CharacterId; profession: ProfessionId };
 
 export type DraftPick =
@@ -124,7 +167,10 @@ export type Action =
   | { type: 'draftPick'; pick: DraftPick }
   | { type: 'upgrade'; choice: UpgradeChoice }
   | { type: 'upkeep'; choice: 'pay' | 'discard' }
-  | { type: 'executioner'; target: string | null };
+  | { type: 'executioner'; target: string | null }
+  | { type: 'spyMove'; region: RegionId | null }
+  | { type: 'combatToken'; token: CombatTokenId }
+  | { type: 'retreat'; to: RegionId };
 
 /** Причина изменения ресурсов (для журнала и статистики). */
 export type ResourceReason =
@@ -187,6 +233,18 @@ export type GameEvent =
   | { type: 'cityEntryRaised'; region: RegionId; cost: number }
   | { type: 'workerRevived'; player: PlayerId; workerId: string }
   | {
+      type: 'workerMoved';
+      player: PlayerId;
+      workerId: string;
+      to: RegionId;
+      /** spy — перемещение Шпиона перед боями; retreat — Отступление. */
+      method: 'spy' | 'retreat';
+    }
+  | { type: 'commissariatTaken'; player: PlayerId; region: RegionId }
+  | { type: 'combatTokenPlayed'; player: PlayerId; region: RegionId }
+  | { type: 'combatTokensRevealed'; region: RegionId; plays: CombatPlay[] }
+  | { type: 'combatTokensRefreshed' }
+  | {
       type: 'combatResolved';
       region: RegionId;
       strengths: CombatStrength[];
@@ -237,6 +295,12 @@ export interface GameState {
   /** Кто первым достиг максимума трека (жетон первенства). */
   firstToMax: Partial<Record<RegionId, PlayerId>>;
   powerTokens: PowerToken[];
+  /** Жетон Комиссариата на этот раунд: у кого и для боя какого региона. */
+  commissariat: { owner: PlayerId; region: RegionId } | null;
+  /** Постройки (строительство — этап 4). */
+  buildings: Building[];
+  /** Идущий бой (между розыгрышем жетонов и итогом). */
+  combat: CombatState | null;
   /** Чей ход размещения сейчас (или был последним). */
   placementCurrent: PlayerId;
   /** Колода персонажей. Порядок скрыт от игроков. */
@@ -265,6 +329,14 @@ export interface Observation {
   cityEntryRaisedRegions: RegionId[];
   firstToMax: GameState['firstToMax'];
   powerTokens: PowerToken[];
+  commissariat: GameState['commissariat'];
+  buildings: Building[];
+  /** Идущий бой: до вскрытия видны только свои жетоны, чужие — как null. */
+  combat: {
+    region: RegionId;
+    revealed: boolean;
+    plays: { player: PlayerId; token: CombatTokenId | null }[];
+  } | null;
   placementCurrent: PlayerId;
   /** Сколько карт осталось в колоде (порядок скрыт). */
   deckSize: number;

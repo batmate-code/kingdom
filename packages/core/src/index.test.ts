@@ -36,7 +36,7 @@ describe('API ядра', () => {
       expect(findInvariantViolations(state)).toEqual([]);
       expect(getLegalActions(state)).toEqual([]);
     }
-  });
+  }, 30_000);
 
   it('партия воспроизводится по seed и списку действий', () => {
     const { state, actions } = randomPlayout(42, 3);

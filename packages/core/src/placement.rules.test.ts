@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { getLegalActions } from './engine';
+import type { Action } from './types';
 import { act, moveWorker, newGame, place, placeActions, res, turnTo } from './testing';
 
 const start = () => turnTo(newGame(), 0);
@@ -67,6 +69,8 @@ describe('Размещение', () => {
       ['chancery', 1],
     ] as const;
     for (const [loc, slot] of order) s = place(s, loc, slot);
+    // Бои: жетоны боя и Шпионы — первый вариант (Приманка, остаться).
+    while (s.round === 1 && s.pending) s = act(s, getLegalActions(s)[0] as Action);
     expect(s.round).toBe(2);
     // Новый раунд начинается с драфта.
     expect(s.phase).toBe('draft');

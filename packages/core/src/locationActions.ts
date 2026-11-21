@@ -239,8 +239,17 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
-  // Жетон Комиссариата — этап 3.
-  commissariatToken: notYetImplemented as SlotHandler<SlotActionOf<'commissariatToken'>>,
+  // Взять жетон Комиссариата и выбрать регион: в бою там сила рабочих госпиталя идёт тебе.
+  // Жетон один: взявший позже (в том числе копией через Подполье) забирает его.
+  commissariatToken: {
+    mandatory: true,
+    options: () => REGION_ORDER.map((region) => ({ kind: 'commissariat', region })),
+    apply(c, player, _ctx, _action, choice) {
+      if (choice.kind !== 'commissariat') mismatch(choice);
+      c.draft.commissariat = { owner: player, region: choice.region };
+      c.events.push({ type: 'commissariatTaken', player, region: choice.region });
+    },
+  },
 
   revive: {
     mandatory: false,

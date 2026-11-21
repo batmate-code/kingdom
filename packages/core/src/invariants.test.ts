@@ -49,6 +49,13 @@ describe('Инварианты ловят испорченное состоян�
     });
     expect(findInvariantViolations(s)).toHaveLength(2);
   });
+
+  it('Потерянный жетон боя', () => {
+    const s = edit(ok, (d) => {
+      d.players[0]!.combatTokens.hand.attack = 0;
+    });
+    expect(findInvariantViolations(s).join()).toMatch(/жетонов боя attack/);
+  });
 });
 
 describe('Нестандартное число раундов', () => {

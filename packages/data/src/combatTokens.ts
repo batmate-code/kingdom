@@ -9,6 +9,19 @@ export const COMBAT_TOKENS: Readonly<Record<CombatTokenId, CombatTokenDef>> = {
   decoy: { id: 'decoy', name: 'Приманка', count: 5, strength: 0 },
 };
 
+/**
+ * Порядок перечисления жетонов в действиях. Приманка первой: «первый допустимый вариант»
+ * (простые боты, тесты) ничего не меняет в бою.
+ */
+export const COMBAT_TOKEN_ORDER: readonly CombatTokenId[] = [
+  'decoy',
+  'attack',
+  'defense',
+  'massacre',
+  'domination',
+  'retreat',
+];
+
 /** Сыгранные жетоны возвращаются в руку в конце этого раунда. */
 export const COMBAT_TOKENS_REFRESH_AFTER_ROUND = 3;
 

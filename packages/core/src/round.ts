@@ -1,4 +1,5 @@
 import {
+  COMBAT_TOKENS_REFRESH_AFTER_ROUND,
   LAIR_STASH_PER_ROUND,
   LOCATION_ORDER,
   LOCATION_PROFESSION_TOKENS,
@@ -6,6 +7,7 @@ import {
   type LocationId,
   type ProfessionId,
 } from '@vampire/data';
+import { refreshCombatTokens } from './combat';
 import type { Ctx } from './context';
 import { clearOffer, dealDraft } from './draft';
 import { canTakePlacementTurn } from './placement';
@@ -53,9 +55,11 @@ export function placementTurn(c: Ctx, first: boolean): void {
     }
   }
   d.phase = 'combat';
-  d.tasks.unshift(...REGION_ORDER.map((region) => ({ t: 'combat' as const, region })), {
-    t: 'startUpkeep' as const,
-  });
+  d.tasks.unshift(
+    { t: 'spyMoves' },
+    ...REGION_ORDER.map((region) => ({ t: 'combat' as const, region })),
+    { t: 'startUpkeep' },
+  );
 }
 
 /**
@@ -67,6 +71,8 @@ export function finishRound(c: Ctx): void {
   for (const w of d.workers) w.position = { kind: 'reserve' };
   for (const loc of LOCATION_ORDER) d.locations[loc].slot2Locked = false;
   d.powerTokens = [];
+  d.commissariat = null;
+  if (d.round === COMBAT_TOKENS_REFRESH_AFTER_ROUND) refreshCombatTokens(c);
   clearOffer(c);
   if (!d.lair.visited) d.lair.stash += LAIR_STASH_PER_ROUND;
   d.lair.visited = false;

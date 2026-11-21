@@ -1,4 +1,12 @@
-import { applyCombatReward } from './combat';
+import {
+  applyCombatReward,
+  applyCombatToken,
+  applyRetreat,
+  applySpyMove,
+  combatTokenOptions,
+  laterRegions,
+  spyDestinations,
+} from './combat';
 import type { Ctx } from './context';
 import { applyDraftPick, applyUpgrade, draftOptions, upgradeOptions } from './draft';
 import { applyLocationChoice, locationChoices } from './locationActions';
@@ -83,6 +91,27 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
     ],
     apply: (c, d, action) =>
       applyExecutioner(c, d.player, expectAction(action, 'executioner').target),
+  },
+  spyMove: {
+    autoResolve: true,
+    legal: (state, d) => [
+      { type: 'spyMove', region: null },
+      ...spyDestinations(state, d.workerId).map((region): Action => ({ type: 'spyMove', region })),
+    ],
+    apply: (c, d, action) => applySpyMove(c, d.workerId, expectAction(action, 'spyMove').region),
+  },
+  combatToken: {
+    autoResolve: true,
+    legal: (state, d) =>
+      combatTokenOptions(state, d.player).map((token): Action => ({ type: 'combatToken', token })),
+    apply: (c, d, action) =>
+      applyCombatToken(c, d.player, expectAction(action, 'combatToken').token),
+  },
+  retreat: {
+    autoResolve: true,
+    legal: (_state, d) => laterRegions(d.region).map((to): Action => ({ type: 'retreat', to })),
+    apply: (c, d, action) =>
+      applyRetreat(c, d.player, d.region, expectAction(action, 'retreat').to),
   },
 };
 

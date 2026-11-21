@@ -1,5 +1,7 @@
 import {
   CHARACTERS,
+  COMBAT_TOKENS,
+  COMBAT_TOKEN_ORDER,
   GAME,
   LOCATION_ORDER,
   REGION_ORDER,
@@ -26,6 +28,13 @@ export function findInvariantViolations(state: GameState): string[] {
         errors.push(`игрок ${i}: влияние ${region} = ${v}`);
       }
     }
+    // Жетоны боя: каждый из набора либо в руке, либо в сбросе.
+    for (const t of COMBAT_TOKEN_ORDER) {
+      const { hand, discard } = p.combatTokens;
+      if (hand[t] < 0 || discard[t] < 0 || hand[t] + discard[t] !== COMBAT_TOKENS[t].count) {
+        errors.push(`игрок ${i}: жетонов боя ${t} в руке ${hand[t]}, в сбросе ${discard[t]}`);
+      }
+    }
     const count = state.workers.filter((w) => w.owner === i).length;
     if (count !== GAME.workersPerPlayer) errors.push(`игрок ${i}: рабочих ${count}`);
   });
@@ -41,6 +50,7 @@ export function findInvariantViolations(state: GameState): string[] {
     if (state.locations[loc].slot2Locked && slot2 > 0)
       errors.push(`${loc}: рабочий в закрытом слоте 2`);
   }
+  if (state.combat !== null && state.phase !== 'combat') errors.push('бой идёт вне фазы боёв');
   if (state.lair.stash < 0) errors.push('копилка Логова отрицательна');
 
   // Персонаж и профессия у рабочего всегда вместе.

@@ -1,6 +1,14 @@
-import { CHARACTER_ORDER, GAME, LOCATION_ORDER, type LocationId } from '@vampire/data';
+import {
+  CHARACTER_ORDER,
+  COMBAT_TOKENS,
+  COMBAT_TOKEN_ORDER,
+  GAME,
+  LOCATION_ORDER,
+  type CombatTokenId,
+  type LocationId,
+} from '@vampire/data';
 import { produce } from 'immer';
-import { resolveCombat } from './combat';
+import { combatOutcome, revealCombat, startCombat, startSpyMoves } from './combat';
 import { resolveConfig, type GameConfigInput } from './config';
 import type { Ctx } from './context';
 import { assertInvariants } from './invariants';
@@ -26,7 +34,19 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
   askLocationAction: (c, task) => {
     c.draft.pending = { kind: 'locationAction', player: task.player, context: task.context };
   },
-  combat: (c, task) => resolveCombat(c, task.region),
+  spyMoves: (c) => startSpyMoves(c),
+  askSpyMove: (c, task) => {
+    c.draft.pending = { kind: 'spyMove', player: task.player, workerId: task.workerId };
+  },
+  combat: (c, task) => startCombat(c, task.region),
+  askCombatToken: (c, task) => {
+    c.draft.pending = { kind: 'combatToken', player: task.player, region: task.region };
+  },
+  revealCombat: (c, task) => revealCombat(c, task.region),
+  askRetreat: (c, task) => {
+    c.draft.pending = { kind: 'retreat', player: task.player, region: task.region };
+  },
+  combatOutcome: (c, task) => combatOutcome(c, task.region),
   askDraft: (c, task) => {
     // Если выбирать нечего (колода кончилась при нестандартном числе раундов) — шаг пропускается.
     if (draftOptions(c.draft, task.player, task.circle).length === 0) return;
@@ -77,6 +97,14 @@ function stableKey(value: unknown): string {
   );
 }
 
+/** Счётчик по каждому виду жетона боя. */
+function tokenRecord(count: (t: CombatTokenId) => number): Record<CombatTokenId, number> {
+  return COMBAT_TOKEN_ORDER.reduce<Partial<Record<CombatTokenId, number>>>(
+    (acc, t) => ({ ...acc, [t]: count(t) }),
+    {},
+  ) as Record<CombatTokenId, number>;
+}
+
 /** Создать партию и получить события её начала (выкладка 1-го раунда и т. п.). */
 export function createGameWithEvents(input: GameConfigInput, seed: number): ApplyResult {
   const config = resolveConfig(input);
@@ -94,6 +122,10 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
       influence: { forest: 0, valley: 0, city: 0 },
       passed: false,
       draftPick: { character: null, profession: null },
+      combatTokens: {
+        hand: tokenRecord((t) => COMBAT_TOKENS[t].count),
+        discard: tokenRecord(() => 0),
+      },
     })),
     workers: Array.from({ length: n }, (_, owner) =>
       Array.from({ length: GAME.workersPerPlayer }, (_, i) => ({
@@ -109,6 +141,9 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     cityEntryRaisedRegions: [],
     firstToMax: {},
     powerTokens: [],
+    commissariat: null,
+    buildings: [],
+    combat: null,
     placementCurrent: 0,
     deck: [...CHARACTER_ORDER],
     discard: [],
@@ -164,7 +199,7 @@ export function isTerminal(state: GameState): boolean {
 /**
  * Наблюдение игрока собирается из явного списка открытых полей: новое поле состояния
  * не попадёт сюда, пока его сознательно не объявят открытым. Скрытые сейчас: rng, tasks,
- * порядок колоды (виден только её размер).
+ * порядок колоды (виден только её размер), чужие жетоны боя до вскрытия.
  */
 export function getObservation(state: GameState, player: PlayerId): Observation {
   return {
@@ -180,6 +215,16 @@ export function getObservation(state: GameState, player: PlayerId): Observation 
     cityEntryRaisedRegions: state.cityEntryRaisedRegions,
     firstToMax: state.firstToMax,
     powerTokens: state.powerTokens,
+    commissariat: state.commissariat,
+    buildings: state.buildings,
+    combat: state.combat && {
+      region: state.combat.region,
+      revealed: state.combat.revealed,
+      plays: state.combat.plays.map(({ player: p, token }) => ({
+        player: p,
+        token: state.combat?.revealed || p === player ? token : null,
+      })),
+    },
     placementCurrent: state.placementCurrent,
     deckSize: state.deck.length,
     discard: state.discard,
