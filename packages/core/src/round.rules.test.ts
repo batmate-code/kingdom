@@ -44,20 +44,29 @@ describe('Конец раунда', () => {
     expect(s.powerTokens).toEqual([]);
   });
 
-  it('Логово: +1 руда в копилку, если туда никто не приходил', () => {
+  it('Логово: +1 руда в копилку, если второй слот никто не занял', () => {
     let s = passAll(newGame());
     expect(s.lair.stash).toBe(1);
     s = passAll(s);
     expect(s.lair.stash).toBe(2);
   });
 
-  it('Логово: копилка не растёт, если кто-то приходил (даже во второй слот)', () => {
+  it('Логово (автор, 22.11): копилка растёт и при посещении первого слота', () => {
     let s = edit(turnTo(newGame(), 0), (d) => {
       d.lair.stash = 2;
     });
     s = place(s, 'lair', 1);
     s = passAll(s);
-    expect(s.lair.stash).toBe(2);
+    expect(s.lair.stash).toBe(3);
+  });
+
+  it('Логово: копилка не растёт, если второй слот заняли (копилку забрали — с нуля)', () => {
+    let s = edit(turnTo(newGame(), 0), (d) => {
+      d.lair.stash = 2;
+    });
+    s = place(s, 'lair', 2);
+    s = passAll(s);
+    expect(s.lair.stash).toBe(0);
   });
 
   it('Первый игрок переходит по часовой стрелке', () => {

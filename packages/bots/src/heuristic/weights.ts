@@ -18,6 +18,12 @@ export const WEIGHTS = {
 
   /** Персонаж на рабочем: ценность за каждый оставшийся раунд (эффект при размещении). */
   characterPerRound: 0.25,
+  /**
+   * Надбавка за каждую кровь содержания: «дорогие персонажи сильнее». Турнир 2 × 100 партий
+   * с надбавкой 0.12 (heuristic-v3): бот брал персонажей с содержанием 3 в 92–95% выкладок и
+   * выигрывал реже (~28% при норме 33%), поэтому по умолчанию 0.
+   */
+  characterPerUpkeep: 0,
   /** Профессия на рабочем: ценность за раунд; Шпиону больше — он сильнее в бою. */
   professionPerRound: 0.1,
   spyPerRound: 0.2,
@@ -57,7 +63,15 @@ export const WEIGHTS = {
 export type Weights = typeof WEIGHTS;
 
 /** Первая версия бота: кровь всегда стоит как золото (для сравнения в турнирах). */
-export const WEIGHTS_V1: Weights = { ...WEIGHTS, bloodSurplus: 1, bloodReserve: 0 };
+export const WEIGHTS_V1: Weights = {
+  ...WEIGHTS,
+  bloodSurplus: 1,
+  bloodReserve: 0,
+  characterPerUpkeep: 0,
+};
+
+/** Эксперимент: дорогие персонажи в приоритете (надбавка за каждую кровь содержания). */
+export const WEIGHTS_V3: Weights = { ...WEIGHTS, characterPerUpkeep: 0.12 };
 
 /** Параметры перебора. */
 export const SEARCH = {

@@ -32,7 +32,11 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     id: 'lair',
     name: 'Логово',
     region: 'forest',
-    slots: [{ kind: 'gain', gain: { ore: 1 } }, { kind: 'lairStash' }],
+    slots: [
+      { kind: 'gain', gain: { ore: 1 } },
+      // Ответ автора (22.11): 4 крови → 1 руда + копилка (OQ-46: обмен один раз).
+      { kind: 'lairStash', bloodPerOre: 4, maxExchanges: 1 },
+    ],
   },
   mass: {
     id: 'mass',

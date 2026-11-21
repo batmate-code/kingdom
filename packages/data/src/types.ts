@@ -39,7 +39,8 @@ export type SlotAction =
   /** Получить фиксированные ресурсы. */
   | { kind: 'gain'; gain: Partial<Resources> }
   /** Логово, второй слот: забрать всю накопленную руду. */
-  | { kind: 'lairStash' }
+  /** Логово, второй слот: забрать копилку руды и до maxExchanges раз bloodPerOre крови → 1 руда. */
+  | { kind: 'lairStash'; bloodPerOre: number; maxExchanges: number }
   /** Месса: одно направление до maxTimes раз, unit золота → rate крови или unit крови → rate золота. */
   | { kind: 'mass'; unit: number; rate: number; maxTimes: number }
   /** Рынок: один обмен — buyCost золота/крови → ore руды или ore руды → sellGain золота/крови. */

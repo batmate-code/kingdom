@@ -120,10 +120,12 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
   for (const worker of own) {
     if (worker.character === null) continue;
     const prof = worker.profession === 'spy' ? w.spyPerRound : w.professionPerRound;
-    value += rounds * (w.characterPerRound + prof - CHARACTERS[worker.character].upkeep * bloodVp);
+    const upkeep = CHARACTERS[worker.character].upkeep;
+    value += rounds * (w.characterPerRound + upkeep * (w.characterPerUpkeep - bloodVp) + prof);
   }
   if (p.draftPick.character) {
-    value += rounds * (w.characterPerRound - CHARACTERS[p.draftPick.character].upkeep * bloodVp);
+    const upkeep = CHARACTERS[p.draftPick.character].upkeep;
+    value += rounds * (w.characterPerRound + upkeep * (w.characterPerUpkeep - bloodVp));
   }
 
   // Нехватка крови на содержание в конце раунда.

@@ -1,4 +1,12 @@
-import { CHARACTERS, CHARACTER_ORDER, LOCATIONS, LOCATION_ORDER } from '@vampire/data';
+import {
+  CHARACTERS,
+  CHARACTER_ORDER,
+  LOCATIONS,
+  LOCATION_ORDER,
+  REGION_ORDER,
+  REGIONS,
+  TRACKS,
+} from '@vampire/data';
 import type { AggregateStats } from './stats';
 
 type Res = 'gold' | 'blood' | 'ore' | 'compromat';
@@ -14,6 +22,7 @@ const RES_NAME: Record<Res, string> = {
 export const REASON_NAME: Record<string, string> = {
   location: 'действие локации',
   lairStash: 'копилка Логова',
+  lairExchange: 'Логово (кровь → руда)',
   mass: 'Месса',
   market: 'Рынок',
   chancery: 'Канцелярия',
@@ -203,6 +212,58 @@ export function renderReport(s: AggregateStats, title: string): string {
         RES_NAME[r],
         ...Array.from({ length: rounds }, (_, i) => f1((s.stockByRound[r][i] ?? 0) / perPlayer)),
       ]),
+    ),
+    '',
+  );
+  // Влияние
+  const INF_REASON: Record<string, string> = {
+    combat: 'победа в бою',
+    combatBonus: 'награда за бой',
+    domination: 'Доминирование',
+    cityHall: 'Ратуша',
+    diplomat: 'Дипломат',
+    manipulator: 'Манипулятор',
+    renegade: 'Ренегат',
+    blackmailer: 'Шантажист',
+    patron: 'Меценат',
+  };
+  out.push('## Влияние', '');
+  out.push(
+    'На игрока за партию: приход влияния по источникам, итог в конце; доля игроков, дошедших до каждой отметки ПО; как часто разыгрывается жетон первенства и строится Цитадель.',
+    '',
+  );
+  out.push(
+    table(
+      [
+        'Регион',
+        'Итог у игрока',
+        'Итог у победителя',
+        'Отметки (доля игроков)',
+        'Первенство',
+        'Цитадель',
+        'Источники',
+      ],
+      REGION_ORDER.map((region) => {
+        const x = s.influence[region];
+        const name = REGIONS.find((r) => r.id === region)?.name ?? region;
+        if (!x) return [name, '—', '—', '—', '—', '—', '—'];
+        const marks = TRACKS[region].vpMarks
+          .map((m) => `${m}: ${pct((x.reached[String(m)] ?? 0) / perPlayer)}`)
+          .join(', ');
+        const sources = Object.entries(x.gained)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${INF_REASON[k] ?? k} ${f2(v / perPlayer)}`)
+          .join(', ');
+        return [
+          name,
+          f1(x.final / perPlayer),
+          f1(x.finalWinners / Math.max(1, s.winnerSlots)),
+          marks,
+          pct(x.firstToMax / g),
+          pct(x.citadels / g),
+          sources || '—',
+        ];
+      }),
     ),
     '',
   );

@@ -198,7 +198,7 @@ export type ChanceryConversion = { to: 'goldBlood'; gold: number; blood: number 
 export type LocationChoice =
   | { kind: 'skip' }
   | { kind: 'gain' }
-  | { kind: 'lairStash' }
+  | { kind: 'lairStash'; exchanges: number }
   | { kind: 'mass'; from: 'gold' | 'blood'; times: number }
   | { kind: 'marketBuy'; pay: GoldBlood }
   | { kind: 'marketSell'; receive: GoldBlood; alchemy?: true }
@@ -254,6 +254,7 @@ export type Action =
 export type ResourceReason =
   | 'location'
   | 'lairStash'
+  | 'lairExchange'
   | 'mass'
   | 'market'
   | 'chancery'
@@ -272,6 +273,18 @@ export type ResourceReason =
   | 'character'
   | 'snitch'
   | 'oreBaron';
+
+/** Откуда изменение влияния (для журнала и статистики). */
+export type InfluenceReason =
+  | 'combat'
+  | 'combatBonus'
+  | 'domination'
+  | 'cityHall'
+  | 'diplomat'
+  | 'manipulator'
+  | 'renegade'
+  | 'blackmailer'
+  | 'patron';
 
 /** Откуда престиж: постройка или сохранённый персонаж в конце игры. */
 export type PrestigeReason = 'building' | 'character' | 'effect';
@@ -317,7 +330,14 @@ export type GameEvent =
       delta: Partial<Resources>;
       reason: ResourceReason;
     }
-  | { type: 'influenceChanged'; player: PlayerId; region: RegionId; from: number; to: number }
+  | {
+      type: 'influenceChanged';
+      player: PlayerId;
+      region: RegionId;
+      from: number;
+      to: number;
+      reason: InfluenceReason;
+    }
   | { type: 'cityEntryRaised'; region: RegionId; cost: number }
   | { type: 'workerRevived'; player: PlayerId; workerId: string }
   | {
@@ -391,7 +411,8 @@ export interface GameState {
   players: PlayerState[];
   workers: Worker[];
   locations: Record<LocationId, LocationState>;
-  lair: { stash: number; visited: boolean };
+  /** Копилка Логова и занят ли в этом раунде его второй слот (тогда копилка не растёт). */
+  lair: { stash: number; slot2Taken: boolean };
   /** Регионы, в которых уже сработал рубеж подорожания входа в Город. */
   cityEntryRaisedRegions: RegionId[];
   /** Кто первым достиг максимума трека (жетон первенства). */

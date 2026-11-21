@@ -153,7 +153,7 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
       })),
     ).flat(),
     locations,
-    lair: { stash: 0, visited: false },
+    lair: { stash: 0, slot2Taken: false },
     cityEntryRaisedRegions: [],
     firstToMax: {},
     powerTokens: [],

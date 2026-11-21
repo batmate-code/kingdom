@@ -41,6 +41,26 @@ describe('Локации Леса', () => {
     expect(res(s, 0).ore).toBe(4);
     expect(s.lair.stash).toBe(0);
   });
+
+  it('Логово, второй слот (автор, 22.11): копилка + по желанию 4 крови → 1 руда, один раз (OQ-46)', () => {
+    let s = edit(start({ blood: 9 }), (d) => {
+      d.lair.stash = 2;
+    });
+    s = place(s, 'lair', 2);
+    expect(locationOptions(s)).toEqual([
+      { kind: 'lairStash', exchanges: 0 },
+      { kind: 'lairStash', exchanges: 1 },
+    ]);
+    s = choose(s, { kind: 'lairStash', exchanges: 1 });
+    expect(res(s, 0)).toMatchObject({ ore: 2 + 1, blood: 9 - 4 });
+    expect(s.lair.stash).toBe(0);
+  });
+
+  it('Логово, второй слот: без 4 крови — только копилка', () => {
+    const s = place(start({ blood: 3 }), 'lair', 2);
+    // Единственный вариант выбран сам.
+    expect(res(s, 0)).toMatchObject({ ore: 0, blood: 3 });
+  });
 });
 
 describe('Локации Долины', () => {

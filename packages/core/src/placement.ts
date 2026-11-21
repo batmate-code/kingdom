@@ -155,7 +155,8 @@ export function applyPlace(
     pay(c, player, { gold }, 'cityEntry');
     c.events.push({ type: 'cityEntryPaid', player, gold });
   }
-  if (a.location === 'lair') d.lair.visited = true;
+  // Копилка Логова не растёт, если кто-то занял его второй слот (ответ автора, 22.11).
+  if (a.location === 'lair' && a.slot === 2) d.lair.slot2Taken = true;
 
   let actionSlot: SlotIndex = a.slot;
   if (a.displace) {

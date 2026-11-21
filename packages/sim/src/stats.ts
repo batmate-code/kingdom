@@ -5,7 +5,7 @@ import {
   type PlayerId,
   type ResourceReason,
 } from '@vampire/core';
-import type { CharacterId, LocationId } from '@vampire/data';
+import { REGION_ORDER, TRACKS, type CharacterId, type LocationId } from '@vampire/data';
 
 type Res = 'gold' | 'blood' | 'ore' | 'compromat';
 const RES: readonly Res[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -55,6 +55,20 @@ export interface GameStats {
   stockByRound: Record<Res, number[]>;
   /** Сброшенные на содержании пары (нехватка крови или выбор). */
   upkeepDiscards: number;
+  /** Влияние по регионам: приход и потери по причинам, итог (сумма по игрокам и у победителей). */
+  influence: Record<
+    string,
+    {
+      gained: Record<string, number>;
+      lost: Record<string, number>;
+      final: number;
+      finalWinners: number;
+      /** Сколько игроков закончили на отметке ПО или выше: по каждой отметке. */
+      reached: Record<string, number>;
+      firstToMax: number;
+      citadels: number;
+    }
+  >;
 }
 
 /** Сборщик: события партии по ходу, финальное состояние в конце. */
@@ -71,6 +85,7 @@ export class StatsCollector {
   private readonly flows: { player: PlayerId; res: Res; amount: number; reason: ResourceReason }[] =
     [];
   private readonly stock: Record<Res, number[]> = { gold: [], blood: [], ore: [], compromat: [] };
+  private readonly influence: { region: string; amount: number; reason: string }[] = [];
 
   onEvents(events: readonly GameEvent[], state: GameState): void {
     for (const e of events) {
@@ -106,6 +121,9 @@ export class StatsCollector {
             const amount = e.delta[r];
             if (amount) this.flows.push({ player: e.player, res: r, amount, reason: e.reason });
           }
+          break;
+        case 'influenceChanged':
+          this.influence.push({ region: e.region, amount: e.to - e.from, reason: e.reason });
           break;
         case 'roundEnded':
           for (const r of RES) {
@@ -192,6 +210,29 @@ export class StatsCollector {
       }
     });
 
+    const influence: GameStats['influence'] = {};
+    for (const region of REGION_ORDER) {
+      const reached: Record<string, number> = {};
+      for (const m of TRACKS[region].vpMarks) {
+        reached[String(m)] = state.players.filter((p) => p.influence[region] >= m).length;
+      }
+      influence[region] = {
+        gained: {},
+        lost: {},
+        final: state.players.reduce((s, p) => s + p.influence[region], 0),
+        finalWinners: winners.reduce((s, w) => s + (state.players[w]?.influence[region] ?? 0), 0),
+        reached,
+        firstToMax: state.firstToMax[region] === undefined ? 0 : 1,
+        citadels: state.buildings.some((b) => b.type === 'citadel' && b.region === region) ? 1 : 0,
+      };
+    }
+    for (const f of this.influence) {
+      const r = influence[f.region];
+      if (!r) continue;
+      const bucket = f.amount > 0 ? r.gained : r.lost;
+      bucket[f.reason] = (bucket[f.reason] ?? 0) + Math.abs(f.amount);
+    }
+
     return {
       players: state.players.length,
       winners,
@@ -201,6 +242,7 @@ export class StatsCollector {
       resources,
       stockByRound: this.stock,
       upkeepDiscards: this.discards.filter((d) => d.reason === 'upkeep').length,
+      influence,
     };
   }
 }
@@ -215,6 +257,7 @@ export interface AggregateStats {
   resources: GameStats['resources'];
   stockByRound: Record<Res, number[]>;
   upkeepDiscards: number;
+  influence: GameStats['influence'];
 }
 
 export function emptyAggregate(): AggregateStats {
@@ -229,6 +272,7 @@ export function emptyAggregate(): AggregateStats {
     ) as GameStats['resources'],
     stockByRound: { gold: [], blood: [], ore: [], compromat: [] },
     upkeepDiscards: 0,
+    influence: {},
   };
 }
 
@@ -257,4 +301,5 @@ export function mergeStats(agg: AggregateStats, g: GameStats): void {
   addNumbers(agg.characters, g.characters);
   addNumbers(agg.resources, g.resources);
   addNumbers(agg.stockByRound, g.stockByRound);
+  addNumbers(agg.influence, g.influence);
 }

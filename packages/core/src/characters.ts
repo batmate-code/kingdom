@@ -165,8 +165,8 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
         : REGION_ORDER.filter((r) => r !== e.region).map((to) => ({ kind: 'manipulator', to })),
     apply(c, e, choice) {
       const { to } = expect(choice, 'manipulator');
-      changeInfluence(c, e.player, e.region, -P.manipulator.influenceLoss);
-      changeInfluence(c, e.player, to, P.manipulator.influenceGain);
+      changeInfluence(c, e.player, e.region, -P.manipulator.influenceLoss, 'manipulator');
+      changeInfluence(c, e.player, to, P.manipulator.influenceGain, 'manipulator');
     },
   },
   mason: {
@@ -210,7 +210,7 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     },
     apply(c, e, choice) {
       const { gain: what } = expect(choice, 'renegade');
-      changeInfluence(c, e.player, e.region, -P.renegade.influenceLoss);
+      changeInfluence(c, e.player, e.region, -P.renegade.influenceLoss, 'renegade');
       if (what === 'ore') changeResources(c, e.player, { ore: P.renegade.ore }, 'character');
       else {
         c.draft.tasks.unshift({
@@ -241,7 +241,9 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     },
   },
   infiltrator: passive, // встаёт в занятый первый слот — placementsFor
-  diplomat: { apply: (c, e) => changeInfluence(c, e.player, e.region, P.diplomat.influence) },
+  diplomat: {
+    apply: (c, e) => changeInfluence(c, e.player, e.region, P.diplomat.influence, 'diplomat'),
+  },
   oreMiner: gain({ ore: P.oreMiner.ore }),
   intriguer: {
     options: (state, e) =>
@@ -291,8 +293,8 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       const { target } = expect(choice, 'blackmailer');
       const { compromatCost, influence } = P.blackmailer;
       changeResources(c, e.player, { compromat: -compromatCost }, 'character');
-      changeInfluence(c, target, e.region, -influence);
-      changeInfluence(c, e.player, e.region, influence);
+      changeInfluence(c, target, e.region, -influence, 'blackmailer');
+      changeInfluence(c, e.player, e.region, influence, 'blackmailer');
     },
   },
 
@@ -330,7 +332,7 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       const { baseInfluence, perBuilding, maxInfluence } = P.patron;
       const buildings = ownBuildingsIn(c.draft, e.player, e.region);
       const amount = Math.min(maxInfluence, baseInfluence + perBuilding * buildings);
-      changeInfluence(c, e.player, e.region, amount);
+      changeInfluence(c, e.player, e.region, amount, 'patron');
     },
   },
   oreBaron: {

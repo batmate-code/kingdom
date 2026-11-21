@@ -82,14 +82,29 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
+  // Копилка забирается всегда; дополнительно — обмен крови на руду (ответ автора, 22.11).
   lairStash: {
     mandatory: true,
-    options: () => [{ kind: 'lairStash' }],
-    apply(c, player, _ctx, _action, choice) {
+    options(state, player, _ctx, action) {
+      const max = Math.min(
+        action.maxExchanges,
+        Math.floor(res(state, player).blood / action.bloodPerOre),
+      );
+      return Array.from({ length: max + 1 }, (_, exchanges) => ({ kind: 'lairStash', exchanges }));
+    },
+    apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'lairStash') mismatch(choice);
       const ore = c.draft.lair.stash;
       c.draft.lair.stash = 0;
       changeResources(c, player, { ore }, 'lairStash');
+      if (choice.exchanges > 0) {
+        changeResources(
+          c,
+          player,
+          { blood: -action.bloodPerOre * choice.exchanges, ore: choice.exchanges },
+          'lairExchange',
+        );
+      }
     },
   },
 
@@ -382,7 +397,7 @@ const HANDLERS: HandlerRegistry = {
       if (!offer) throw new Error(`Нет обмена ${choice.offer} в Ратуше`);
       const cost = { ore: offer.ore };
       pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'cityHall');
-      changeInfluence(c, player, choice.region, offer.influence);
+      changeInfluence(c, player, choice.region, offer.influence, 'cityHall');
     },
   },
 };

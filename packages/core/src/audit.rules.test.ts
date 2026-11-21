@@ -49,7 +49,10 @@ describe('Данные: числа таблиц против rules.md и изо�
       { kind: 'gain', gain: { blood: 3 } },
       { kind: 'gain', gain: { blood: 2 } },
     ]);
-    expect(slots('lair')).toEqual([{ kind: 'gain', gain: { ore: 1 } }, { kind: 'lairStash' }]);
+    expect(slots('lair')).toEqual([
+      { kind: 'gain', gain: { ore: 1 } },
+      { kind: 'lairStash', bloodPerOre: 4, maxExchanges: 1 },
+    ]);
     expect(slots('mass')).toEqual([
       { kind: 'mass', unit: 1, rate: 3, maxTimes: 2 },
       { kind: 'mass', unit: 1, rate: 2, maxTimes: 2 },

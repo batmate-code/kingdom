@@ -276,9 +276,9 @@ export function combatOutcome(c: Ctx, region: RegionId): void {
   d.combat = null;
   d.combatWinners[region] = winner;
   if (winner === null) return;
-  changeInfluence(c, winner, region, COMBAT_REWARD.influence);
+  changeInfluence(c, winner, region, COMBAT_REWARD.influence, 'combat');
   if (effects.get(winner)?.domination) {
-    changeInfluence(c, winner, region, COMBAT_REWARD.dominationInfluence);
+    changeInfluence(c, winner, region, COMBAT_REWARD.dominationInfluence, 'domination');
   }
   d.pending = { kind: 'combatReward', player: winner, region };
 }
@@ -290,8 +290,9 @@ export function applyCombatReward(
   region: RegionId,
   choice: 'influence' | 'build',
 ): void {
-  if (choice === 'influence') changeInfluence(c, player, region, COMBAT_REWARD.bonusInfluence);
-  else c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'reward', region } });
+  if (choice === 'influence') {
+    changeInfluence(c, player, region, COMBAT_REWARD.bonusInfluence, 'combatBonus');
+  } else c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'reward', region } });
 }
 
 /** Конец 3-го раунда: весь набор жетонов боя возвращается в руку. */

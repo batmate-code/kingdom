@@ -105,8 +105,8 @@ export function finishRound(c: Ctx): void {
   d.commissariat = null;
   if (d.round === COMBAT_TOKENS_REFRESH_AFTER_ROUND) refreshCombatTokens(c);
   clearOffer(c);
-  if (!d.lair.visited) d.lair.stash += LAIR_STASH_PER_ROUND;
-  d.lair.visited = false;
+  if (!d.lair.slot2Taken) d.lair.stash += LAIR_STASH_PER_ROUND;
+  d.lair.slot2Taken = false;
   c.events.push({ type: 'roundEnded', round: d.round });
 
   if (d.round >= d.config.rounds) {

@@ -7,7 +7,7 @@ import {
   type Resources,
 } from '@vampire/data';
 import type { Ctx } from './context';
-import type { GameState, PlayerId, ResourceReason } from './types';
+import type { GameState, InfluenceReason, PlayerId, ResourceReason } from './types';
 
 const RESOURCE_IDS: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
 
@@ -96,7 +96,13 @@ export function cityEntryCost(state: GameState): number {
  * Изменить влияние в пределах трека (0..max). Здесь же срабатывают рубежи трека:
  * подорожание входа в Город (один раз на регион) и жетон первенства.
  */
-export function changeInfluence(c: Ctx, player: PlayerId, region: RegionId, amount: number): void {
+export function changeInfluence(
+  c: Ctx,
+  player: PlayerId,
+  region: RegionId,
+  amount: number,
+  reason: InfluenceReason,
+): void {
   const p = c.draft.players[player];
   if (!p) throw new Error(`Нет игрока ${player}`);
   const track = TRACKS[region];
@@ -104,7 +110,7 @@ export function changeInfluence(c: Ctx, player: PlayerId, region: RegionId, amou
   const to = Math.max(0, Math.min(track.max, from + amount));
   if (to === from) return;
   p.influence[region] = to;
-  c.events.push({ type: 'influenceChanged', player, region, from, to });
+  c.events.push({ type: 'influenceChanged', player, region, from, to, reason });
 
   const raiseAt = track.cityEntryRaiseAt;
   if (raiseAt !== null && to >= raiseAt && !c.draft.cityEntryRaisedRegions.includes(region)) {
