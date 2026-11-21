@@ -684,3 +684,18 @@ describe('Крайние случаи персонажей (ревью)', () => 
     expect(res(s, 0).gold).toBe(4);
   });
 });
+
+describe('Найдено симулятором', () => {
+  it('Ночной охотник в закрытом слоте, сброшенный на содержании, не нарушает инварианты', () => {
+    let s = moveWorker(start({ blood: 0 }), 'p1w0', at('mine'));
+    s = edit(s, (d) => {
+      d.locations.mine.slot2Locked = true;
+    });
+    s = give(s, 'p0w0', 'nightHunter');
+    s = place(s, 'mine', 2, { workerId: 'p0w0' });
+    // Содержание 2 крови — нечем платить, пара сбрасывается, пока рабочий ещё в слоте.
+    s = finishRound(s);
+    expect(worker(s, 'p0w0')?.character).toBeNull();
+    expect(s.round).toBe(2);
+  });
+});

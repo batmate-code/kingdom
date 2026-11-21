@@ -48,6 +48,11 @@ export interface GameConfigInput {
   rules?: Partial<RuleToggles>;
 }
 
+/** Допустимые значения строковых переключателей (для проверки ввода в симуляторе и интерфейсе). */
+export const RULE_CHOICES: Partial<Record<keyof RuleToggles, readonly string[]>> = {
+  effectOrder: ['fixed', 'free'],
+};
+
 export const DEFAULT_RULES: RuleToggles = {
   locationActionOptional: true,
   allowDisplaceOwnWorker: true,

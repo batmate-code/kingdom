@@ -7,7 +7,7 @@ export {
   getObservation,
   isTerminal,
 } from './engine';
-export { DEFAULT_RULES, resolveConfig } from './config';
+export { DEFAULT_RULES, RULE_CHOICES, resolveConfig } from './config';
 export type { GameConfig, GameConfigInput, RuleToggles } from './config';
 export { cityEntryCost } from './economy';
 export { combatStrengths } from './combat';

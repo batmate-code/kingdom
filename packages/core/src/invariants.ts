@@ -56,10 +56,13 @@ export function findInvariantViolations(state: GameState): string[] {
     }
     const slot2 = workersAt(state, loc, 2).length;
     if (slot2 > SLOT_CAPACITY.second) errors.push(`${loc}: больше одного рабочего в слоте 2`);
-    // Ночной охотник может стоять в закрытом втором слоте.
+    // В закрытый второй слот встаёт только Ночной охотник. На шаге содержания его персонажа могут
+    // сбросить, а рабочий ещё стоит в слоте, поэтому на всей фазе содержания проверка не делается
+    // (новых размещений там нет — ошибка движка в этой фазе сюда не попадёт).
     const lockedBy = workersAt(state, loc, 2).filter((w) => w.character !== 'nightHunter');
-    if (state.locations[loc].slot2Locked && lockedBy.length > 0)
+    if (state.locations[loc].slot2Locked && lockedBy.length > 0 && state.phase !== 'upkeep') {
       errors.push(`${loc}: рабочий в закрытом слоте 2`);
+    }
   }
   // Здания: не больше 3 одного типа у игрока, одна Цитадель на регион, один дом на участок.
   state.players.forEach((p, i) => {

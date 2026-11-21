@@ -1,4 +1,5 @@
 import type { Action, Observation } from '@vampire/core';
+import { createGroupedRandomBot, createRandomBot } from './random';
 
 /** Бот выбирает одно из допустимых действий по тому, что видит его игрок. */
 export interface Bot {
@@ -14,4 +15,19 @@ export const firstLegalBot: Bot = {
     if (!action) throw new Error('Нет допустимых действий');
     return action;
   },
+};
+
+export {
+  actionPath,
+  createGroupedRandomBot,
+  createRandomBot,
+  pickByPath,
+  withoutEarlyPass,
+} from './random';
+
+/** Боты по имени — для симулятора и интерфейса. Каждому креслу свой seed. */
+export const BOT_FACTORIES: Readonly<Record<string, (seed: number) => Bot>> = {
+  'first-legal': () => firstLegalBot,
+  random: (seed) => createRandomBot(seed),
+  'random-grouped': (seed) => createGroupedRandomBot(seed),
 };
