@@ -82,6 +82,17 @@ function clearCard(c: Ctx, workerId: string): void {
   c.draft.cardStash = c.draft.cardStash.filter((s) => s.workerId !== workerId);
 }
 
+/** Ещё не разыгранное действие локации рабочего (в очереди или в свободном выборе). */
+function pendingLocationStep(state: GameState, workerId: string) {
+  for (const t of state.tasks) {
+    if (t.t === 'askLocationAction' && t.context.workerId === workerId) return t;
+    if (t.t === 'chooseEffect' && t.workerId === workerId && t.remaining.includes('location')) {
+      return t;
+    }
+  }
+  return null;
+}
+
 const EFFECTS: Record<CharacterId, CharacterEffect> = {
   // Содержание 0
   scavenger: {
@@ -215,16 +226,17 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   officer: { apply: (c, e) => addPowerTokens(c, e.player, e.region, P.officer.powerTokens) },
   madman: {
     // Вместо действия своей локации — первый слот другой локации региона (не посещение).
-    options: (_state, e) =>
-      LOCATION_ORDER.filter((l) => l !== e.location && LOCATIONS[l].region === e.region).map(
-        (location) => ({ kind: 'madman', location }),
-      ),
+    // При свободном порядке действие локации может быть уже разыграно — тогда заменять нечего.
+    options: (state, e) =>
+      pendingLocationStep(state, e.workerId)
+        ? LOCATION_ORDER.filter((l) => l !== e.location && LOCATIONS[l].region === e.region).map(
+            (location) => ({ kind: 'madman', location }),
+          )
+        : [],
     apply(c, e, choice) {
       const { location } = expect(choice, 'madman');
-      const task = c.draft.tasks.find(
-        (t) => t.t === 'askLocationAction' && t.context.workerId === e.workerId,
-      );
-      if (!task || task.t !== 'askLocationAction') throw new Error('Нет действия локации');
+      const task = pendingLocationStep(c.draft, e.workerId);
+      if (!task) throw new Error('Нет действия локации');
       task.context = { workerId: e.workerId, location, slot: 1, copy: true };
     },
   },

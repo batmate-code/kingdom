@@ -12,7 +12,7 @@ import { onDisplaced, onVisit } from './buildings';
 import { onCharacterDisplaced } from './characters';
 import type { Ctx } from './context';
 import { canAfford, changeResources, cityEntryCost, pay } from './economy';
-import type { Action, GameState, PlayerId, Worker } from './types';
+import type { Action, EffectStep, GameState, PlayerId, Task, Worker } from './types';
 
 // Циклический импорт placement ↔ characters безопасен: на верхнем уровне модулей нет вызовов.
 
@@ -180,16 +180,95 @@ export function applyPlace(
 
   // Палач — только при размещении прямо в первый слот; переход туда вытеснением — OQ-16.
   const directSlot1 = a.slot === 1 || (a.displace && d.config.rules.executionerOnDisplacement);
+  const context = { workerId: worker.id, location: a.location, slot: actionSlot, copy: false };
+  const steps: Task[] =
+    d.config.rules.effectOrder === 'free'
+      ? [
+          {
+            t: 'chooseEffect',
+            player,
+            workerId: worker.id,
+            remaining: effectSteps(worker, directSlot1),
+            context,
+            directSlot1,
+            character: worker.character,
+          },
+        ]
+      : [
+          { t: 'characterEffect', player, workerId: worker.id },
+          { t: 'askLocationAction', player, context },
+          { t: 'professionEffect', player, workerId: worker.id, directSlot1 },
+        ];
   d.tasks.unshift(
-    { t: 'characterEffect', player, workerId: worker.id },
-    {
-      t: 'askLocationAction',
-      player,
-      context: { workerId: worker.id, location: a.location, slot: actionSlot, copy: false },
-    },
-    { t: 'professionEffect', player, workerId: worker.id, directSlot1 },
+    ...steps,
     ...(opts.nested ? [] : [{ t: 'placementTurn' as const, first: false }]),
   );
+}
+
+/**
+ * Эффекты, из которых выбирают при свободном порядке. Персонаж и профессия без эффекта
+ * в выбор не попадают, чтобы не плодить пустые решения.
+ */
+function effectSteps(worker: Worker, directSlot1: boolean): EffectStep[] {
+  const steps: EffectStep[] = [];
+  if (worker.character !== null) steps.push('character');
+  steps.push('location');
+  if (
+    worker.profession === 'architect' ||
+    (worker.profession === 'executioner' && directSlot1) ||
+    // Лицемер может сменить себе профессию на Архитектора или Палача.
+    worker.character === 'hypocrite'
+  ) {
+    steps.push('profession');
+  }
+  return steps;
+}
+
+/** Свободный порядок: варианты следующего эффекта (единственный разыгрывается сам). */
+export function effectOrderOptions(state: GameState, workerId: string): EffectStep[] {
+  const task = state.tasks.find((t) => t.t === 'chooseEffect' && t.workerId === workerId);
+  return task?.t === 'chooseEffect' ? task.remaining : [];
+}
+
+/** Шаг свободного порядка: спросить игрока или, если эффект один, сразу его разыграть. */
+export function chooseEffect(c: Ctx, task: Extract<Task, { t: 'chooseEffect' }>): void {
+  if (task.remaining.length === 0) return;
+  // Решение ссылается на задачу, поэтому она возвращается в очередь до выбора.
+  c.draft.tasks.unshift(task);
+  if (task.remaining.length === 1) {
+    applyEffectOrder(c, task.workerId, task.remaining[0] as EffectStep);
+    return;
+  }
+  c.draft.pending = { kind: 'effectOrder', player: task.player, workerId: task.workerId };
+}
+
+/** Разыграть выбранный эффект; остальные остаются в выборе. */
+export function applyEffectOrder(c: Ctx, workerId: string, step: EffectStep): void {
+  const d = c.draft;
+  const i = d.tasks.findIndex((t) => t.t === 'chooseEffect' && t.workerId === workerId);
+  const task = d.tasks[i];
+  if (!task || task.t !== 'chooseEffect' || !task.remaining.includes(step)) {
+    throw new Error(`Эффект ${step} рабочего ${workerId} уже разыгран`);
+  }
+  const rest = { ...task, remaining: task.remaining.filter((s) => s !== step) };
+  const worker = getWorker(d, workerId);
+  const now: Task[] = [];
+  if (step === 'character') {
+    // Персонаж сменился (Таверна) — новый в этом размещении не срабатывает.
+    if (worker.character === task.character) {
+      now.push({ t: 'characterEffect', player: task.player, workerId });
+    }
+  } else if (step === 'location') {
+    now.push({ t: 'askLocationAction', player: task.player, context: task.context });
+  } else {
+    now.push({
+      t: 'professionEffect',
+      player: task.player,
+      workerId,
+      directSlot1: task.directSlot1,
+    });
+  }
+  d.tasks.splice(i, 1, ...now, rest);
 }
 
 /**

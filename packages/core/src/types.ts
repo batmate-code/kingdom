@@ -134,10 +134,15 @@ export type Decision =
   | { kind: 'combatToken'; player: PlayerId; region: RegionId }
   /** Эффект персонажа с выбором (обязателен, если есть хоть один вариант). */
   | { kind: 'character'; player: PlayerId; workerId: string }
+  /** Свободный порядок: какой эффект размещения разыграть следующим. */
+  | { kind: 'effectOrder'; player: PlayerId; workerId: string }
   /** Построить здание (или отказаться) по праву стройки. */
   | { kind: 'build'; player: PlayerId; source: BuildSource }
   /** Отступление: выбрать регион, где боя ещё не было. */
   | { kind: 'retreat'; player: PlayerId; region: RegionId };
+
+/** Эффект размещения: персонаж, действие локации, профессия. */
+export type EffectStep = 'character' | 'location' | 'profession';
 
 /** Шаги партии, которые выполняются автоматически, пока не потребуется чьё-то решение. */
 export type Task =
@@ -158,6 +163,19 @@ export type Task =
   | { t: 'characterEffect'; player: PlayerId; workerId: string }
   /** Эффект профессии размещённого рабочего (после действия локации). */
   | { t: 'professionEffect'; player: PlayerId; workerId: string; directSlot1: boolean }
+  /**
+   * Свободный порядок эффектов: какие ещё не разыграны. `character` — персонаж на момент
+   * размещения (новый персонаж из Таверны в этом размещении не срабатывает).
+   */
+  | {
+      t: 'chooseEffect';
+      player: PlayerId;
+      workerId: string;
+      remaining: EffectStep[];
+      context: LocationActionContext;
+      directSlot1: boolean;
+      character: CharacterId | null;
+    }
   | { t: 'askDraft'; player: PlayerId; circle: 1 | 2 }
   | { t: 'askUpgrade'; player: PlayerId }
   | { t: 'askExecutioner'; player: PlayerId; workerId: string }
@@ -223,6 +241,7 @@ export type Action =
   | { type: 'combatReward'; choice: 'influence' | 'build' }
   | { type: 'build'; choice: BuildChoice | null }
   | { type: 'character'; choice: CharacterChoice }
+  | { type: 'effectOrder'; effect: EffectStep }
   | { type: 'draftPick'; pick: DraftPick }
   | { type: 'upgrade'; choice: UpgradeChoice }
   | { type: 'upkeep'; choice: 'pay' | 'discard' }

@@ -57,13 +57,20 @@ export function busyWorkerIds(state: GameState): Set<string> {
   const ids = new Set<string>();
   for (const t of state.tasks) {
     if (t.t === 'askLocationAction') ids.add(t.context.workerId);
-    else if (t.t === 'characterEffect' || t.t === 'professionEffect' || t.t === 'askExecutioner') {
+    else if (t.t === 'chooseEffect') {
+      if (t.remaining.length > 0) ids.add(t.workerId);
+    } else if (
+      t.t === 'characterEffect' ||
+      t.t === 'professionEffect' ||
+      t.t === 'askExecutioner'
+    ) {
       ids.add(t.workerId);
     } else if (t.t === 'askBuild' && t.source.kind === 'architect') ids.add(t.source.workerId);
   }
   const p = state.pending;
   if (p?.kind === 'locationAction') ids.add(p.context.workerId);
-  else if (p?.kind === 'character' || p?.kind === 'executioner') ids.add(p.workerId);
-  else if (p?.kind === 'build' && p.source.kind === 'architect') ids.add(p.source.workerId);
+  else if (p?.kind === 'character' || p?.kind === 'executioner' || p?.kind === 'effectOrder') {
+    ids.add(p.workerId);
+  } else if (p?.kind === 'build' && p.source.kind === 'architect') ids.add(p.source.workerId);
   return ids;
 }

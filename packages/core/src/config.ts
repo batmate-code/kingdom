@@ -26,6 +26,11 @@ export interface RuleToggles {
   cryptCountsSecondSlot: boolean;
   /** OQ-29 (закрыт, автор: нет): право стройки Канцелярии можно купить, когда строить не на что. */
   buildRightWithoutOptions: boolean;
+  /**
+   * Порядок эффектов при размещении: 'fixed' — персонаж → локация → профессия (OQ-21, автор);
+   * 'free' — игрок сам выбирает, какой эффект разыграть следующим (эксперимент для баланса).
+   */
+  effectOrder: 'fixed' | 'free';
 }
 
 export interface GameConfig {
@@ -54,6 +59,7 @@ export const DEFAULT_RULES: RuleToggles = {
   commissariatWithoutWorkers: false,
   cryptCountsSecondSlot: true,
   buildRightWithoutOptions: false,
+  effectOrder: 'fixed',
 };
 
 export function resolveConfig(input: GameConfigInput = {}): GameConfig {

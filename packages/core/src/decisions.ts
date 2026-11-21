@@ -12,7 +12,13 @@ import { applyCharacterChoice, characterOptions } from './characters';
 import type { Ctx } from './context';
 import { applyDraftPick, applyUpgrade, draftOptions, upgradeOptions } from './draft';
 import { applyLocationChoice, locationChoices } from './locationActions';
-import { applyPass, applyPlace, placementActions } from './placement';
+import {
+  applyEffectOrder,
+  applyPass,
+  applyPlace,
+  effectOrderOptions,
+  placementActions,
+} from './placement';
 import { applyExecutioner, executionerTargets } from './professions';
 import type { Action, Decision, GameState } from './types';
 import { applyUpkeep, upkeepOptions } from './upkeep';
@@ -75,6 +81,18 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
       })),
     apply: (c, d, action) =>
       applyCharacterChoice(c, d.player, d.workerId, expectAction(action, 'character').choice),
+  },
+  effectOrder: {
+    autoResolve: true,
+    legal: (state, d) =>
+      effectOrderOptions(state, d.workerId).map((effect): Action => ({
+        type: 'effectOrder',
+        effect,
+      })),
+    apply: (c, d, action) => {
+      // Задача выбора уже в очереди (её вернул chooseEffect).
+      applyEffectOrder(c, d.workerId, expectAction(action, 'effectOrder').effect);
+    },
   },
   build: {
     autoResolve: true,

@@ -10,7 +10,7 @@ import {
 import { produce } from 'immer';
 import { buildOptions } from './buildings';
 import { startCharacterEffect } from './characters';
-import { professionEffect } from './placement';
+import { chooseEffect, professionEffect } from './placement';
 import { combatOutcome, revealCombat, startCombat, startSpyMoves } from './combat';
 import { resolveConfig, type GameConfigInput } from './config';
 import type { Ctx } from './context';
@@ -55,6 +55,7 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
   },
   combatOutcome: (c, task) => combatOutcome(c, task.region),
   characterEffect: (c, task) => startCharacterEffect(c, task.player, task.workerId),
+  chooseEffect: (c, task) => chooseEffect(c, task),
   professionEffect: (c, task) => professionEffect(c, task.player, task.workerId, task.directSlot1),
   askBuild: (c, task) => {
     // Строить нечего — право сгорает без решения.
