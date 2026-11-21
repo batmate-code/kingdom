@@ -57,7 +57,9 @@ function resourceValue(r: Resources, bloodNeed: number, w: Weights): number {
     r.gold * w.resource.gold +
     (fullBlood + surplus * w.bloodSurplus) * w.resource.blood +
     r.ore * w.resource.ore +
-    r.compromat * w.resource.compromat
+    r.compromat * w.resource.compromat +
+    Math.floor(r.compromat / 2) * w.compromatPair +
+    (r.compromat % 2) * w.compromatSingle
   );
 }
 
@@ -79,9 +81,19 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
 
   // Влияние и первенство: ПО по позициям уже в getScores, сверху — продвижение к отметкам.
   let value = score?.firstVp ?? 0;
+  const hope = Math.min(1, 0.5 + future);
   for (const region of REGION_ORDER) {
-    const marks = TRACKS[region].vpMarks;
-    value += trackValue(p.influence[region], marks, w) * Math.min(1, 0.5 + future);
+    const track = TRACKS[region];
+    const inf = p.influence[region];
+    value += trackValue(inf, track.vpMarks, w) * hope;
+    // Порог Цитадели, пока она в регионе не построена.
+    const citadelFree = !state.buildings.some((b) => b.type === 'citadel' && b.region === region);
+    if (citadelFree && inf >= track.citadelAt) value += w.citadelAccess * future;
+    // Гонка за жетоном первенства: ценность пути к максимуму у лидера трека.
+    if (state.firstToMax[region] === undefined) {
+      const best = Math.max(...state.players.map((o) => o.influence[region]));
+      if (inf > 0 && inf === best) value += ((w.firstTokenChase * inf) / track.max) * hope;
+    }
   }
 
   // Престиж с учётом будущего престижа за персонажей.
