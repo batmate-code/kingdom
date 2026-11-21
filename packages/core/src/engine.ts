@@ -9,6 +9,8 @@ import {
 } from '@vampire/data';
 import { produce } from 'immer';
 import { buildOptions } from './buildings';
+import { startCharacterEffect } from './characters';
+import { professionEffect } from './placement';
 import { combatOutcome, revealCombat, startCombat, startSpyMoves } from './combat';
 import { resolveConfig, type GameConfigInput } from './config';
 import type { Ctx } from './context';
@@ -33,6 +35,10 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
   startRound: (c) => startRound(c),
   placementTurn: (c, task) => placementTurn(c, task.first),
   askLocationAction: (c, task) => {
+    // Страховка: рабочего, не доигравшего ход, убрать с поля нельзя (OQ-44), но если его
+    // всё же нет в слоте — действия нет.
+    const w = c.draft.workers.find((x) => x.id === task.context.workerId);
+    if (w?.position.kind !== 'slot') return;
     c.draft.pending = { kind: 'locationAction', player: task.player, context: task.context };
   },
   spyMoves: (c) => startSpyMoves(c),
@@ -48,6 +54,8 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
     c.draft.pending = { kind: 'retreat', player: task.player, region: task.region };
   },
   combatOutcome: (c, task) => combatOutcome(c, task.region),
+  characterEffect: (c, task) => startCharacterEffect(c, task.player, task.workerId),
+  professionEffect: (c, task) => professionEffect(c, task.player, task.workerId, task.directSlot1),
   askBuild: (c, task) => {
     // Строить нечего — право сгорает без решения.
     if (buildOptions(c.draft, task.player, task.source).length === 0) return;
@@ -151,6 +159,10 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     commissariat: null,
     buildings: [],
     combat: null,
+    combatWinners: {},
+    cardStash: [],
+    blocks: [],
+    alchemy: null,
     placementCurrent: 0,
     deck: [...CHARACTER_ORDER],
     discard: [],
@@ -232,6 +244,10 @@ export function getObservation(state: GameState, player: PlayerId): Observation 
         token: state.combat?.revealed || p === player ? token : null,
       })),
     },
+    combatWinners: state.combatWinners,
+    cardStash: state.cardStash,
+    blocks: state.blocks,
+    alchemy: state.alchemy,
     placementCurrent: state.placementCurrent,
     deckSize: state.deck.length,
     discard: state.discard,

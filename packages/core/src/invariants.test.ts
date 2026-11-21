@@ -40,9 +40,10 @@ describe('Инварианты ловят испорченное состоян�
     expect(findInvariantViolations(s)).toHaveLength(2);
   });
 
-  it('два рабочих в одном слоте и рабочий в закрытом слоте', () => {
+  it('три рабочих в первом слоте и рабочий в закрытом слоте', () => {
     let s = moveWorker(ok, 'p0w0', { kind: 'slot', location: 'mine', slot: 1 });
     s = moveWorker(s, 'p1w0', { kind: 'slot', location: 'mine', slot: 1 });
+    s = moveWorker(s, 'p2w1', { kind: 'slot', location: 'mine', slot: 1 }); // третий — даже с Лазутчиком нельзя
     s = moveWorker(s, 'p2w0', { kind: 'slot', location: 'lair', slot: 2 });
     s = edit(s, (d) => {
       d.locations.lair.slot2Locked = true;

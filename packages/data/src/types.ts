@@ -40,14 +40,15 @@ export type SlotAction =
   | { kind: 'gain'; gain: Partial<Resources> }
   /** Логово, второй слот: забрать всю накопленную руду. */
   | { kind: 'lairStash' }
-  /** Месса: одно направление до maxTimes раз, 1 золото → rate крови или 1 кровь → rate золота. */
-  | { kind: 'mass'; rate: number; maxTimes: number }
-  /** Рынок: один обмен — buyCost золота/крови → 1 руда или 1 руда → sellGain золота/крови. */
-  | { kind: 'market'; buyCost: number; sellGain: number }
-  /** Канцелярия, первый слот: (А) до maxTimes раз 1 компромат → goldBlood золота/крови или ore руды; (Б) buildRightCost компромата → право стройки. */
+  /** Месса: одно направление до maxTimes раз, unit золота → rate крови или unit крови → rate золота. */
+  | { kind: 'mass'; unit: number; rate: number; maxTimes: number }
+  /** Рынок: один обмен — buyCost золота/крови → ore руды или ore руды → sellGain золота/крови. */
+  | { kind: 'market'; ore: number; buyCost: number; sellGain: number }
+  /** Канцелярия, первый слот: (А) до maxTimes раз conversionCost компромата → goldBlood золота/крови или ore руды; (Б) buildRightCost компромата → право стройки. */
   | {
       kind: 'chancery';
       maxTimes: number;
+      conversionCost: number;
       goldBlood: number;
       ore: number;
       buildRightCost: number;

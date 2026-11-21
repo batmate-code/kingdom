@@ -51,16 +51,16 @@ describe('Данные: числа таблиц против rules.md и изо�
     ]);
     expect(slots('lair')).toEqual([{ kind: 'gain', gain: { ore: 1 } }, { kind: 'lairStash' }]);
     expect(slots('mass')).toEqual([
-      { kind: 'mass', rate: 3, maxTimes: 2 },
-      { kind: 'mass', rate: 2, maxTimes: 2 },
+      { kind: 'mass', unit: 1, rate: 3, maxTimes: 2 },
+      { kind: 'mass', unit: 1, rate: 2, maxTimes: 2 },
     ]);
     expect(slots('market')).toEqual([
-      { kind: 'market', buyCost: 2, sellGain: 4 },
-      { kind: 'market', buyCost: 3, sellGain: 3 },
+      { kind: 'market', ore: 1, buyCost: 2, sellGain: 4 },
+      { kind: 'market', ore: 1, buyCost: 3, sellGain: 3 },
     ]);
     expect(slots('tavern')[1]).toEqual({ kind: 'gain', gain: { gold: 1, blood: 1 } });
     expect(slots('chancery')).toEqual([
-      { kind: 'chancery', maxTimes: 2, goldBlood: 2, ore: 1, buildRightCost: 2 },
+      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 2, ore: 1, buildRightCost: 2 },
       { kind: 'chanceryBuild', compromatCost: 3 },
     ]);
     expect(slots('underground')).toEqual([

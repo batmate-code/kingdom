@@ -3,15 +3,23 @@ import {
   LOCATIONS,
   LOCATION_ORDER,
   PROFESSIONS,
+  SLOT_CAPACITY,
+  type LocationId,
   type SlotIndex,
 } from '@vampire/data';
-import { distinctWorkers, getWorker, reserveWorkers, slotCapacity, workersAt } from './board';
+import { busyWorkerIds, distinctWorkers, getWorker, reserveWorkers, workersAt } from './board';
 import { onDisplaced, onVisit } from './buildings';
+import { onCharacterDisplaced } from './characters';
 import type { Ctx } from './context';
 import { canAfford, changeResources, cityEntryCost, pay } from './economy';
 import type { Action, GameState, PlayerId, Worker } from './types';
 
+// Циклический импорт placement ↔ characters безопасен: на верхнем уровне модулей нет вызовов.
+
 type PlaceAction = Extract<Action, { type: 'place' }>;
+
+/** Вариант размещения без типа действия (общий для хода и для Комиссара). */
+export type Placement = Omit<PlaceAction, 'type'>;
 
 function paysCityEntry(w: Worker): boolean {
   return !(w.profession !== null && PROFESSIONS[w.profession].freeCityEntry);
@@ -23,26 +31,44 @@ function canDisplace(
   player: PlayerId,
   worker: Worker,
   occupants: readonly Worker[],
-  location: (typeof LOCATION_ORDER)[number],
+  location: LocationId,
 ): boolean {
   if (occupants.length === 0) return false;
   const token = state.locations[location].professionToken;
   if (worker.profession === null || worker.profession !== token) return false;
-  return occupants.every(
-    (o) =>
-      !(o.profession !== null && PROFESSIONS[o.profession].immuneToDisplacement) &&
-      (state.config.rules.allowDisplaceOwnWorker || o.owner !== player),
+  const busy = busyWorkerIds(state);
+  return (
+    occupants.every((o) => !busy.has(o.id)) &&
+    occupants.every(
+      (o) =>
+        !(o.profession !== null && PROFESSIONS[o.profession].immuneToDisplacement) &&
+        (state.config.rules.allowDisplaceOwnWorker || o.owner !== player),
+    )
   );
 }
 
-/** Все варианты размещения для игрока (без паса). */
-export function placementActions(state: GameState, player: PlayerId): PlaceAction[] {
-  const out: PlaceAction[] = [];
-  for (const worker of distinctWorkers(reserveWorkers(state, player))) {
+export function isBlocked(state: GameState, location: LocationId): boolean {
+  return state.blocks.some((b) => b.location === location);
+}
+
+/**
+ * Варианты размещения рабочих `workers`. Лазутчик может встать в занятый первый слот (вторым),
+ * Ночной охотник — в закрытый второй слот; локации Интригана закрыты для всех.
+ * `freeEntry` — без платы за вход в Город (Комиссар).
+ */
+export function placementsFor(
+  state: GameState,
+  player: PlayerId,
+  workers: readonly Worker[],
+  freeEntry = false,
+): Placement[] {
+  const out: Placement[] = [];
+  for (const worker of distinctWorkers(workers)) {
     for (const location of LOCATION_ORDER) {
-      const def = LOCATIONS[location];
+      if (isBlocked(state, location)) continue;
       if (
-        def.region === 'city' &&
+        !freeEntry &&
+        LOCATIONS[location].region === 'city' &&
         paysCityEntry(worker) &&
         !canAfford(state, player, { gold: cityEntryCost(state) })
       ) {
@@ -50,9 +76,17 @@ export function placementActions(state: GameState, player: PlayerId): PlaceActio
       }
       const slot1 = workersAt(state, location, 1);
       const slot2 = workersAt(state, location, 2);
-      const base = { type: 'place', workerId: worker.id, location } as const;
-      if (slot1.length < slotCapacity(location, 1)) out.push({ ...base, slot: 1, displace: false });
-      if (slot2.length < slotCapacity(location, 2) && !state.locations[location].slot2Locked) {
+      const base = { workerId: worker.id, location } as const;
+      const infiltrates =
+        worker.character === 'infiltrator' &&
+        slot1.length >= SLOT_CAPACITY.first &&
+        slot1.length < SLOT_CAPACITY.firstWithInfiltrator;
+      if (slot1.length < SLOT_CAPACITY.first || infiltrates) {
+        out.push({ ...base, slot: 1, displace: false });
+      }
+      const slot2Open =
+        !state.locations[location].slot2Locked || worker.character === 'nightHunter';
+      if (slot2.length < SLOT_CAPACITY.second && slot2Open) {
         out.push({ ...base, slot: 2, displace: false });
         if (canDisplace(state, player, worker, slot1, location)) {
           out.push({ ...base, slot: 2, displace: true });
@@ -63,16 +97,60 @@ export function placementActions(state: GameState, player: PlayerId): PlaceActio
   return out;
 }
 
+/** Все варианты размещения для хода игрока (без паса). */
+export function placementActions(state: GameState, player: PlayerId): PlaceAction[] {
+  return placementsFor(state, player, reserveWorkers(state, player)).map((p) => ({
+    type: 'place',
+    ...p,
+  }));
+}
+
+/** Вытеснить рабочего в госпиталь: компенсация владельцу и хуки (Аббатство, Доносчик, Мародёр). */
+export function displaceWorker(
+  c: Ctx,
+  by: Worker,
+  victim: Worker,
+  location: LocationId,
+  method: 'slot2' | 'executioner',
+): void {
+  victim.position = { kind: 'hospital' };
+  const compensation =
+    method === 'executioner' ? DISPLACEMENT.executionerCompensation : DISPLACEMENT.compensation;
+  changeResources(
+    c,
+    victim.owner,
+    { compromat: compensation },
+    method === 'slot2' ? 'displaced' : 'executioner',
+  );
+  c.events.push({
+    type: 'workerDisplaced',
+    by: by.owner,
+    workerId: victim.id,
+    owner: victim.owner,
+    location,
+    method,
+  });
+  // OQ-33 (автор): Аббатство платит за каждого вытесненного рабочего (пара — +4).
+  onDisplaced(c, location);
+  onCharacterDisplaced(c, by, victim);
+}
+
 /**
- * Размещение: плата за вход в Город, вытеснение (по желанию), затем действие слота.
- * Порядок по правилам: эффект персонажа (этап 5) → действие локации.
+ * Размещение: плата за вход в Город, вытеснение (по желанию), затем по порядку
+ * эффект персонажа → действие локации → эффект профессии (OQ-21).
+ * `nested` — размещение внутри чужого эффекта (Комиссар): вход бесплатный, ход не передаётся.
  */
-export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
+export function applyPlace(
+  c: Ctx,
+  player: PlayerId,
+  a: Placement,
+  opts: { nested?: boolean } = {},
+): void {
   const d = c.draft;
   const worker = getWorker(d, a.workerId);
   const def = LOCATIONS[a.location];
 
-  if (def.region === 'city' && paysCityEntry(worker)) {
+  if (!opts.nested && def.region === 'city' && paysCityEntry(worker)) {
     const gold = cityEntryCost(d);
     pay(c, player, { gold }, 'cityEntry');
     c.events.push({ type: 'cityEntryPaid', player, gold });
@@ -82,18 +160,7 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
   let actionSlot: SlotIndex = a.slot;
   if (a.displace) {
     for (const victim of workersAt(d, a.location, 1)) {
-      victim.position = { kind: 'hospital' };
-      changeResources(c, victim.owner, { compromat: DISPLACEMENT.compensation }, 'displaced');
-      c.events.push({
-        type: 'workerDisplaced',
-        by: player,
-        workerId: victim.id,
-        owner: victim.owner,
-        location: a.location,
-        method: 'slot2',
-      });
-      // OQ-33 (автор): Аббатство платит за каждого вытесненного рабочего (пара — +4).
-      onDisplaced(c, a.location);
+      displaceWorker(c, worker, victim, a.location, 'slot2');
     }
     // Вытесняющий выполняет действие второго слота, но встаёт в первый; второй слот закрывается.
     worker.position = { kind: 'slot', location: a.location, slot: 1 };
@@ -111,35 +178,37 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
   });
   onVisit(c, player, a.location);
 
-  // Палач срабатывает при размещении в первый слот; переход туда вытеснением — OQ-16.
-  // OQ-21 (автор): способности при выставлении идут по порядку персонаж → локация → профессия,
-  // поэтому Палач вытесняет после действия локации.
-  const executioner =
-    worker.profession === 'executioner' &&
-    (a.slot === 1 || (a.displace && d.config.rules.executionerOnDisplacement))
-      ? [{ t: 'askExecutioner' as const, player, workerId: worker.id }]
-      : [];
-  // Архитектор: при размещении (в любой слот) может построить рядом со своей локацией.
-  const architect =
-    worker.profession === 'architect'
-      ? [
-          {
-            t: 'askBuild' as const,
-            player,
-            source: { kind: 'architect' as const, workerId: worker.id },
-          },
-        ]
-      : [];
+  // Палач — только при размещении прямо в первый слот; переход туда вытеснением — OQ-16.
+  const directSlot1 = a.slot === 1 || (a.displace && d.config.rules.executionerOnDisplacement);
   d.tasks.unshift(
+    { t: 'characterEffect', player, workerId: worker.id },
     {
       t: 'askLocationAction',
       player,
       context: { workerId: worker.id, location: a.location, slot: actionSlot, copy: false },
     },
-    ...executioner,
-    ...architect,
-    { t: 'placementTurn', first: false },
+    { t: 'professionEffect', player, workerId: worker.id, directSlot1 },
+    ...(opts.nested ? [] : [{ t: 'placementTurn' as const, first: false }]),
   );
+}
+
+/**
+ * Эффект профессии после действия локации. Профессию берём на этот момент (Лицемер мог её сменить).
+ * Палач — при размещении в первый слот; Архитектор — в любом слоте (OQ-30).
+ */
+export function professionEffect(
+  c: Ctx,
+  player: PlayerId,
+  workerId: string,
+  directSlot1: boolean,
+): void {
+  const worker = getWorker(c.draft, workerId);
+  if (worker.position.kind !== 'slot') return;
+  if (worker.profession === 'executioner' && directSlot1) {
+    c.draft.tasks.unshift({ t: 'askExecutioner', player, workerId });
+  } else if (worker.profession === 'architect') {
+    c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'architect', workerId } });
+  }
 }
 
 export function applyPass(c: Ctx, player: PlayerId): void {

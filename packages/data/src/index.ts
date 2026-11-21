@@ -5,4 +5,5 @@ export * from './professions';
 export * from './buildings';
 export * from './characters';
 export * from './combatTokens';
+export * from './effects';
 export * from './game';

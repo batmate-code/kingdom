@@ -1,5 +1,6 @@
 import { BUILDING_EFFECTS, CHARACTERS, HOSPITAL } from '@vampire/data';
 import { ownsCitadel } from './buildings';
+import { settleCardStash } from './characters';
 import { getWorker } from './board';
 import type { Ctx } from './context';
 import { discardPair, turnOrder } from './draft';
@@ -27,6 +28,7 @@ export function upkeepCost(state: GameState, worker: Worker): number {
 export function startUpkeep(c: Ctx): void {
   const d = c.draft;
   d.phase = 'upkeep';
+  settleCardStash(c);
   const tasks: Task[] = [];
   for (const player of turnOrder(d)) {
     for (const w of d.workers) {

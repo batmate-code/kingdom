@@ -9,10 +9,11 @@ import {
 } from '@vampire/data';
 import { refreshCombatTokens } from './combat';
 import type { Ctx } from './context';
-import { awardCharacterPrestige } from './prestige';
 import { clearOffer, dealDraft } from './draft';
 import { canTakePlacementTurn } from './placement';
+import { awardCharacterPrestige } from './prestige';
 import { shuffleInPlace } from './rng';
+import type { GameState, PlayerId } from './types';
 
 /**
  * Подготовка раунда: открыто раздать жетоны профессий локаций, выложить драфт.
@@ -45,17 +46,45 @@ export function startRound(c: Ctx): void {
 export function placementTurn(c: Ctx, first: boolean): void {
   const d = c.draft;
   d.phase = 'placement';
+  d.alchemy = null;
   const n = d.players.length;
   const start = first ? d.placementCurrent : d.placementCurrent + 1;
+  if (!turnOrderFrom(d, start).some((p) => canTakePlacementTurn(d, p))) {
+    // Размещение окончено: до владельцев блоков очередь не дошла — блоки ждут следующего раунда.
+    startCombats(c);
+    return;
+  }
   for (let k = 0; k < n; k++) {
     const player = (start + k) % n;
+    // Блок Интригана снимается в начале хода владельца — когда до него доходит очередь,
+    // даже если он спасовал (ответ автора).
+    unblockOwner(c, player);
     if (canTakePlacementTurn(d, player)) {
       d.placementCurrent = player;
       d.pending = { kind: 'placement', player };
       return;
     }
   }
+  startCombats(c);
+}
+
+function turnOrderFrom(state: GameState, start: number): PlayerId[] {
+  const n = state.players.length;
+  return Array.from({ length: n }, (_, k) => (start + k) % n);
+}
+
+function unblockOwner(c: Ctx, player: PlayerId): void {
+  const d = c.draft;
+  for (const b of d.blocks.filter((x) => x.owner === player)) {
+    c.events.push({ type: 'locationUnblocked', location: b.location });
+  }
+  d.blocks = d.blocks.filter((x) => x.owner !== player);
+}
+
+function startCombats(c: Ctx): void {
+  const d = c.draft;
   d.phase = 'combat';
+  d.combatWinners = {};
   d.tasks.unshift(
     { t: 'spyMoves' },
     ...REGION_ORDER.map((region) => ({ t: 'combat' as const, region })),
@@ -72,6 +101,7 @@ export function finishRound(c: Ctx): void {
   for (const w of d.workers) w.position = { kind: 'reserve' };
   for (const loc of LOCATION_ORDER) d.locations[loc].slot2Locked = false;
   d.powerTokens = [];
+  d.alchemy = null;
   d.commissariat = null;
   if (d.round === COMBAT_TOKENS_REFRESH_AFTER_ROUND) refreshCombatTokens(c);
   clearOffer(c);

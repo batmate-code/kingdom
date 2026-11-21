@@ -2,7 +2,7 @@ import { LOCATIONS, LOCATION_ORDER, REGION_ORDER, TRACKS, type SlotAction } from
 import { distinctWorkers, getWorker } from './board';
 import { buildOptions } from './buildings';
 import type { Ctx } from './context';
-import { changeInfluence, changeResources, pay } from './economy';
+import { alchemize, changeInfluence, changeResources, pay, paymentVariants } from './economy';
 import type {
   ChanceryConversion,
   GameState,
@@ -100,7 +100,7 @@ const HANDLERS: HandlerRegistry = {
       const out: LocationChoice[] = [];
       for (const from of ['gold', 'blood'] as const) {
         for (let times = 1; times <= action.maxTimes; times++) {
-          if (r[from] >= times) out.push({ kind: 'mass', from, times });
+          if (r[from] >= times * action.unit) out.push({ kind: 'mass', from, times });
         }
       }
       return out;
@@ -111,7 +111,7 @@ const HANDLERS: HandlerRegistry = {
       changeResources(
         c,
         player,
-        { [choice.from]: -choice.times, [to]: action.rate * choice.times },
+        { [choice.from]: -action.unit * choice.times, [to]: action.rate * choice.times },
         'mass',
       );
     },
@@ -125,26 +125,33 @@ const HANDLERS: HandlerRegistry = {
       for (const pay of goldBloodSplits(action.buyCost)) {
         if (r.gold >= pay.gold && r.blood >= pay.blood) out.push({ kind: 'marketBuy', pay });
       }
-      if (r.ore >= 1) {
+      for (const v of paymentVariants(state, player, { ore: action.ore })) {
         for (const receive of goldBloodSplits(action.sellGain)) {
-          out.push({ kind: 'marketSell', receive });
+          out.push(
+            v.alchemy
+              ? { kind: 'marketSell', receive, alchemy: true }
+              : { kind: 'marketSell', receive },
+          );
         }
       }
       return out;
     },
-    apply(c, player, _ctx, _action, choice) {
+    apply(c, player, _ctx, action, choice) {
       if (choice.kind === 'marketBuy') {
         changeResources(
           c,
           player,
-          { gold: -choice.pay.gold, blood: -choice.pay.blood, ore: 1 },
+          { gold: -choice.pay.gold, blood: -choice.pay.blood, ore: action.ore },
           'market',
         );
       } else if (choice.kind === 'marketSell') {
+        // Алхимик: вместо руды платится 1 золото (1 золото → 4 золота/крови — ответ автора).
+        const cost = { ore: action.ore };
+        pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'market');
         changeResources(
           c,
           player,
-          { ore: -1, gold: choice.receive.gold, blood: choice.receive.blood },
+          { gold: choice.receive.gold, blood: choice.receive.blood },
           'market',
         );
       } else {
@@ -165,7 +172,10 @@ const HANDLERS: HandlerRegistry = {
         })),
         { to: 'ore' },
       ];
-      const maxCount = Math.min(action.maxTimes, res(state, player).compromat);
+      const maxCount = Math.min(
+        action.maxTimes,
+        Math.floor(res(state, player).compromat / action.conversionCost),
+      );
       const out: LocationChoice[] = [];
       // Мультимножества конверсий размером 1..maxCount (индексы по неубыванию — без повторов).
       const build = (start: number, acc: ChanceryConversion[]) => {
@@ -186,12 +196,17 @@ const HANDLERS: HandlerRegistry = {
       if (choice.kind !== 'chancery') mismatch(choice);
       for (const conv of choice.conversions) {
         if (conv.to === 'ore') {
-          changeResources(c, player, { compromat: -1, ore: action.ore }, 'chancery');
+          changeResources(
+            c,
+            player,
+            { compromat: -action.conversionCost, ore: action.ore },
+            'chancery',
+          );
         } else {
           changeResources(
             c,
             player,
-            { compromat: -1, gold: conv.gold, blood: conv.blood },
+            { compromat: -action.conversionCost, gold: conv.gold, blood: conv.blood },
             'chancery',
           );
         }
@@ -277,15 +292,21 @@ const HANDLERS: HandlerRegistry = {
   revive: {
     mandatory: false,
     options(state, player, _ctx, action) {
-      if (res(state, player).ore < action.oreCost) return [];
       const inHospital = state.workers.filter(
         (w) => w.owner === player && w.position.kind === 'hospital',
       );
-      return distinctWorkers(inHospital).map((w) => ({ kind: 'revive', workerId: w.id }));
+      return paymentVariants(state, player, { ore: action.oreCost }).flatMap((v) =>
+        distinctWorkers(inHospital).map((w): LocationChoice =>
+          v.alchemy
+            ? { kind: 'revive', workerId: w.id, alchemy: true }
+            : { kind: 'revive', workerId: w.id },
+        ),
+      );
     },
     apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'revive') mismatch(choice);
-      pay(c, player, { ore: action.oreCost }, 'revive');
+      const cost = { ore: action.oreCost };
+      pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'revive');
       const w = c.draft.workers.find((x) => x.id === choice.workerId);
       if (!w || w.owner !== player || w.position.kind !== 'hospital') {
         throw new Error(`Рабочий ${choice.workerId} не в госпитале`);
@@ -321,6 +342,8 @@ const HANDLERS: HandlerRegistry = {
       offer.professions.splice(offer.professions.indexOf(choice.profession), 1, worker.profession);
       worker.character = choice.character;
       worker.profession = choice.profession;
+      // Ресурсы с карты старого персонажа (Доносчик, Рудный барон) уходят в банк (OQ-40, автор).
+      c.draft.cardStash = c.draft.cardStash.filter((s) => s.workerId !== worker.id);
       c.events.push({
         type: 'tavernSwapped',
         player,
@@ -338,12 +361,17 @@ const HANDLERS: HandlerRegistry = {
       if (!p) throw new Error(`Нет игрока ${player}`);
       const out: LocationChoice[] = [];
       action.offers.forEach((offer, index) => {
-        if (p.resources.ore < offer.ore) return;
-        for (const region of REGION_ORDER) {
-          // OQ-5: обмен в регионе с полным треком.
-          const full = p.influence[region] >= TRACKS[region].max;
-          if (full && !state.config.rules.cityHallAllowsFullTrack) continue;
-          out.push({ kind: 'cityHall', offer: index, region });
+        for (const v of paymentVariants(state, player, { ore: offer.ore })) {
+          for (const region of REGION_ORDER) {
+            // OQ-5: обмен в регионе с полным треком.
+            const full = p.influence[region] >= TRACKS[region].max;
+            if (full && !state.config.rules.cityHallAllowsFullTrack) continue;
+            out.push(
+              v.alchemy
+                ? { kind: 'cityHall', offer: index, region, alchemy: true }
+                : { kind: 'cityHall', offer: index, region },
+            );
+          }
         }
       });
       return out;
@@ -352,7 +380,8 @@ const HANDLERS: HandlerRegistry = {
       if (choice.kind !== 'cityHall') mismatch(choice);
       const offer = action.offers[choice.offer];
       if (!offer) throw new Error(`Нет обмена ${choice.offer} в Ратуше`);
-      pay(c, player, { ore: offer.ore }, 'cityHall');
+      const cost = { ore: offer.ore };
+      pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'cityHall');
       changeInfluence(c, player, choice.region, offer.influence);
     },
   },

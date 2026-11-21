@@ -106,6 +106,7 @@ export function combatStrengths(
   state: GameState,
   region: RegionId,
   excluded: readonly PlayerId[] = [],
+  opts: { commissariat?: boolean } = {},
 ): CombatStrength[] {
   const combat = state.combat?.region === region && state.combat.revealed ? state.combat : null;
   const effects = tokenEffects(combat?.plays ?? []);
@@ -124,7 +125,11 @@ export function combatStrengths(
     ) {
       strength += BUILDING_EFFECTS.forestCitadelStrength;
     }
-    if (state.commissariat?.owner === player && state.commissariat.region === region) {
+    if (
+      opts.commissariat !== false &&
+      state.commissariat?.owner === player &&
+      state.commissariat.region === region
+    ) {
       strength += hospitalStrength(state);
     }
     strength += effects.get(player)?.bonus ?? 0;
@@ -269,6 +274,7 @@ export function combatOutcome(c: Ctx, region: RegionId): void {
   const winner = combatWinner(strengths);
   c.events.push({ type: 'combatResolved', region, strengths, winner });
   d.combat = null;
+  d.combatWinners[region] = winner;
   if (winner === null) return;
   changeInfluence(c, winner, region, COMBAT_REWARD.influence);
   if (effects.get(winner)?.domination) {

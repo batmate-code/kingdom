@@ -276,7 +276,10 @@ describe('Архитектор (Профессии)', () => {
   });
 
   it('Может построить Цитадель своего региона (ответ автора)', () => {
-    let s = setWorker(start({ gold: 7, ore: 3 }), 'p0w0', { profession: 'architect' });
+    let s = setWorker(start({ gold: 7, ore: 3 }), 'p0w0', {
+      profession: 'architect',
+      character: 'bloodsucker',
+    });
     s = edit(s, (d) => {
       d.players[0]!.influence.forest = 4;
     });

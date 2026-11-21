@@ -39,8 +39,8 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Месса',
     region: 'valley',
     slots: [
-      { kind: 'mass', rate: 3, maxTimes: 2 },
-      { kind: 'mass', rate: 2, maxTimes: 2 },
+      { kind: 'mass', unit: 1, rate: 3, maxTimes: 2 },
+      { kind: 'mass', unit: 1, rate: 2, maxTimes: 2 },
     ],
   },
   market: {
@@ -48,8 +48,8 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Рынок',
     region: 'valley',
     slots: [
-      { kind: 'market', buyCost: 2, sellGain: 4 },
-      { kind: 'market', buyCost: 3, sellGain: 3 },
+      { kind: 'market', ore: 1, buyCost: 2, sellGain: 4 },
+      { kind: 'market', ore: 1, buyCost: 3, sellGain: 3 },
     ],
   },
   tavern: {
@@ -63,7 +63,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Канцелярия',
     region: 'city',
     slots: [
-      { kind: 'chancery', maxTimes: 2, goldBlood: 2, ore: 1, buildRightCost: 2 },
+      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 2, ore: 1, buildRightCost: 2 },
       { kind: 'chanceryBuild', compromatCost: 3 },
     ],
   },

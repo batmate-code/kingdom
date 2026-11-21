@@ -8,6 +8,7 @@ import {
   spyDestinations,
 } from './combat';
 import { applyBuild, buildOptions } from './buildings';
+import { applyCharacterChoice, characterOptions } from './characters';
 import type { Ctx } from './context';
 import { applyDraftPick, applyUpgrade, draftOptions, upgradeOptions } from './draft';
 import { applyLocationChoice, locationChoices } from './locationActions';
@@ -65,6 +66,16 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
     apply: (c, d, action) =>
       applyCombatReward(c, d.player, d.region, expectAction(action, 'combatReward').choice),
   },
+  character: {
+    autoResolve: true,
+    legal: (state, d) =>
+      characterOptions(state, d.player, d.workerId).map((choice): Action => ({
+        type: 'character',
+        choice,
+      })),
+    apply: (c, d, action) =>
+      applyCharacterChoice(c, d.player, d.workerId, expectAction(action, 'character').choice),
+  },
   build: {
     autoResolve: true,
     legal: (state, d) => [
@@ -108,7 +119,7 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
       { type: 'executioner', target: null },
     ],
     apply: (c, d, action) =>
-      applyExecutioner(c, d.player, expectAction(action, 'executioner').target),
+      applyExecutioner(c, d.player, d.workerId, expectAction(action, 'executioner').target),
   },
   spyMove: {
     autoResolve: true,

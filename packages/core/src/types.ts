@@ -52,17 +52,30 @@ export interface Building {
   plot: string | null;
 }
 
+/** Ресурсы на карте персонажа рабочего: Доносчик — компромат, Рудный барон — руда региона. */
+export interface CardStash {
+  workerId: string;
+  owner: PlayerId;
+  character: 'snitch' | 'oreBaron';
+  amount: number;
+  region: RegionId;
+}
+
 /** Что строится: тип, регион и участок (Цитадель — на звезде региона, plot = null). */
 export interface BuildChoice {
   building: BuildingId;
   region: RegionId;
   plot: string | null;
+  /** Алхимик: 1 руда цены заменена на 1 золото. */
+  alchemy?: true;
 }
 
 /** Откуда право стройки: Канцелярия (любой регион), награда за бой (этот регион), Архитектор. */
 export type BuildSource =
   | { kind: 'chancery' }
   | { kind: 'reward'; region: RegionId }
+  /** Ренегат: право стройки в регионе его локации. */
+  | { kind: 'renegade'; region: RegionId }
   | { kind: 'architect'; workerId: string };
 
 /** Жетон боя, положенный игроком в закрытую. Игрок без жетонов в руке ничего не кладёт. */
@@ -119,6 +132,8 @@ export type Decision =
   | { kind: 'spyMove'; player: PlayerId; workerId: string }
   /** Перед боем региона: положить в закрытую жетон боя. */
   | { kind: 'combatToken'; player: PlayerId; region: RegionId }
+  /** Эффект персонажа с выбором (обязателен, если есть хоть один вариант). */
+  | { kind: 'character'; player: PlayerId; workerId: string }
   /** Построить здание (или отказаться) по праву стройки. */
   | { kind: 'build'; player: PlayerId; source: BuildSource }
   /** Отступление: выбрать регион, где боя ещё не было. */
@@ -139,6 +154,10 @@ export type Task =
   | { t: 'askRetreat'; player: PlayerId; region: RegionId }
   | { t: 'combatOutcome'; region: RegionId }
   | { t: 'askBuild'; player: PlayerId; source: BuildSource }
+  /** Эффект персонажа размещённого рабочего (до действия локации). */
+  | { t: 'characterEffect'; player: PlayerId; workerId: string }
+  /** Эффект профессии размещённого рабочего (после действия локации). */
+  | { t: 'professionEffect'; player: PlayerId; workerId: string; directSlot1: boolean }
   | { t: 'askDraft'; player: PlayerId; circle: 1 | 2 }
   | { t: 'askUpgrade'; player: PlayerId }
   | { t: 'askExecutioner'; player: PlayerId; workerId: string }
@@ -164,15 +183,33 @@ export type LocationChoice =
   | { kind: 'lairStash' }
   | { kind: 'mass'; from: 'gold' | 'blood'; times: number }
   | { kind: 'marketBuy'; pay: GoldBlood }
-  | { kind: 'marketSell'; receive: GoldBlood }
+  | { kind: 'marketSell'; receive: GoldBlood; alchemy?: true }
   | { kind: 'chancery'; conversions: ChanceryConversion[] }
-  | { kind: 'cityHall'; offer: number; region: RegionId }
+  | { kind: 'cityHall'; offer: number; region: RegionId; alchemy?: true }
   | { kind: 'copy'; location: LocationId; slot: SlotIndex }
-  | { kind: 'revive'; workerId: string }
+  | { kind: 'revive'; workerId: string; alchemy?: true }
   | { kind: 'commissariat'; region: RegionId }
   /** Канцелярия: заплатить компромат за право стройки. */
   | { kind: 'buildRight' }
   | { kind: 'tavernSwap'; character: CharacterId; profession: ProfessionId };
+
+/** Выбор в эффекте персонажа. */
+export type CharacterChoice =
+  | { kind: 'manipulator'; to: RegionId }
+  | { kind: 'renegade'; gain: 'ore' | 'build' }
+  | { kind: 'blackmailer'; target: PlayerId }
+  | { kind: 'hypocrite'; workerId: string; profession: ProfessionId }
+  | { kind: 'intriguer'; location: LocationId }
+  | { kind: 'madman'; location: LocationId }
+  | {
+      kind: 'commissar';
+      workerId: string;
+      location: LocationId;
+      slot: SlotIndex;
+      displace: boolean;
+    }
+  | { kind: 'gravedigger'; workerIds: string[] }
+  | { kind: 'tactician'; workerId: string };
 
 export type DraftPick =
   { kind: 'character'; character: CharacterId } | { kind: 'profession'; profession: ProfessionId };
@@ -185,6 +222,7 @@ export type Action =
   | { type: 'locationAction'; choice: LocationChoice }
   | { type: 'combatReward'; choice: 'influence' | 'build' }
   | { type: 'build'; choice: BuildChoice | null }
+  | { type: 'character'; choice: CharacterChoice }
   | { type: 'draftPick'; pick: DraftPick }
   | { type: 'upgrade'; choice: UpgradeChoice }
   | { type: 'upkeep'; choice: 'pay' | 'discard' }
@@ -211,10 +249,13 @@ export type ResourceReason =
   | 'build'
   | 'abbey'
   | 'shop'
-  | 'cityCitadel';
+  | 'cityCitadel'
+  | 'character'
+  | 'snitch'
+  | 'oreBaron';
 
 /** Откуда престиж: постройка или сохранённый персонаж в конце игры. */
-export type PrestigeReason = 'building' | 'character';
+export type PrestigeReason = 'building' | 'character' | 'effect';
 
 export interface CombatStrength {
   player: PlayerId;
@@ -276,6 +317,12 @@ export type GameEvent =
       to: number;
       reason: PrestigeReason;
     }
+  | { type: 'characterTriggered'; player: PlayerId; workerId: string; character: CharacterId }
+  | { type: 'characterChoice'; player: PlayerId; workerId: string; choice: CharacterChoice }
+  | { type: 'locationBlocked'; player: PlayerId; location: LocationId }
+  | { type: 'locationUnblocked'; location: LocationId }
+  | { type: 'professionChanged'; player: PlayerId; workerId: string; profession: ProfessionId }
+  | { type: 'workerReturned'; player: PlayerId; workerId: string; to: 'reserve' | 'hospital' }
   | { type: 'commissariatTaken'; player: PlayerId; region: RegionId }
   | { type: 'combatTokenPlayed'; player: PlayerId; region: RegionId }
   | { type: 'combatTokensRevealed'; region: RegionId; plays: CombatPlay[] }
@@ -337,6 +384,14 @@ export interface GameState {
   buildings: Building[];
   /** Идущий бой (между розыгрышем жетонов и итогом). */
   combat: CombatState | null;
+  /** Победители боёв этого раунда (для Рудного барона). */
+  combatWinners: Partial<Record<RegionId, PlayerId | null>>;
+  /** Ресурсы «на карте» персонажа (Доносчик, Рудный барон) до конца раунда. */
+  cardStash: CardStash[];
+  /** Локации, закрытые Интриганом до начала следующего хода владельца. */
+  blocks: { location: LocationId; owner: PlayerId }[];
+  /** Алхимик активен в текущем размещении этого игрока. */
+  alchemy: PlayerId | null;
   /** Чей ход размещения сейчас (или был последним). */
   placementCurrent: PlayerId;
   /** Колода персонажей. Порядок скрыт от игроков. */
@@ -373,6 +428,10 @@ export interface Observation {
     revealed: boolean;
     plays: { player: PlayerId; token: CombatTokenId | null }[];
   } | null;
+  combatWinners: GameState['combatWinners'];
+  cardStash: CardStash[];
+  blocks: GameState['blocks'];
+  alchemy: PlayerId | null;
   placementCurrent: PlayerId;
   /** Сколько карт осталось в колоде (порядок скрыт). */
   deckSize: number;

@@ -8,11 +8,6 @@ export function workersAt(state: GameState, location: LocationId, slot: SlotInde
   );
 }
 
-/** Сколько рабочих помещается в слот. Лазутчик (этап 5) разрешит второго в первом слоте. */
-export function slotCapacity(_location: LocationId, _slot: SlotIndex): number {
-  return 1;
-}
-
 export function regionOfWorker(w: Worker): RegionId | null {
   const pos = w.position;
   if (pos.kind === 'slot') return LOCATIONS[pos.location].region;
@@ -51,4 +46,24 @@ export function distinctWorkers(workers: readonly Worker[]): Worker[] {
     out.push(w);
   }
   return out;
+}
+
+/**
+ * Рабочие, чей ход размещения ещё не доигран: впереди их эффект персонажа, действие локации
+ * или профессия (например, Комиссар, пока размещается вернувшийся рабочий). Их нельзя вытеснить
+ * (OQ-42, автор).
+ */
+export function busyWorkerIds(state: GameState): Set<string> {
+  const ids = new Set<string>();
+  for (const t of state.tasks) {
+    if (t.t === 'askLocationAction') ids.add(t.context.workerId);
+    else if (t.t === 'characterEffect' || t.t === 'professionEffect' || t.t === 'askExecutioner') {
+      ids.add(t.workerId);
+    } else if (t.t === 'askBuild' && t.source.kind === 'architect') ids.add(t.source.workerId);
+  }
+  const p = state.pending;
+  if (p?.kind === 'locationAction') ids.add(p.context.workerId);
+  else if (p?.kind === 'character' || p?.kind === 'executioner') ids.add(p.workerId);
+  else if (p?.kind === 'build' && p.source.kind === 'architect') ids.add(p.source.workerId);
+  return ids;
 }

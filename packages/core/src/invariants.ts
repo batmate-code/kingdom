@@ -6,6 +6,7 @@ import {
   MAX_BUILDINGS_PER_TYPE,
   PLOTS,
   PRESTIGE_TRACK,
+  SLOT_CAPACITY,
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   GAME,
@@ -15,7 +16,7 @@ import {
   type CharacterId,
   type ResourceId,
 } from '@vampire/data';
-import { slotCapacity, workersAt } from './board';
+import { workersAt } from './board';
 import type { GameState } from './types';
 
 const RESOURCES: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -48,12 +49,16 @@ export function findInvariantViolations(state: GameState): string[] {
     errors.push('повторяющиеся id рабочих');
   }
   for (const loc of LOCATION_ORDER) {
-    // Лазутчик (этап 5) разрешит двух рабочих в первом слоте.
-    if (workersAt(state, loc, 1).length > slotCapacity(loc, 1))
-      errors.push(`${loc}: больше одного рабочего в слоте 1`);
+    // Второй рабочий в первом слоте возможен только через Лазутчика (его персонажа потом могут
+    // сбросить на содержании или заменить — пара остаётся).
+    if (workersAt(state, loc, 1).length > SLOT_CAPACITY.firstWithInfiltrator) {
+      errors.push(`${loc}: лишний рабочий в слоте 1`);
+    }
     const slot2 = workersAt(state, loc, 2).length;
-    if (slot2 > slotCapacity(loc, 2)) errors.push(`${loc}: больше одного рабочего в слоте 2`);
-    if (state.locations[loc].slot2Locked && slot2 > 0)
+    if (slot2 > SLOT_CAPACITY.second) errors.push(`${loc}: больше одного рабочего в слоте 2`);
+    // Ночной охотник может стоять в закрытом втором слоте.
+    const lockedBy = workersAt(state, loc, 2).filter((w) => w.character !== 'nightHunter');
+    if (state.locations[loc].slot2Locked && lockedBy.length > 0)
       errors.push(`${loc}: рабочий в закрытом слоте 2`);
   }
   // Здания: не больше 3 одного типа у игрока, одна Цитадель на регион, один дом на участок.

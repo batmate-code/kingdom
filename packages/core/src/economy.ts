@@ -1,4 +1,11 @@
-import { CITY_ENTRY, TRACKS, type RegionId, type ResourceId, type Resources } from '@vampire/data';
+import {
+  ALCHEMY,
+  CITY_ENTRY,
+  TRACKS,
+  type RegionId,
+  type ResourceId,
+  type Resources,
+} from '@vampire/data';
 import type { Ctx } from './context';
 import type { GameState, PlayerId, ResourceReason } from './types';
 
@@ -46,6 +53,36 @@ export function pay(
     if (v) delta[r] = -v;
   }
   changeResources(c, player, delta, reason);
+}
+
+/** Алхимик активен у игрока в текущем размещении. */
+export function alchemyActive(state: GameState, player: PlayerId): boolean {
+  return state.alchemy === player;
+}
+
+/** Цена с заменой 1 руды на 1 золото (Алхимик). */
+export function alchemize(cost: Partial<Resources>): Partial<Resources> {
+  if ((cost.ore ?? 0) < ALCHEMY.oreReplaced) return cost;
+  return {
+    ...cost,
+    ore: (cost.ore ?? 0) - ALCHEMY.oreReplaced,
+    gold: (cost.gold ?? 0) + ALCHEMY.goldInstead,
+  };
+}
+
+/** Варианты оплаты: обычная и (если доступно) с заменой Алхимика; только по карману. */
+export function paymentVariants(
+  state: GameState,
+  player: PlayerId,
+  cost: Partial<Resources>,
+): { cost: Partial<Resources>; alchemy: boolean }[] {
+  const out: { cost: Partial<Resources>; alchemy: boolean }[] = [];
+  if (canAfford(state, player, cost)) out.push({ cost, alchemy: false });
+  if (alchemyActive(state, player) && (cost.ore ?? 0) >= ALCHEMY.oreReplaced) {
+    const alt = alchemize(cost);
+    if (canAfford(state, player, alt)) out.push({ cost: alt, alchemy: true });
+  }
+  return out;
 }
 
 export function cityEntryCost(state: GameState): number {

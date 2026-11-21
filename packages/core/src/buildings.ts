@@ -15,7 +15,7 @@ import {
 } from '@vampire/data';
 import { getWorker } from './board';
 import type { Ctx } from './context';
-import { canAfford, changeResources, pay } from './economy';
+import { alchemize, changeResources, pay, paymentVariants } from './economy';
 import { addPrestige } from './prestige';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
@@ -39,7 +39,9 @@ function sourceScope(
   source: BuildSource,
 ): { regions: readonly RegionId[]; nearLocation: LocationId | null } {
   if (source.kind === 'chancery') return { regions: REGION_ORDER, nearLocation: null };
-  if (source.kind === 'reward') return { regions: [source.region], nearLocation: null };
+  if (source.kind === 'reward' || source.kind === 'renegade') {
+    return { regions: [source.region], nearLocation: null };
+  }
   const w = getWorker(state, source.workerId);
   if (w.position.kind !== 'slot') return { regions: [], nearLocation: null };
   const location = w.position.location;
@@ -78,7 +80,9 @@ export function buildOptions(
                 (nearLocation === null || plot.adjacent.includes(nearLocation)),
             ).map((plot) => ({ building, region, plot: plot.id }));
       for (const choice of candidates) {
-        if (canAfford(state, player, buildCost(choice))) out.push(choice);
+        for (const v of paymentVariants(state, player, buildCost(choice))) {
+          out.push(v.alchemy ? { ...choice, alchemy: true } : choice);
+        }
       }
     }
   }
@@ -88,14 +92,16 @@ export function buildOptions(
 /** Построить: оплата, здание на участке (Цитадель — на звезде), престиж по номеру здания типа. */
 export function applyBuild(c: Ctx, player: PlayerId, choice: BuildChoice): void {
   const number = ownedOfType(c.draft, player, choice.building);
-  pay(c, player, buildCost(choice), 'build');
+  const cost = buildCost(choice);
+  pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'build');
   c.draft.buildings.push({
     type: choice.building,
     owner: player,
     region: choice.region,
     plot: choice.plot,
   });
-  c.events.push({ type: 'buildingBuilt', player, ...choice });
+  const { alchemy: _alchemy, ...built } = choice;
+  c.events.push({ type: 'buildingBuilt', player, ...built });
   addPrestige(c, player, BUILDINGS[choice.building].prestige[number] ?? 0, 'building');
 }
 
