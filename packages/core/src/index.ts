@@ -10,6 +10,7 @@ export {
 export { DEFAULT_RULES, RULE_CHOICES, resolveConfig } from './config';
 export type { GameConfig, GameConfigInput, RuleToggles } from './config';
 export { cityEntryCost } from './economy';
+export { determinize } from './determinize';
 export { combatStrengths } from './combat';
 export { buildCost, buildOptions } from './buildings';
 export { getScores } from './scores';

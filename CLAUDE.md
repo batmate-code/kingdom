@@ -24,7 +24,7 @@ npm workspaces, пакеты в packages/. Зависимости идут то�
 | ------------- | --------------------------------------------- | ----------------- |
 | @vampire/data | Таблицы правил как чистые данные (без логики) | —                 |
 | @vampire/core | Чистый движок правил                          | data              |
-| @vampire/bots | Боты: случайный, эвристический, ISMCTS        | core              |
+| @vampire/bots | Боты: случайный, эвристический, ISMCTS        | core, data        |
 | @vampire/sim  | Консольный симулятор, CSV/JSON                | core, bots        |
 | @vampire/web  | Vite + React + Zustand, CSS-модули            | core, bots        |
 

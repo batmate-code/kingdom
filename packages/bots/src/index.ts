@@ -1,4 +1,5 @@
 import type { Action, Observation } from '@vampire/core';
+import { createHeuristicBot } from './heuristic';
 import { createGroupedRandomBot, createRandomBot } from './random';
 
 /** Бот выбирает одно из допустимых действий по тому, что видит его игрок. */
@@ -17,6 +18,8 @@ export const firstLegalBot: Bot = {
   },
 };
 
+export { createHeuristicBot } from './heuristic';
+export { evaluate, playerValue } from './heuristic/evaluate';
 export {
   actionPath,
   createGroupedRandomBot,
@@ -30,4 +33,5 @@ export const BOT_FACTORIES: Readonly<Record<string, (seed: number) => Bot>> = {
   'first-legal': () => firstLegalBot,
   random: (seed) => createRandomBot(seed),
   'random-grouped': (seed) => createGroupedRandomBot(seed),
+  heuristic: (seed) => createHeuristicBot(seed),
 };

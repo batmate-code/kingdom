@@ -61,12 +61,12 @@ describe('API ядра', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 
-  it('наблюдение не раскрывает генератор случайных чисел и очередь шагов', () => {
+  it('наблюдение не раскрывает генератор случайных чисел и порядок колоды', () => {
     const state = createGame({ playerCount: 3 }, 3);
     const obs = getObservation(state, 1);
     expect(obs.viewer).toBe(1);
     expect('rng' in obs).toBe(false);
-    expect('tasks' in obs).toBe(false);
+    expect('deck' in obs).toBe(false);
   });
 
   it('число игроков 2–4, иначе ошибка', () => {

@@ -191,11 +191,21 @@ export function getLegalActions(state: GameState): Action[] {
   return state.pending ? legalFor(state, state.pending) : [];
 }
 
-export function applyAction(state: GameState, action: Action): ApplyResult {
-  const legal = getLegalActions(state);
-  const key = stableKey(action);
-  if (!legal.some((a) => stableKey(a) === key)) {
-    throw new Error(`Недопустимое действие: ${key}`);
+/**
+ * Применить действие. `validate: false` — без проверки допустимости: только для ботов,
+ * которые берут действие из getLegalActions того же состояния (перебор вариантов).
+ */
+export function applyAction(
+  state: GameState,
+  action: Action,
+  opts: { validate?: boolean } = {},
+): ApplyResult {
+  if (opts.validate !== false) {
+    const legal = getLegalActions(state);
+    const key = stableKey(action);
+    if (!legal.some((a) => stableKey(a) === key)) {
+      throw new Error(`Недопустимое действие: ${key}`);
+    }
   }
   const events: GameEvent[] = [];
   const next = produce(state, (draft) => {
@@ -218,8 +228,9 @@ export function isTerminal(state: GameState): boolean {
 
 /**
  * Наблюдение игрока собирается из явного списка открытых полей: новое поле состояния
- * не попадёт сюда, пока его сознательно не объявят открытым. Скрытые сейчас: rng, tasks,
- * порядок колоды (виден только её размер), чужие жетоны боя до вскрытия.
+ * не попадёт сюда, пока его сознательно не объявят открытым. Скрытые сейчас: rng,
+ * порядок колоды (виден только её размер), чужие жетоны боя до вскрытия. Очередь шагов открыта:
+ * в ней только порядок предстоящих решений, без скрытых данных (нужна ботам для перебора).
  */
 export function getObservation(state: GameState, player: PlayerId): Observation {
   return {
@@ -253,6 +264,7 @@ export function getObservation(state: GameState, player: PlayerId): Observation 
     deckSize: state.deck.length,
     discard: state.discard,
     offer: state.offer,
+    tasks: state.tasks,
     pending: state.pending,
   };
 }

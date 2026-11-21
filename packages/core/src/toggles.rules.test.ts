@@ -43,7 +43,8 @@ describe('Скрытая информация', () => {
     const a = setWorker(newGame({}, 9), 'p0w0', {});
     const b = edit(a, (d) => {
       d.rng = d.rng + 12345;
-      d.tasks = [{ t: 'startUpkeep' }];
+      // Порядок колоды — скрытый.
+      d.deck = [...d.deck].reverse();
     });
     expect(getObservation(b, 1)).toEqual(getObservation(a, 1));
   });

@@ -456,6 +456,8 @@ export interface Observation {
   deckSize: number;
   discard: CharacterId[];
   offer: GameState['offer'];
+  /** Очередь предстоящих шагов (без скрытых данных). */
+  tasks: Task[];
   pending: Decision | null;
 }
 
