@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { appVersionLine } from './version';
 
 describe('@vampire/web', () => {
-  it('подключает core и bots', () => {
-    expect(appVersionLine()).toBe('Скелет проекта: core 0.0.0, bots 0.0.0');
+  it('создаёт партию через ядро', () => {
+    expect(appVersionLine()).toMatch(/^Ядро подключено: раунд 1, первый игрок [123]$/);
   });
 });

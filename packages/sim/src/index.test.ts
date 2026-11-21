@@ -1,8 +1,11 @@
+import { firstLegalBot } from '@vampire/bots';
+import { isTerminal } from '@vampire/core';
 import { describe, expect, it } from 'vitest';
-import { describeSim } from './index';
+import { playGame } from './index';
 
-describe('@vampire/sim', () => {
-  it('подключает core и bots', () => {
-    expect(describeSim()).toBe('sim: core data 0.0.0, bots data 0.0.0');
+describe('playGame', () => {
+  it('играет партию ботами до конца', () => {
+    const state = playGame({ playerCount: 3 }, 7, [firstLegalBot, firstLegalBot, firstLegalBot]);
+    expect(isTerminal(state)).toBe(true);
   });
 });

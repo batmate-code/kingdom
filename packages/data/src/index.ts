@@ -1,2 +1,8 @@
-/** Таблицы правил. Заполняются, начиная с этапа 1. */
-export const DATA_VERSION = '0.0.0';
+/** Таблицы правил как чистые данные. Логики здесь нет — её реализует @vampire/core. */
+export * from './types';
+export * from './board';
+export * from './professions';
+export * from './buildings';
+export * from './characters';
+export * from './combatTokens';
+export * from './game';
