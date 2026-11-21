@@ -1,5 +1,6 @@
 import { DISPLACEMENT, LOCATIONS, PROFESSIONS } from '@vampire/data';
 import { getWorker } from './board';
+import { onDisplaced } from './buildings';
 import type { Ctx } from './context';
 import { changeResources } from './economy';
 import type { GameState, PlayerId } from './types';
@@ -48,4 +49,5 @@ export function applyExecutioner(c: Ctx, player: PlayerId, target: string | null
     location,
     method: 'executioner',
   });
+  onDisplaced(c, location);
 }

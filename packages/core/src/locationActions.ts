@@ -1,5 +1,6 @@
 import { LOCATIONS, LOCATION_ORDER, REGION_ORDER, TRACKS, type SlotAction } from '@vampire/data';
 import { distinctWorkers, getWorker } from './board';
+import { buildOptions } from './buildings';
 import type { Ctx } from './context';
 import { changeInfluence, changeResources, pay } from './economy';
 import type {
@@ -50,16 +51,26 @@ function res(state: GameState, player: PlayerId) {
   return p.resources;
 }
 
+/**
+ * Право стройки Канцелярии: сразу, в любом регионе, на любом свободном участке, по полной цене.
+ */
+/** OQ-29 (автор: нет): право стройки предлагается, только если сейчас есть что построить. */
+function canBuyBuildRight(state: GameState, player: PlayerId, compromat: number): boolean {
+  if (res(state, player).compromat < compromat) return false;
+  return (
+    state.config.rules.buildRightWithoutOptions ||
+    buildOptions(state, player, { kind: 'chancery' }).length > 0
+  );
+}
+
+function buyBuildRight(c: Ctx, player: PlayerId, compromat: number): void {
+  changeResources(c, player, { compromat: -compromat }, 'chancery');
+  c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'chancery' } });
+}
+
 function mismatch(choice: LocationChoice): never {
   throw new Error(`Выбор ${choice.kind} не подходит к действию слота`);
 }
-
-/** Действия, которые появятся на следующих этапах, пока ничего не предлагают. */
-const notYetImplemented: SlotHandler<SlotAction> = {
-  mandatory: false,
-  options: () => [],
-  apply: (_c, _p, _ctx, _a, choice) => mismatch(choice),
-};
 
 const HANDLERS: HandlerRegistry = {
   gain: {
@@ -144,7 +155,7 @@ const HANDLERS: HandlerRegistry = {
 
   chancery: {
     mandatory: false,
-    // Вариант (Б) «2 компромата → право стройки» появится вместе со зданиями (этап 4).
+    // (А) конверсии компромата или (Б) компромат → право стройки.
     options(state, player, _ctx, action) {
       const kinds: ChanceryConversion[] = [
         ...goldBloodSplits(action.goldBlood).map((s): ChanceryConversion => ({
@@ -164,9 +175,14 @@ const HANDLERS: HandlerRegistry = {
           build(i, [...acc, kinds[i] as ChanceryConversion]);
       };
       build(0, []);
+      if (canBuyBuildRight(state, player, action.buildRightCost)) out.push({ kind: 'buildRight' });
       return out;
     },
     apply(c, player, _ctx, action, choice) {
+      if (choice.kind === 'buildRight') {
+        buyBuildRight(c, player, action.buildRightCost);
+        return;
+      }
       if (choice.kind !== 'chancery') mismatch(choice);
       for (const conv of choice.conversions) {
         if (conv.to === 'ore') {
@@ -183,8 +199,15 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
-  // Право стройки — этап 4.
-  chanceryBuild: notYetImplemented as SlotHandler<SlotActionOf<'chanceryBuild'>>,
+  chanceryBuild: {
+    mandatory: false,
+    options: (state, player, _ctx, action) =>
+      canBuyBuildRight(state, player, action.compromatCost) ? [{ kind: 'buildRight' }] : [],
+    apply(c, player, _ctx, action, choice) {
+      if (choice.kind !== 'buildRight') mismatch(choice);
+      buyBuildRight(c, player, action.compromatCost);
+    },
+  },
 
   copy: {
     mandatory: false,

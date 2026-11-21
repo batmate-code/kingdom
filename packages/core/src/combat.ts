@@ -277,9 +277,15 @@ export function combatOutcome(c: Ctx, region: RegionId): void {
   d.pending = { kind: 'combatReward', player: winner, region };
 }
 
-/** Награда на выбор: ещё +1 влияние (право стройки появится на этапе 4). */
-export function applyCombatReward(c: Ctx, player: PlayerId, region: RegionId): void {
-  changeInfluence(c, player, region, COMBAT_REWARD.bonusInfluence);
+/** Награда на выбор: ещё +1 влияние или право построить здание в этом регионе. */
+export function applyCombatReward(
+  c: Ctx,
+  player: PlayerId,
+  region: RegionId,
+  choice: 'influence' | 'build',
+): void {
+  if (choice === 'influence') changeInfluence(c, player, region, COMBAT_REWARD.bonusInfluence);
+  else c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'reward', region } });
 }
 
 /** Конец 3-го раунда: весь набор жетонов боя возвращается в руку. */

@@ -6,6 +6,7 @@ import {
   type SlotIndex,
 } from '@vampire/data';
 import { distinctWorkers, getWorker, reserveWorkers, slotCapacity, workersAt } from './board';
+import { onDisplaced, onVisit } from './buildings';
 import type { Ctx } from './context';
 import { canAfford, changeResources, cityEntryCost, pay } from './economy';
 import type { Action, GameState, PlayerId, Worker } from './types';
@@ -91,6 +92,8 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
         location: a.location,
         method: 'slot2',
       });
+      // OQ-33 (автор): Аббатство платит за каждого вытесненного рабочего (пара — +4).
+      onDisplaced(c, a.location);
     }
     // Вытесняющий выполняет действие второго слота, но встаёт в первый; второй слот закрывается.
     worker.position = { kind: 'slot', location: a.location, slot: 1 };
@@ -106,6 +109,7 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
     location: a.location,
     slot: worker.position.kind === 'slot' ? worker.position.slot : a.slot,
   });
+  onVisit(c, player, a.location);
 
   // Палач срабатывает при размещении в первый слот; переход туда вытеснением — OQ-16.
   // OQ-21 (автор): способности при выставлении идут по порядку персонаж → локация → профессия,
@@ -115,6 +119,17 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
     (a.slot === 1 || (a.displace && d.config.rules.executionerOnDisplacement))
       ? [{ t: 'askExecutioner' as const, player, workerId: worker.id }]
       : [];
+  // Архитектор: при размещении (в любой слот) может построить рядом со своей локацией.
+  const architect =
+    worker.profession === 'architect'
+      ? [
+          {
+            t: 'askBuild' as const,
+            player,
+            source: { kind: 'architect' as const, workerId: worker.id },
+          },
+        ]
+      : [];
   d.tasks.unshift(
     {
       t: 'askLocationAction',
@@ -122,6 +137,7 @@ export function applyPlace(c: Ctx, player: PlayerId, a: PlaceAction): void {
       context: { workerId: worker.id, location: a.location, slot: actionSlot, copy: false },
     },
     ...executioner,
+    ...architect,
     { t: 'placementTurn', first: false },
   );
 }

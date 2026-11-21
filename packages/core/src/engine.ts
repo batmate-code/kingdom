@@ -8,6 +8,7 @@ import {
   type LocationId,
 } from '@vampire/data';
 import { produce } from 'immer';
+import { buildOptions } from './buildings';
 import { combatOutcome, revealCombat, startCombat, startSpyMoves } from './combat';
 import { resolveConfig, type GameConfigInput } from './config';
 import type { Ctx } from './context';
@@ -47,6 +48,11 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
     c.draft.pending = { kind: 'retreat', player: task.player, region: task.region };
   },
   combatOutcome: (c, task) => combatOutcome(c, task.region),
+  askBuild: (c, task) => {
+    // Строить нечего — право сгорает без решения.
+    if (buildOptions(c.draft, task.player, task.source).length === 0) return;
+    c.draft.pending = { kind: 'build', player: task.player, source: task.source };
+  },
   askDraft: (c, task) => {
     // Если выбирать нечего (колода кончилась при нестандартном числе раундов) — шаг пропускается.
     if (draftOptions(c.draft, task.player, task.circle).length === 0) return;
@@ -120,6 +126,7 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     players: Array.from({ length: n }, () => ({
       resources: { ...GAME.startResources },
       influence: { forest: 0, valley: 0, city: 0 },
+      prestige: 0,
       passed: false,
       draftPick: { character: null, profession: null },
       combatTokens: {

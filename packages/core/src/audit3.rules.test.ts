@@ -105,6 +105,8 @@ describe('Аудит этапа 3 (Бой)', () => {
     s = act(s, { type: 'combatToken', token: 'retreat' }); // p0
     s = act(s, { type: 'combatToken', token: 'decoy' }); // p1
     s = act(s, { type: 'retreat', to: 'valley' });
+    // p1 победил в Лесу: награда — влияние (у него хватает золота и на Склеп).
+    s = act(s, { type: 'combatReward', choice: 'influence' });
     expect(s.pending).toEqual({ kind: 'combatToken', player: 0, region: 'valley' });
     expect(getLegalActions(s).some((a) => a.type === 'combatToken' && a.token === 'retreat')).toBe(
       false,
@@ -123,13 +125,14 @@ describe('Аудит этапа 3 (Бой)', () => {
     ]);
   });
 
-  it('Бой, награда: победитель получает +1 влияние и ещё +1 на выбор (право стройки — этап 4)', () => {
+  it('Бой, награда: победитель получает +1 влияние и ещё +1 на выбор', () => {
     let s = edit(duel(), (d) => {
       d.firstPlayer = 0;
     });
     while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
     s = act(s, { type: 'combatToken', token: 'attack' }); // p0
     s = act(s, { type: 'combatToken', token: 'decoy' }); // p1
+    s = act(s, { type: 'combatReward', choice: 'influence' });
     expect(s.players[0]?.influence.forest).toBe(2);
     expect(s.players[1]?.influence.forest).toBe(0);
   });

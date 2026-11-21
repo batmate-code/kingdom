@@ -33,6 +33,8 @@ export interface PlayerState {
   influence: Record<RegionId, number>;
   /** Спасовал в текущем размещении (окончательно до боя). */
   passed: boolean;
+  /** Трек престижа (0..40). */
+  prestige: number;
   /** Взятое на драфте этого раунда (до шага улучшения). */
   draftPick: { character: CharacterId | null; profession: ProfessionId | null };
   /**
@@ -49,6 +51,19 @@ export interface Building {
   region: RegionId;
   plot: string | null;
 }
+
+/** Что строится: тип, регион и участок (Цитадель — на звезде региона, plot = null). */
+export interface BuildChoice {
+  building: BuildingId;
+  region: RegionId;
+  plot: string | null;
+}
+
+/** Откуда право стройки: Канцелярия (любой регион), награда за бой (этот регион), Архитектор. */
+export type BuildSource =
+  | { kind: 'chancery' }
+  | { kind: 'reward'; region: RegionId }
+  | { kind: 'architect'; workerId: string };
 
 /** Жетон боя, положенный игроком в закрытую. Игрок без жетонов в руке ничего не кладёт. */
 export interface CombatPlay {
@@ -104,6 +119,8 @@ export type Decision =
   | { kind: 'spyMove'; player: PlayerId; workerId: string }
   /** Перед боем региона: положить в закрытую жетон боя. */
   | { kind: 'combatToken'; player: PlayerId; region: RegionId }
+  /** Построить здание (или отказаться) по праву стройки. */
+  | { kind: 'build'; player: PlayerId; source: BuildSource }
   /** Отступление: выбрать регион, где боя ещё не было. */
   | { kind: 'retreat'; player: PlayerId; region: RegionId };
 
@@ -121,6 +138,7 @@ export type Task =
   | { t: 'revealCombat'; region: RegionId }
   | { t: 'askRetreat'; player: PlayerId; region: RegionId }
   | { t: 'combatOutcome'; region: RegionId }
+  | { t: 'askBuild'; player: PlayerId; source: BuildSource }
   | { t: 'askDraft'; player: PlayerId; circle: 1 | 2 }
   | { t: 'askUpgrade'; player: PlayerId }
   | { t: 'askExecutioner'; player: PlayerId; workerId: string }
@@ -152,6 +170,8 @@ export type LocationChoice =
   | { kind: 'copy'; location: LocationId; slot: SlotIndex }
   | { kind: 'revive'; workerId: string }
   | { kind: 'commissariat'; region: RegionId }
+  /** Канцелярия: заплатить компромат за право стройки. */
+  | { kind: 'buildRight' }
   | { kind: 'tavernSwap'; character: CharacterId; profession: ProfessionId };
 
 export type DraftPick =
@@ -163,7 +183,8 @@ export type Action =
   | { type: 'place'; workerId: string; location: LocationId; slot: SlotIndex; displace: boolean }
   | { type: 'pass' }
   | { type: 'locationAction'; choice: LocationChoice }
-  | { type: 'combatReward'; choice: 'influence' }
+  | { type: 'combatReward'; choice: 'influence' | 'build' }
+  | { type: 'build'; choice: BuildChoice | null }
   | { type: 'draftPick'; pick: DraftPick }
   | { type: 'upgrade'; choice: UpgradeChoice }
   | { type: 'upkeep'; choice: 'pay' | 'discard' }
@@ -186,7 +207,14 @@ export type ResourceReason =
   | 'displaced'
   | 'executioner'
   | 'severance'
-  | 'upkeep';
+  | 'upkeep'
+  | 'build'
+  | 'abbey'
+  | 'shop'
+  | 'cityCitadel';
+
+/** Откуда престиж: постройка или сохранённый персонаж в конце игры. */
+export type PrestigeReason = 'building' | 'character';
 
 export interface CombatStrength {
   player: PlayerId;
@@ -239,6 +267,14 @@ export type GameEvent =
       to: RegionId;
       /** spy — перемещение Шпиона перед боями; retreat — Отступление. */
       method: 'spy' | 'retreat';
+    }
+  | ({ type: 'buildingBuilt'; player: PlayerId } & BuildChoice)
+  | {
+      type: 'prestigeChanged';
+      player: PlayerId;
+      from: number;
+      to: number;
+      reason: PrestigeReason;
     }
   | { type: 'commissariatTaken'; player: PlayerId; region: RegionId }
   | { type: 'combatTokenPlayed'; player: PlayerId; region: RegionId }

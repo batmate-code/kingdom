@@ -9,6 +9,7 @@ import {
 } from '@vampire/data';
 import { refreshCombatTokens } from './combat';
 import type { Ctx } from './context';
+import { awardCharacterPrestige } from './prestige';
 import { clearOffer, dealDraft } from './draft';
 import { canTakePlacementTurn } from './placement';
 import { shuffleInPlace } from './rng';
@@ -79,6 +80,7 @@ export function finishRound(c: Ctx): void {
   c.events.push({ type: 'roundEnded', round: d.round });
 
   if (d.round >= d.config.rounds) {
+    awardCharacterPrestige(c);
     d.phase = 'gameOver';
     c.events.push({ type: 'gameOver' });
     return;

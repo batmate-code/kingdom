@@ -7,11 +7,17 @@ export const BUILDINGS: Readonly<Record<BuildingId, BuildingDef>> = {
   citadel: { id: 'citadel', name: 'Цитадель', cost: { gold: 7, ore: 3 }, prestige: [10] },
 };
 
+/** Порядок перечисления типов зданий в действиях. */
+export const BUILDING_ORDER: readonly BuildingId[] = ['crypt', 'abbey', 'shop', 'citadel'];
+
 /** Не больше стольких зданий каждого типа у одного игрока. */
 export const MAX_BUILDINGS_PER_TYPE = 3;
 
 /** Цитадель: одна на регион на всех игроков. */
 export const CITADELS_PER_REGION = 1;
+
+/** Цитадель: одна на игрока (ответ автора, OQ-32); каждая даёт построившему +10 престижа. */
+export const CITADELS_PER_PLAYER = 1;
 
 export const BUILDING_EFFECTS = {
   /** Склеп: +1 к силе за каждый свой Склеп рядом с локацией, где стоит твой рабочий. */

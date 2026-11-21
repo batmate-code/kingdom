@@ -1,5 +1,11 @@
 import {
+  BUILDING_ORDER,
   CHARACTERS,
+  CITADELS_PER_PLAYER,
+  CITADELS_PER_REGION,
+  MAX_BUILDINGS_PER_TYPE,
+  PLOTS,
+  PRESTIGE_TRACK,
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   GAME,
@@ -49,6 +55,30 @@ export function findInvariantViolations(state: GameState): string[] {
     if (slot2 > slotCapacity(loc, 2)) errors.push(`${loc}: больше одного рабочего в слоте 2`);
     if (state.locations[loc].slot2Locked && slot2 > 0)
       errors.push(`${loc}: рабочий в закрытом слоте 2`);
+  }
+  // Здания: не больше 3 одного типа у игрока, одна Цитадель на регион, один дом на участок.
+  state.players.forEach((p, i) => {
+    if (!Number.isInteger(p.prestige) || p.prestige < 0 || p.prestige > PRESTIGE_TRACK.max) {
+      errors.push(`игрок ${i}: престиж ${p.prestige}`);
+    }
+    for (const type of BUILDING_ORDER) {
+      const n = state.buildings.filter((b) => b.owner === i && b.type === type).length;
+      const limit = type === 'citadel' ? CITADELS_PER_PLAYER : MAX_BUILDINGS_PER_TYPE;
+      if (n > limit) errors.push(`игрок ${i}: зданий ${type} ${n}`);
+    }
+  });
+  for (const region of REGION_ORDER) {
+    const n = state.buildings.filter((b) => b.type === 'citadel' && b.region === region).length;
+    if (n > CITADELS_PER_REGION) errors.push(`${region}: Цитаделей ${n}`);
+  }
+  const plots = state.buildings.flatMap((b) => (b.plot === null ? [] : [b.plot]));
+  if (new Set(plots).size !== plots.length) errors.push('два здания на одном участке');
+  for (const b of state.buildings) {
+    const plot = b.plot === null ? null : PLOTS.find((p) => p.id === b.plot);
+    if (b.plot !== null && plot?.region !== b.region)
+      errors.push(`участок ${b.plot} не в ${b.region}`);
+    if ((b.type === 'citadel') !== (b.plot === null))
+      errors.push(`здание ${b.type} не на своём месте`);
   }
   if (state.combat !== null && state.phase !== 'combat') errors.push('бой идёт вне фазы боёв');
   if (state.lair.stash < 0) errors.push('копилка Логова отрицательна');

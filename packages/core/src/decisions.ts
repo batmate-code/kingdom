@@ -7,6 +7,7 @@ import {
   laterRegions,
   spyDestinations,
 } from './combat';
+import { applyBuild, buildOptions } from './buildings';
 import type { Ctx } from './context';
 import { applyDraftPick, applyUpgrade, draftOptions, upgradeOptions } from './draft';
 import { applyLocationChoice, locationChoices } from './locationActions';
@@ -55,10 +56,27 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
   },
   combatReward: {
     autoResolve: true,
-    legal: () => [{ type: 'combatReward', choice: 'influence' }],
+    legal: (state, d) => [
+      { type: 'combatReward', choice: 'influence' },
+      ...(buildOptions(state, d.player, { kind: 'reward', region: d.region }).length > 0
+        ? [{ type: 'combatReward', choice: 'build' } as const]
+        : []),
+    ],
+    apply: (c, d, action) =>
+      applyCombatReward(c, d.player, d.region, expectAction(action, 'combatReward').choice),
+  },
+  build: {
+    autoResolve: true,
+    legal: (state, d) => [
+      ...buildOptions(state, d.player, d.source).map((choice): Action => ({
+        type: 'build',
+        choice,
+      })),
+      { type: 'build', choice: null },
+    ],
     apply(c, d, action) {
-      expectAction(action, 'combatReward');
-      applyCombatReward(c, d.player, d.region);
+      const { choice } = expectAction(action, 'build');
+      if (choice) applyBuild(c, d.player, choice);
     },
   },
   draftPick: {

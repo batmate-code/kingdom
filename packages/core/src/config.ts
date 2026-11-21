@@ -24,6 +24,8 @@ export interface RuleToggles {
   commissariatWithoutWorkers: boolean;
   /** OQ-25 (закрыт, автор: да): Склеп даёт силу и за своего рабочего во втором слоте соседней локации. */
   cryptCountsSecondSlot: boolean;
+  /** OQ-29 (закрыт, автор: нет): право стройки Канцелярии можно купить, когда строить не на что. */
+  buildRightWithoutOptions: boolean;
 }
 
 export interface GameConfig {
@@ -51,6 +53,7 @@ export const DEFAULT_RULES: RuleToggles = {
   combatTokensWithoutOpponents: true,
   commissariatWithoutWorkers: false,
   cryptCountsSecondSlot: true,
+  buildRightWithoutOptions: false,
 };
 
 export function resolveConfig(input: GameConfigInput = {}): GameConfig {

@@ -1,4 +1,5 @@
-import { CHARACTERS, HOSPITAL } from '@vampire/data';
+import { BUILDING_EFFECTS, CHARACTERS, HOSPITAL } from '@vampire/data';
+import { ownsCitadel } from './buildings';
 import { getWorker } from './board';
 import type { Ctx } from './context';
 import { discardPair, turnOrder } from './draft';
@@ -7,12 +8,15 @@ import type { GameState, PlayerId, Task, Worker } from './types';
 
 /**
  * Содержание персонажа: кровь по карте, −1 если рабочий в госпитале, не ниже 0.
- * Скидка Цитадели Долины добавится на этапе 4.
+ * С Цитаделью Долины ещё −1.
  */
-export function upkeepCost(_state: GameState, worker: Worker): number {
+export function upkeepCost(state: GameState, worker: Worker): number {
   if (worker.character === null) return 0;
   let cost = CHARACTERS[worker.character].upkeep;
   if (worker.position.kind === 'hospital') cost -= HOSPITAL.upkeepDiscount;
+  if (ownsCitadel(state, worker.owner, 'valley')) {
+    cost -= BUILDING_EFFECTS.valleyCitadelUpkeepDiscount;
+  }
   return Math.max(0, cost);
 }
 
