@@ -230,3 +230,14 @@
   overflow: auto;
   line-height: 1.5;
 }
+
+.left {
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.draftArea {
+  padding: 0 12px 12px;
+}

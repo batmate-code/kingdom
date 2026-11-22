@@ -132,13 +132,16 @@ function Game() {
         <button onClick={reset}>Новая партия</button>
       </header>
       <main className={styles.main}>
-        <Board
-          obs={obs}
-          placements={legal.filter(
-            (a): a is Extract<Action, { type: 'place' }> => a.type === 'place',
-          )}
-          onPlace={act}
-        />
+        <div className={styles.left}>
+          <Board
+            obs={obs}
+            placements={legal.filter(
+              (a): a is Extract<Action, { type: 'place' }> => a.type === 'place',
+            )}
+            onPlace={act}
+          />
+          <div className={styles.draftArea}></div>
+        </div>
         <aside className={styles.side}>
           <div className={styles.turn}>
             <h3>{decisionTitle(state)}</h3>

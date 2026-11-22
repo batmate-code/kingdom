@@ -138,16 +138,17 @@
 }
 
 .workers {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .worker {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 210px;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 120px;
   border: 1px dashed #3a3244;
   border-radius: 8px;
@@ -155,8 +156,9 @@
 }
 
 .card {
-  width: 200px;
-  height: 280px;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  height: auto;
   object-fit: cover;
   border-radius: 5px;
   background: #2d2735;
