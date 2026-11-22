@@ -140,7 +140,9 @@ function Game() {
             )}
             onPlace={act}
           />
-          <div className={styles.draftArea}></div>
+          <div className={styles.draftArea}>
+            <Draft obs={obs} legal={legal} onPick={act} />
+          </div>
         </div>
         <aside className={styles.side}>
           <div className={styles.turn}>
@@ -156,7 +158,6 @@ function Game() {
               <Actions legal={legal.filter((a) => a.type !== 'place' && a.type !== 'draftPick')} />
             )}
           </div>
-          <Draft obs={obs} legal={legal} onPick={act} />
           <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} />
           <details className={styles.log}>
             <summary>Журнал</summary>
