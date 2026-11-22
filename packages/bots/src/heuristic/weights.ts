@@ -32,6 +32,11 @@ export const WEIGHTS = {
   /** Персонаж на рабочем: ценность за каждый оставшийся раунд (эффект при размещении). */
   characterPerRound: 0.25,
   /**
+   * Ценность персонажа по его эффекту (characterValues.ts) вместо одинаковой characterPerRound.
+   * false — все персонажи равны (прежние версии).
+   */
+  characterByEffect: true,
+  /**
    * Надбавка за каждую кровь содержания: «дорогие персонажи сильнее». Турнир 2 × 100 партий
    * с надбавкой 0.12 (heuristic-v3): бот брал персонажей с содержанием 3 в 92–95% выкладок и
    * выигрывал реже (~28% при норме 33%), поэтому по умолчанию 0.
@@ -75,6 +80,9 @@ export const WEIGHTS = {
 
 export type Weights = typeof WEIGHTS;
 
+/** Четвёртая версия: честное влияние и руда, но все персонажи ценятся одинаково (для турниров). */
+export const WEIGHTS_V4: Weights = { ...WEIGHTS, characterByEffect: false };
+
 /** Вторая версия: влияние со скидкой вдвое, руда 2,5, компромат 1,2 линейно (для турниров). */
 export const WEIGHTS_V2: Weights = {
   ...WEIGHTS,
@@ -84,6 +92,7 @@ export const WEIGHTS_V2: Weights = {
   markPartial: 0.5,
   citadelAccess: 0,
   firstTokenChase: 0,
+  characterByEffect: false,
 };
 
 /** Первая версия бота: кровь всегда стоит как золото (для сравнения в турнирах). */

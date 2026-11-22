@@ -1,4 +1,232 @@
 .app {
+  --bg: #15121a;
+  --panel: #211c28;
+  --line: #3a3244;
+  --text: #ece6f2;
+  --muted: #9a90a6;
+  --accent: #b0405a;
   font-family: system-ui, sans-serif;
-  padding: 24px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.app button,
+.app select,
+.app input {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.app button:hover {
+  border-color: var(--accent);
+}
+
+.app button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.setup {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 40px 16px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.primary {
+  margin-top: 16px;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  padding: 8px 16px !important;
+}
+
+.game {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1fr 460px;
+  min-height: 0;
+  flex: 1;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.region h3 {
+  margin: 0 0 8px;
+}
+
+.location,
+.player,
+.turn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.locHead {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.token {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--line);
+  color: #111;
+}
+
+.warn {
+  color: #ff8a8a;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.slot {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 2px 6px;
+  padding: 3px 0;
+  border-top: 1px dashed var(--line);
+}
+
+.slot > div {
+  grid-column: 2;
+}
+
+.slotNum {
+  grid-row: span 2;
+  font-weight: bold;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 1px 6px;
+  margin: 2px 4px 2px 0;
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.extras {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.plot {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 5px;
+  margin: 2px 4px 2px 0;
+}
+
+.side {
+  border-left: 1px solid var(--line);
+  padding: 12px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.turn h3 {
+  margin: 0 0 8px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.groupTitle {
+  width: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.actions button {
+  text-align: left;
+}
+
+.player {
+  border-left-width: 4px;
+}
+
+.workerLine {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.log {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  max-height: 30vh;
+  overflow: auto;
+  line-height: 1.5;
 }

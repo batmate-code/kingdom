@@ -11,8 +11,10 @@ import {
   REGION_ORDER,
   TRACKS,
   UPKEEP_TIERS,
+  type CharacterId,
   type Resources,
 } from '@vampire/data';
+import { CHARACTER_EFFECT_VP } from './characterValues';
 import { WEIGHTS, type Weights } from './weights';
 
 /** Какая доля партии ещё впереди (1 — начало, 0 — конец). */
@@ -43,6 +45,11 @@ function trackValue(value: number, marks: readonly number[], w: Weights): number
   if (next === undefined) return reached;
   const prev = [...marks].reverse().find((m) => m <= value) ?? 0;
   return reached + (w.markPartial * (value - prev)) / (next - prev);
+}
+
+/** Ценность одного срабатывания персонажа: по эффекту или одинаковая (прежние версии). */
+function characterRoundValue(character: CharacterId, w: Weights): number {
+  return w.characterByEffect ? CHARACTER_EFFECT_VP[character] : w.characterPerRound;
 }
 
 function endPrestige(upkeep: number): number {
@@ -102,8 +109,11 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
     ...own.flatMap((w) => (w.character ? [w.character] : [])),
     ...(p.draftPick.character ? [p.draftPick.character] : []),
   ];
+  // На содержании последнего раунда оплаченный персонаж принесёт престиж наверняка.
+  const keep =
+    state.round === state.config.rounds && state.phase === 'upkeep' ? 1 : w.keepCharacter;
   const expectedPrestige = characters.reduce(
-    (s, c) => s + w.keepCharacter * endPrestige(CHARACTERS[c].upkeep),
+    (s, c) => s + keep * endPrestige(CHARACTERS[c].upkeep),
     0,
   );
   value += trackValue(
@@ -133,11 +143,15 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
     if (worker.character === null) continue;
     const prof = worker.profession === 'spy' ? w.spyPerRound : w.professionPerRound;
     const upkeep = CHARACTERS[worker.character].upkeep;
-    value += rounds * (w.characterPerRound + upkeep * (w.characterPerUpkeep - bloodVp) + prof);
+    value +=
+      rounds *
+      (characterRoundValue(worker.character, w) + upkeep * (w.characterPerUpkeep - bloodVp) + prof);
   }
   if (p.draftPick.character) {
     const upkeep = CHARACTERS[p.draftPick.character].upkeep;
-    value += rounds * (w.characterPerRound + upkeep * (w.characterPerUpkeep - bloodVp));
+    value +=
+      rounds *
+      (characterRoundValue(p.draftPick.character, w) + upkeep * (w.characterPerUpkeep - bloodVp));
   }
 
   // Нехватка крови на содержание в конце раунда.
