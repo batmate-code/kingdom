@@ -346,7 +346,11 @@ function Game() {
     return () => clearTimeout(t);
   }, [state, botTurn, paused, delay, botStep]);
 
-  useEffect(() => logEnd.current?.scrollIntoView({ block: 'end' }), [log]);
+  // Тело в фигурных скобках: в новых Chrome scrollIntoView возвращает Promise, а эффект может
+  // вернуть только функцию очистки.
+  useEffect(() => {
+    void logEnd.current?.scrollIntoView({ block: 'end' });
+  }, [log]);
 
   if (!state) return null;
   // Смотрим глазами человека, который ходит (или первого человека за столом).
