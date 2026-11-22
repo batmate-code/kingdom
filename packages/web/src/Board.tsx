@@ -216,25 +216,30 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
         </div>
         <div className={styles.regionFooter}>
           <span
-            className={styles.star}
-            style={citadel ? { color: PLAYER_COLORS[citadel.owner] } : {}}
+            className={styles.citadel}
+            style={citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}}
             title={citadel ? `Цитадель: ${playerName(citadel.owner)}` : 'Место Цитадели свободно'}
           >
-            ★
+            ★ {citadel ? `Цитадель ${playerName(citadel.owner)}` : 'Цитадель'}
           </span>
           {atStar.map((w) => (
             <Token key={w.id} w={w} />
           ))}
+        </div>
+        <div className={styles.plots}>
+          <span className={styles.plotsLabel}>Участки:</span>
           {PLOTS.filter((p) => p.region === region).map((p) => {
             const b = obs.buildings.find((x) => x.plot === p.id);
+            const where = p.adjacent.map((l) => locName(l).slice(0, 4)).join('+');
+            const surcharge = Object.keys(p.surcharge).length > 0;
             return (
               <span
                 key={p.id}
                 className={styles.hex}
                 style={b ? { background: PLAYER_COLORS[b.owner], color: '#fff' } : {}}
-                title={`Участок у ${p.adjacent.map(locName).join(' и ')}${b ? `: ${BUILDINGS[b.type].name}` : ' — свободен'}`}
+                title={`Участок у ${p.adjacent.map(locName).join(' и ')}${surcharge ? ' (двойной, с доплатой)' : ''}${b ? `: ${BUILDINGS[b.type].name}, ${playerName(b.owner)}` : ' — свободен'}`}
               >
-                {b ? BUILDINGS[b.type].name.slice(0, 3) : p.adjacent.length > 1 ? '⬡⬡' : '⬡'}
+                {b ? BUILDINGS[b.type].name : where}
               </span>
             );
           })}
