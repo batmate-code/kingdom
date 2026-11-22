@@ -12,6 +12,7 @@ import {
 } from '@vampire/data';
 import { useState } from 'react';
 import styles from './Board.module.css';
+import { LAYOUT } from './layout';
 import { locName, playerName, regionName } from './labels';
 
 export const PLAYER_COLORS = ['#d94848', '#3f7fd6', '#e0b13c', '#4caf6a'];
@@ -209,40 +210,57 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
             </span>
           ))}
         </div>
-        <div className={styles.locations}>
-          {LOCATION_ORDER.filter((l) => LOCATIONS[l].region === region).map((l) => (
-            <Location key={l} id={l} />
-          ))}
-        </div>
-        <div className={styles.regionFooter}>
-          <span
-            className={styles.citadel}
-            style={citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}}
-            title={citadel ? `Цитадель: ${playerName(citadel.owner)}` : 'Место Цитадели свободно'}
-          >
-            ★ {citadel ? `Цитадель ${playerName(citadel.owner)}` : 'Цитадель'}
-          </span>
-          {atStar.map((w) => (
-            <Token key={w.id} w={w} />
-          ))}
-        </div>
-        <div className={styles.plots}>
-          <span className={styles.plotsLabel}>Участки:</span>
+        <div className={styles.map} style={{ height: LAYOUT[region].height }}>
+          <svg className={styles.links} viewBox="0 0 100 100" preserveAspectRatio="none">
+            {PLOTS.filter((p) => p.region === region).flatMap((p) => {
+              const [hx, hy] = LAYOUT[region].plots[p.id] ?? [50, 50];
+              return p.adjacent.map((l) => {
+                const [lx, ly] = LAYOUT[region].locations[l] ?? [50, 50];
+                return <line key={p.id + l} x1={hx} y1={hy} x2={lx} y2={ly} />;
+              });
+            })}
+          </svg>
+          {LOCATION_ORDER.filter((l) => LOCATIONS[l].region === region).map((l) => {
+            const [x, y] = LAYOUT[region].locations[l] ?? [50, 50];
+            return (
+              <div key={l} className={styles.node} style={{ left: `${x}%`, top: `${y}%` }}>
+                <Location id={l} />
+              </div>
+            );
+          })}
           {PLOTS.filter((p) => p.region === region).map((p) => {
-            const b = obs.buildings.find((x) => x.plot === p.id);
-            const where = p.adjacent.map((l) => locName(l).slice(0, 4)).join('+');
+            const [x, y] = LAYOUT[region].plots[p.id] ?? [50, 50];
+            const b = obs.buildings.find((v) => v.plot === p.id);
             const surcharge = Object.keys(p.surcharge).length > 0;
             return (
               <span
                 key={p.id}
-                className={styles.hex}
-                style={b ? { background: PLAYER_COLORS[b.owner], color: '#fff' } : {}}
+                className={`${styles.node} ${styles.hex} ${surcharge ? styles.hexDouble : ''}`}
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  ...(b ? { background: PLAYER_COLORS[b.owner], color: '#fff' } : {}),
+                }}
                 title={`Участок у ${p.adjacent.map(locName).join(' и ')}${surcharge ? ' (двойной, с доплатой)' : ''}${b ? `: ${BUILDINGS[b.type].name}, ${playerName(b.owner)}` : ' — свободен'}`}
               >
-                {b ? BUILDINGS[b.type].name : where}
+                {b ? BUILDINGS[b.type].name : surcharge ? 'двойной' : 'участок'}
               </span>
             );
           })}
+          <span
+            className={`${styles.node} ${styles.citadel}`}
+            style={{
+              left: `${LAYOUT[region].star[0]}%`,
+              top: `${LAYOUT[region].star[1]}%`,
+              ...(citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}),
+            }}
+            title={citadel ? `Цитадель: ${playerName(citadel.owner)}` : 'Место Цитадели свободно'}
+          >
+            ★{citadel ? ` ${playerName(citadel.owner)}` : ''}
+            {atStar.map((w) => (
+              <Token key={w.id} w={w} />
+            ))}
+          </span>
         </div>
       </section>
     );
