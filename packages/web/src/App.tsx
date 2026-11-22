@@ -6,35 +6,20 @@ import {
   getScores,
   type Action,
   type Observation,
-  type Worker,
 } from '@vampire/core';
 import {
-  BUILDINGS,
   CHARACTERS,
   COMBAT_TOKEN_ORDER,
   COMBAT_TOKENS,
-  LOCATIONS,
-  LOCATION_ORDER,
-  PLOTS,
   PROFESSIONS,
   REGION_ORDER,
-  type LocationId,
-  type SlotAction,
 } from '@vampire/data';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
-import {
-  actionLabel,
-  decisionTitle,
-  locName,
-  playerName,
-  regionName,
-  resText,
-  workerLabel,
-} from './labels';
+import { Board, PLAYER_COLORS } from './Board';
+import { actionLabel, decisionTitle, locName, playerName, regionName, workerLabel } from './labels';
 import { useGame, type Seat } from './store';
 
-const PLAYER_COLORS = ['#e05252', '#4f8fe0', '#e0b94f', '#5fc27a'];
 const BOT_OPTIONS = ['human', ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal')];
 const SEAT_NAME: Record<string, string> = {
   human: 'Человек',
@@ -42,47 +27,6 @@ const SEAT_NAME: Record<string, string> = {
   random: 'Случайный бот',
   'random-grouped': 'Случайный бот (по ступеням)',
 };
-
-/** Краткое описание действия слота из data. */
-function slotText(a: SlotAction): string {
-  switch (a.kind) {
-    case 'gain':
-      return resText(a.gain);
-    case 'lairStash':
-      return `копилка + ${a.bloodPerOre} кр → руда`;
-    case 'mass':
-      return `зол ↔ кр 1 → ${a.rate}, до ${a.maxTimes} раз`;
-    case 'market':
-      return `${a.buyCost} → руда / руда → ${a.sellGain}`;
-    case 'chancery':
-      return `комп → 2 зол/кр или руда (до ${a.maxTimes}); ${a.buildRightCost} комп → стройка`;
-    case 'chanceryBuild':
-      return `${a.compromatCost} комп → стройка`;
-    case 'copy':
-      return `${a.goldCost} зол → копия`;
-    case 'commissariatToken':
-      return 'жетон Комиссариата';
-    case 'revive':
-      return `${a.oreCost} руды → из госпиталя`;
-    case 'tavernSwap':
-      return 'замена пары';
-    case 'cityHall':
-      return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`).join(' / ');
-  }
-}
-
-function Chip({ w }: { w: Worker }) {
-  return (
-    <span
-      className={styles.chip}
-      style={{ borderColor: PLAYER_COLORS[w.owner] }}
-      title={playerName(w.owner)}
-    >
-      <span className={styles.dot} style={{ background: PLAYER_COLORS[w.owner] }} />
-      {workerLabel(w)}
-    </span>
-  );
-}
 
 function Setup() {
   const start = useGame((s) => s.start);
@@ -122,117 +66,6 @@ function Setup() {
         Начать партию
       </button>
     </section>
-  );
-}
-
-function Location({ obs, id }: { obs: Observation; id: LocationId }) {
-  const def = LOCATIONS[id];
-  const loc = obs.locations[id];
-  const at = (slot: 1 | 2) =>
-    obs.workers.filter(
-      (w) => w.position.kind === 'slot' && w.position.location === id && w.position.slot === slot,
-    );
-  const blocked = obs.blocks.some((b) => b.location === id);
-  return (
-    <div className={styles.location}>
-      <div className={styles.locHead}>
-        <b>{def.name}</b>
-        {loc.professionToken && (
-          <span
-            className={styles.token}
-            style={{ background: PROFESSIONS[loc.professionToken].color }}
-          >
-            {PROFESSIONS[loc.professionToken].name}
-          </span>
-        )}
-        {blocked && <span className={styles.warn}>заблокирована</span>}
-      </div>
-      {([1, 2] as const).map((slot) => (
-        <div key={slot} className={styles.slot}>
-          <span className={styles.slotNum}>
-            {slot}
-            {slot === 2 && loc.slot2Locked ? '🔒' : ''}
-          </span>
-          <span className={styles.muted}>{slotText(def.slots[slot - 1] as SlotAction)}</span>
-          <div>
-            {at(slot).map((w) => (
-              <Chip key={w.id} w={w} />
-            ))}
-          </div>
-        </div>
-      ))}
-      {id === 'lair' && <div className={styles.muted}>Копилка: {obs.lair.stash} руды</div>}
-    </div>
-  );
-}
-
-function Board({ obs }: { obs: Observation }) {
-  return (
-    <div className={styles.board}>
-      {REGION_ORDER.map((region) => {
-        const citadel = obs.buildings.find((b) => b.type === 'citadel' && b.region === region);
-        const atCitadel = obs.workers.filter(
-          (w) => w.position.kind === 'citadelSpot' && w.position.region === region,
-        );
-        const tokens = obs.powerTokens.filter((t) => t.region === region);
-        return (
-          <div key={region} className={styles.region}>
-            <h3>
-              {regionName(region)}
-              {obs.commissariat?.region === region && (
-                <span className={styles.muted}>
-                  {' '}
-                  · жетон Комиссариата у {playerName(obs.commissariat.owner)}
-                </span>
-              )}
-            </h3>
-            {LOCATION_ORDER.filter((l) => LOCATIONS[l].region === region).map((l) => (
-              <Location key={l} obs={obs} id={l} />
-            ))}
-            <div className={styles.extras}>
-              <div>
-                Звезда:{' '}
-                {citadel ? (
-                  <span style={{ color: PLAYER_COLORS[citadel.owner] }}>
-                    Цитадель {playerName(citadel.owner)}
-                  </span>
-                ) : (
-                  <span className={styles.muted}>свободна</span>
-                )}
-                {atCitadel.map((w) => (
-                  <Chip key={w.id} w={w} />
-                ))}
-              </div>
-              <div>
-                Участки:{' '}
-                {PLOTS.filter((p) => p.region === region).map((p) => {
-                  const b = obs.buildings.find((x) => x.plot === p.id);
-                  return (
-                    <span
-                      key={p.id}
-                      className={styles.plot}
-                      style={b ? { borderColor: PLAYER_COLORS[b.owner] } : {}}
-                    >
-                      {p.adjacent.map(locName).join('–')}: {b ? BUILDINGS[b.type].name : '—'}
-                    </span>
-                  );
-                })}
-              </div>
-              {tokens.length > 0 && (
-                <div>
-                  Жетоны силы:{' '}
-                  {tokens.map((t, i) => (
-                    <span key={i} style={{ color: PLAYER_COLORS[t.owner] }}>
-                      {playerName(t.owner)} +{t.count}{' '}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -333,7 +166,7 @@ function Actions({ legal }: { legal: Action[] }) {
 }
 
 function Game() {
-  const { state, seats, log, error, botStep, reset } = useGame();
+  const { state, seats, log, error, botStep, reset, act } = useGame();
   const [delay, setDelay] = useState(400);
   const [paused, setPaused] = useState(false);
   const logEnd = useRef<HTMLDivElement>(null);
@@ -389,13 +222,24 @@ function Game() {
         <button onClick={reset}>Новая партия</button>
       </header>
       <main className={styles.main}>
-        <Board obs={obs} />
+        <Board
+          obs={obs}
+          placements={legal.filter(
+            (a): a is Extract<Action, { type: 'place' }> => a.type === 'place',
+          )}
+          onPlace={act}
+        />
         <aside className={styles.side}>
           <div className={styles.turn}>
             <h3>{decisionTitle(state)}</h3>
             {botTurn && <div className={styles.muted}>Ходит бот…</div>}
             {error && <div className={styles.warn}>{error}</div>}
-            {!botTurn && <Actions legal={legal} />}
+            {!botTurn && pending?.kind === 'placement' && (
+              <div className={styles.muted}>
+                Выберите рабочего внизу поля и кликните по подсвеченному слоту.
+              </div>
+            )}
+            {!botTurn && <Actions legal={legal.filter((a) => a.type !== 'place')} />}
           </div>
           <Players obs={obs} seats={seats} />
           <div className={styles.log}>

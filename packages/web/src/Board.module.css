@@ -1,0 +1,271 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  grid-template-areas:
+    'city city city'
+    'forest hospital valley';
+  gap: 10px;
+}
+
+.cityArea {
+  grid-area: city;
+}
+.forestArea {
+  grid-area: forest;
+}
+.valleyArea {
+  grid-area: valley;
+}
+
+.region {
+  border-radius: 18px;
+  padding: 10px 12px 8px;
+  color: #1d1a20;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.forest {
+  background: #74906f;
+}
+.valley {
+  background: #8f5a5a;
+}
+.city {
+  background: #b8bbbf;
+}
+
+.regionTitle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.city .regionTitle {
+  color: #2a2a2e;
+  text-shadow: none;
+}
+
+.badge {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.locations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.location {
+  background: #fbf9f4;
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-width: 170px;
+  flex: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.blocked {
+  opacity: 0.55;
+  outline: 2px dashed #b0405a;
+}
+
+.locTitle {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.profToken {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #1d1a20;
+}
+
+.slotRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+
+.circle {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  border: 3px solid #2a2430;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.circle2 {
+  background:
+    linear-gradient(#fff 50%, transparent 50%),
+    conic-gradient(from 90deg, #6b3fa0, #3f7fd6, #4caf6a, #e0d03c, #e07a3c, #6b3fa0);
+}
+
+.target {
+  cursor: pointer;
+  box-shadow:
+    0 0 0 3px #4fd37a,
+    0 0 12px #4fd37a;
+}
+
+.targetDisplace {
+  box-shadow:
+    0 0 0 3px #ff5a5a,
+    0 0 12px #ff5a5a;
+}
+
+.lock {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  font-size: 13px;
+}
+
+.slotText {
+  font-size: 11px;
+  color: #3a3440;
+  line-height: 1.25;
+}
+
+.stash {
+  font-size: 11px;
+  color: #6b5a3a;
+  margin-top: 2px;
+}
+
+.token {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 3px;
+  cursor: default;
+}
+
+.clickable {
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+}
+
+.tokenSelected {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.regionFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.star {
+  font-size: 26px;
+  line-height: 1;
+  color: #fbf9f4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  margin-right: 4px;
+}
+
+.hex {
+  font-size: 10px;
+  padding: 3px 6px;
+  background: #fbf9f4;
+  color: #6a6270;
+  clip-path: polygon(15% 0, 85% 0, 100% 50%, 85% 100%, 15% 100%, 0 50%);
+  min-width: 26px;
+  text-align: center;
+}
+
+.hospital {
+  grid-area: hospital;
+  background: #f1eee8;
+  color: #1d1a20;
+  border-radius: 10px;
+  padding: 10px;
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  text-align: center;
+}
+
+.hospital .regionTitle {
+  color: #1d1a20;
+  text-shadow: none;
+  justify-content: center;
+}
+
+.reserve {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--panel, #211c28);
+  border: 1px solid var(--line, #3a3244);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.warn {
+  color: #ff8a8a;
+}
+
+.popup {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #2a2330;
+  border: 1px solid #b0405a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  z-index: 10;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
