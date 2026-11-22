@@ -1,23 +1,11 @@
 import { BOT_FACTORIES } from '@vampire/bots';
-import {
-  cityEntryCost,
-  getLegalActions,
-  getObservation,
-  getScores,
-  type Action,
-  type Observation,
-} from '@vampire/core';
-import {
-  CHARACTERS,
-  COMBAT_TOKEN_ORDER,
-  COMBAT_TOKENS,
-  PROFESSIONS,
-  REGION_ORDER,
-} from '@vampire/data';
+import { cityEntryCost, getLegalActions, getObservation, type Action } from '@vampire/core';
+import { CHARACTERS, PROFESSIONS } from '@vampire/data';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { Board, PLAYER_COLORS } from './Board';
-import { actionLabel, decisionTitle, locName, playerName, regionName, workerLabel } from './labels';
+import { PlayerBoard } from './PlayerBoard';
+import { actionLabel, decisionTitle, locName, playerName } from './labels';
 import { useGame, type Seat } from './store';
 
 const BOT_OPTIONS = ['human', ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal')];
@@ -66,74 +54,6 @@ function Setup() {
         Начать партию
       </button>
     </section>
-  );
-}
-
-function Players({ obs, seats }: { obs: Observation; seats: Seat[] }) {
-  const scores = getScores(useGame.getState().state!);
-  return (
-    <div className={styles.players}>
-      {obs.players.map((p, i) => {
-        const score = scores.find((s) => s.player === i);
-        const own = obs.workers.filter((w) => w.owner === i);
-        return (
-          <div key={i} className={styles.player} style={{ borderColor: PLAYER_COLORS[i] }}>
-            <div className={styles.locHead}>
-              <b style={{ color: PLAYER_COLORS[i] }}>{playerName(i)}</b>
-              <span className={styles.muted}>{SEAT_NAME[seats[i] ?? ''] ?? seats[i]}</span>
-              {obs.firstPlayer === i && <span className={styles.token}>первый</span>}
-              {p.passed && <span className={styles.warn}>пас</span>}
-            </div>
-            <div>
-              <b>{score?.vp ?? 0} ПО</b> · престиж {p.prestige}
-              {score?.rank === 1 && obs.phase === 'gameOver' ? ' · ПОБЕДА' : ''}
-            </div>
-            <div>
-              Золото {p.resources.gold} · Кровь {p.resources.blood} · Руда {p.resources.ore} ·
-              Компромат {p.resources.compromat}
-            </div>
-            <div>
-              Влияние: {REGION_ORDER.map((r) => `${regionName(r)} ${p.influence[r]}`).join(' · ')}
-            </div>
-            <div className={styles.muted}>
-              Жетоны боя:{' '}
-              {COMBAT_TOKEN_ORDER.filter((t) => p.combatTokens.hand[t] > 0)
-                .map(
-                  (t) =>
-                    `${COMBAT_TOKENS[t].name}${p.combatTokens.hand[t] > 1 ? ` ×${p.combatTokens.hand[t]}` : ''}`,
-                )
-                .join(', ') || 'нет'}
-            </div>
-            {(p.draftPick.character || p.draftPick.profession) && (
-              <div>
-                Взято на драфте:{' '}
-                {p.draftPick.character ? CHARACTERS[p.draftPick.character].name : '—'} /{' '}
-                {p.draftPick.profession ? PROFESSIONS[p.draftPick.profession].name : '—'}
-              </div>
-            )}
-            <div>
-              Рабочие:{' '}
-              {own.map((w) => (
-                <span key={w.id} className={styles.workerLine}>
-                  {workerLabel(w)}{' '}
-                  <span className={styles.muted}>
-                    (
-                    {w.position.kind === 'reserve'
-                      ? 'запас'
-                      : w.position.kind === 'hospital'
-                        ? 'госпиталь'
-                        : w.position.kind === 'citadelSpot'
-                          ? 'у звезды'
-                          : locName(w.position.location)}
-                    )
-                  </span>
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -241,7 +161,6 @@ function Game() {
             )}
             {!botTurn && <Actions legal={legal.filter((a) => a.type !== 'place')} />}
           </div>
-          <Players obs={obs} seats={seats} />
           <div className={styles.log}>
             {log.map((l) => (
               <div key={l.id}>{l.text}</div>
@@ -250,6 +169,7 @@ function Game() {
           </div>
         </aside>
       </main>
+      <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} />
     </div>
   );
 }
