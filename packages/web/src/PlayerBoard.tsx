@@ -1,5 +1,6 @@
 import { getScores, type GameState, type Observation, type Worker } from '@vampire/core';
 import {
+  BUILDING_EFFECTS,
   BUILDINGS,
   CHARACTERS,
   COMBAT_TOKENS,
@@ -18,7 +19,20 @@ import { profStyle } from './colors';
 import { Icon, RichText } from './Icon';
 import styles from './PlayerBoard.module.css';
 
-const BUILDING_ROWS: BuildingId[] = ['crypt', 'abbey', 'shop'];
+const BUILDING_ROWS = ['crypt', 'abbey', 'shop'] as const satisfies readonly BuildingId[];
+
+/** Что делает здание — коротко; числа из data (BUILDING_EFFECTS, TRACKS). */
+const BUILDING_TEXT: Record<'crypt' | 'abbey' | 'shop', string> = {
+  crypt: `+${BUILDING_EFFECTS.cryptStrength} к силе в бою региона, если ваш рабочий стоит в соседней локации`,
+  abbey: `+${BUILDING_EFFECTS.abbeyBloodPerDisplacement} кр за каждое вытеснение из соседней локации`,
+  shop: `+${BUILDING_EFFECTS.shopGoldPerVisit} зол, когда чужой рабочий приходит в соседнюю локацию`,
+};
+
+const CITADEL_TEXT =
+  `Нужно влияние: Лес ${TRACKS.forest.citadelAt}, Долина ${TRACKS.valley.citadelAt}, Город ${TRACKS.city.citadelAt}. ` +
+  `Лес: +${BUILDING_EFFECTS.forestCitadelStrength} к силе в бою. ` +
+  `Долина: содержание −${BUILDING_EFFECTS.valleyCitadelUpkeepDiscount} кр за персонажа. ` +
+  `Город: +${BUILDING_EFFECTS.cityCitadelCompromatPerVisit} комп за чужой визит в Город`;
 const RES_LABEL = { gold: 'Золото', blood: 'Кровь', ore: 'Руда', compromat: 'Компромат' } as const;
 
 function costText(type: BuildingId): string {
@@ -151,49 +165,64 @@ export function PlayerBoard({
           {BUILDING_ROWS.map((type) => {
             const count = built(type).length;
             return (
-              <div key={type} className={styles.buildingRow}>
-                <div className={styles.buildingName}>
+              <div key={type} className={styles.building}>
+                <div className={styles.buildingHead}>
                   <b>{BUILDINGS[type].name}</b>
-                  <span className={styles.muted}>
+                  <span className={styles.cost}>
                     <RichText text={costText(type)} />
                   </span>
                 </div>
-                {BUILDINGS[type].prestige.map((pr, i) => (
-                  <span
-                    key={i}
-                    className={`${styles.hex} ${i < count ? styles.hexBuilt : ''}`}
-                    style={i < count ? { background: PLAYER_COLORS[player] } : {}}
-                    title={
-                      i < count ? 'Построено' : `${i + 1}-е здание этого типа: +${pr} престижа`
-                    }
-                  >
-                    {pr}
-                    <Icon name="prestige" size={16} />
+                <div className={styles.effect}>
+                  <RichText text={BUILDING_TEXT[type]} />
+                </div>
+                <div className={styles.chain}>
+                  {BUILDINGS[type].prestige.map((pr, i) => (
+                    <span
+                      key={i}
+                      className={`${styles.hex} ${i < count ? styles.hexBuilt : ''}`}
+                      style={i < count ? { background: PLAYER_COLORS[player] } : {}}
+                      title={
+                        i < count
+                          ? `${i + 1}-е построено: +${pr} престижа`
+                          : `${i + 1}-е здание этого типа: +${pr} престижа`
+                      }
+                    >
+                      {pr}
+                      <Icon name="prestige" size={16} />
+                    </span>
+                  ))}
+                  <span className={styles.muted}>
+                    {count} / {BUILDINGS[type].prestige.length}
                   </span>
-                ))}
+                </div>
               </div>
             );
           })}
-          <div className={styles.buildingRow}>
-            <div className={styles.buildingName}>
+          <div className={styles.building}>
+            <div className={styles.buildingHead}>
               <b>
-                <Icon name="citadel" size={16} /> Цитадель
+                <Icon name="citadel" size={18} /> Цитадель
               </b>
-              <span className={styles.muted}>
+              <span className={styles.cost}>
                 <RichText text={costText('citadel')} />
               </span>
             </div>
-            <span
-              className={`${styles.hex} ${citadel ? styles.hexBuilt : ''}`}
-              style={citadel ? { background: PLAYER_COLORS[player] } : {}}
-              title={
-                citadel ? `Построена: ${regionName(citadel.region)}` : '+10 престижа при постройке'
-              }
-            >
-              {BUILDINGS.citadel.prestige[0]}
-              <Icon name="prestige" size={16} />
-            </span>
-            {citadel && <span className={styles.muted}>{regionName(citadel.region)}</span>}
+            <div className={styles.effect}>
+              <RichText text={CITADEL_TEXT} />
+            </div>
+            <div className={styles.chain}>
+              <span
+                className={`${styles.hex} ${citadel ? styles.hexBuilt : ''}`}
+                style={citadel ? { background: PLAYER_COLORS[player] } : {}}
+                title={citadel ? `Построена: ${regionName(citadel.region)}` : 'При постройке'}
+              >
+                {BUILDINGS.citadel.prestige[0]}
+                <Icon name="prestige" size={16} />
+              </span>
+              <span className={styles.muted}>
+                {citadel ? `построена: ${regionName(citadel.region)}` : 'одна на игрока'}
+              </span>
+            </div>
           </div>
         </div>
 
