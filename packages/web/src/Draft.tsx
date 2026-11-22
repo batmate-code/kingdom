@@ -56,51 +56,63 @@ export function Draft({
   const pickProfession = (id: string) =>
     picks.find((a) => a.pick.kind === 'profession' && a.pick.profession === id);
 
+  const characterCards = chars.map(({ id, takenBy }, i) => {
+    const action = takenBy === null ? pickCharacter(id) : undefined;
+    const c = CHARACTERS[id];
+    return (
+      <button
+        key={`${id}${i}`}
+        type="button"
+        className={`${styles.card} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
+        disabled={!action}
+        onClick={() => action && onPick(action)}
+        title={`${c.name}: ${c.text} (содержание ${c.upkeep})${takenBy !== null ? ` — взял ${playerName(takenBy)}` : ''}`}
+      >
+        <img src={cardUrl(id)} alt={c.name} />
+        {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
+      </button>
+    );
+  });
+  const professionCards = profs.map(({ id, takenBy }, i) => {
+    const action = takenBy === null ? pickProfession(id) : undefined;
+    return (
+      <button
+        key={`${id}${i}`}
+        type="button"
+        className={`${styles.card} ${styles.profCard} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
+        style={profStyle(id)}
+        disabled={!action}
+        onClick={() => action && onPick(action)}
+        title={takenBy !== null ? `Взял ${playerName(takenBy)}` : undefined}
+      >
+        {PROFESSIONS[id].name}
+        {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
+      </button>
+    );
+  });
+
+  // После драфта — пул Таверны: свёрнут, карты подряд.
+  if (!drafting) {
+    return (
+      <details className={styles.draft}>
+        <summary className={styles.title}>Пул Таверны ({chars.length + profs.length})</summary>
+        <div className={styles.compact}>
+          {characterCards}
+          {professionCards}
+        </div>
+      </details>
+    );
+  }
+
   return (
     <div className={styles.draft}>
       <div className={styles.title}>
-        {drafting ? 'Драфт' : 'Пул Таверны'}
+        Драфт
         {picks.length > 0 && <span className={styles.hint}> — кликните, чтобы взять</span>}
       </div>
       <div className={styles.row}>
-        <div className={styles.group}>
-          {chars.map(({ id, takenBy }, i) => {
-            const action = takenBy === null ? pickCharacter(id) : undefined;
-            const c = CHARACTERS[id];
-            return (
-              <button
-                key={`${id}${i}`}
-                type="button"
-                className={`${styles.card} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
-                disabled={!action}
-                onClick={() => action && onPick(action)}
-                title={`${c.name}: ${c.text} (содержание ${c.upkeep})${takenBy !== null ? ` — взял ${playerName(takenBy)}` : ''}`}
-              >
-                <img src={cardUrl(id)} alt={c.name} />
-                {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
-              </button>
-            );
-          })}
-        </div>
-        <div className={styles.group}>
-          {profs.map(({ id, takenBy }, i) => {
-            const action = takenBy === null ? pickProfession(id) : undefined;
-            return (
-              <button
-                key={`${id}${i}`}
-                type="button"
-                className={`${styles.card} ${styles.profCard} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
-                style={profStyle(id)}
-                disabled={!action}
-                onClick={() => action && onPick(action)}
-                title={takenBy !== null ? `Взял ${playerName(takenBy)}` : undefined}
-              >
-                {PROFESSIONS[id].name}
-                {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
-              </button>
-            );
-          })}
-        </div>
+        <div className={styles.group}>{characterCards}</div>
+        <div className={styles.group}>{professionCards}</div>
       </div>
     </div>
   );

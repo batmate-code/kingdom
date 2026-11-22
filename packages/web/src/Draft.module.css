@@ -90,3 +90,20 @@
   letter-spacing: 0;
   text-align: center;
 }
+
+/* Пул Таверны: карты подряд, фиксированной ширины. */
+.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.compact .card {
+  width: 120px;
+}
+
+summary.title {
+  cursor: pointer;
+  margin-bottom: 0;
+}
