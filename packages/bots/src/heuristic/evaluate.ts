@@ -1,4 +1,5 @@
 import {
+  cityEntryPrice,
   combatStrengths,
   getScores,
   type GameState,
@@ -6,6 +7,8 @@ import {
   type Phase,
 } from '@vampire/core';
 import {
+  BUILDINGS,
+  BUILDING_ORDER,
   CHARACTERS,
   PRESTIGE_TRACK,
   REGION_ORDER,
@@ -139,9 +142,15 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
   // избытке, содержание обходится дешевле: платим кровью, которую больше не на что тратить.
   const marginalBlood = p.resources.blood > bloodNeed + w.bloodReserve ? w.bloodSurplus : 1;
   const bloodVp = w.resource.blood * w.goldToVp * marginalBlood;
+  // Аристократ экономит вход в Город: доля текущей цены (в «золоте») за раунд.
+  const entry = cityEntryPrice(state);
+  const entryGold = (entry.gold ?? 0) * w.resource.gold + (entry.blood ?? 0) * w.resource.blood;
+  const aristocratBonus = w.aristocratEntryShare * entryGold * w.goldToVp;
   for (const worker of own) {
     if (worker.character === null) continue;
-    const prof = worker.profession === 'spy' ? w.spyPerRound : w.professionPerRound;
+    const prof =
+      (worker.profession === 'spy' ? w.spyPerRound : w.professionPerRound) +
+      (worker.profession === 'aristocrat' ? aristocratBonus : 0);
     const upkeep = CHARACTERS[worker.character].upkeep;
     value +=
       rounds *
@@ -204,6 +213,15 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
   // Здания приносят пользу до конца партии.
   for (const b of state.buildings) {
     if (b.owner === player) value += w.building[b.type] * future;
+  }
+  // Начатая цепочка зданий обещает престиж следующего здания того же типа.
+  if (w.buildingChain > 0) {
+    for (const type of BUILDING_ORDER) {
+      const owned = state.buildings.filter((b) => b.owner === player && b.type === type).length;
+      const next = BUILDINGS[type].prestige[owned];
+      if (owned === 0 || next === undefined) continue;
+      value += w.buildingChain * future * next * w.prestigeVp;
+    }
   }
 
   // Ходы впереди: рабочие в запасе во время размещения.

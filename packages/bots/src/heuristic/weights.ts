@@ -5,10 +5,12 @@
  */
 export const WEIGHTS = {
   /**
-   * Ценность ресурсов в «золоте». Руда — не дешевле продажи на Рынке (4), иначе бот сливает
-   * дефицитную руду. Компромат — отдельно, парами (см. compromatPair).
+   * Ценность ресурсов в «золоте». Компромат — отдельно, парами (см. compromatPair).
+   * Руда 3 (было 4 — «не дешевле Рынка»): агенты охотно меняют руду на влияние в Ратуше,
+   * а бот при 4 копил её до конца партии. Турнир 22.11 (вместе с buildingChain): 41,4% побед
+   * при норме 33,3%, 900 партий (docs/stats/2026-11-22-bot-v6).
    */
-  resource: { gold: 1, blood: 1, ore: 4, compromat: 0 },
+  resource: { gold: 1, blood: 1, ore: 3, compromat: 0 },
   /**
    * Компромат: полезен парами (Канцелярия меняет до 2 за визит, вход и ход — накладные).
    * Пара ≈ 2,5 золота, одиночная штука почти ничего не стоит.
@@ -55,6 +57,18 @@ export const WEIGHTS = {
 
   /** Будущая ценность зданий за весь остаток партии. */
   building: { crypt: 0.3, abbey: 0.3, shop: 0.5, citadel: 1 },
+  /**
+   * Цепочка престижа зданий (находка агентов, партия 2): начатая цепочка обещает престиж
+   * следующего здания того же типа (Склеп 1 → 3 → 8). Доля этого престижа, которую бот
+   * засчитывает заранее (умножается на долю оставшейся партии); 0 — не учитывать.
+   */
+  buildingChain: 0.6,
+  /**
+   * Аристократ входит в Город бесплатно: ценность за раунд — доля текущей цены входа
+   * (сколько раз за раунд он реально сэкономит вход); 0 — Аристократ как любая профессия.
+   * Турнир 22.11 с весом 0,6: слабее (30,3% при норме 33,3%) — по умолчанию выкл.
+   */
+  aristocratEntryShare: 0,
 
   /**
    * Кровь сверх будущего содержания стоит дешевле: её почти не на что тратить, кроме обмена
@@ -90,15 +104,25 @@ export const WEIGHTS = {
 
 export type Weights = typeof WEIGHTS;
 
+/** Пятая версия (до 22.11): руда 4, без цепочек зданий — база для сравнения в турнирах. */
+export const WEIGHTS_PREV: Weights = {
+  ...WEIGHTS,
+  resource: { ...WEIGHTS.resource, ore: 4 },
+  buildingChain: 0,
+};
+
+/** Эксперимент: Аристократ ценится по цене входа в Город (слабее, см. aristocratEntryShare). */
+export const WEIGHTS_ARISTO: Weights = { ...WEIGHTS, aristocratEntryShare: 0.6 };
+
 /** Эксперимент: нехватка крови = ценность сбрасываемых персонажей (слабее, см. shortageByCharacter). */
-export const WEIGHTS_V5: Weights = { ...WEIGHTS, shortageByCharacter: true };
+export const WEIGHTS_V5: Weights = { ...WEIGHTS_PREV, shortageByCharacter: true };
 
 /** Четвёртая версия: честное влияние и руда, но все персонажи ценятся одинаково (для турниров). */
-export const WEIGHTS_V4: Weights = { ...WEIGHTS, characterByEffect: false };
+export const WEIGHTS_V4: Weights = { ...WEIGHTS_PREV, characterByEffect: false };
 
 /** Вторая версия: влияние со скидкой вдвое, руда 2,5, компромат 1,2 линейно (для турниров). */
 export const WEIGHTS_V2: Weights = {
-  ...WEIGHTS,
+  ...WEIGHTS_PREV,
   resource: { gold: 1, blood: 1, ore: 2.5, compromat: 1.2 },
   compromatPair: 0,
   compromatSingle: 0,
@@ -117,7 +141,7 @@ export const WEIGHTS_V1: Weights = {
 };
 
 /** Эксперимент: дорогие персонажи в приоритете (надбавка за каждую кровь содержания). */
-export const WEIGHTS_V3: Weights = { ...WEIGHTS, characterPerUpkeep: 0.12 };
+export const WEIGHTS_V3: Weights = { ...WEIGHTS_PREV, characterPerUpkeep: 0.12 };
 
 /** Параметры перебора. */
 export const SEARCH = {
