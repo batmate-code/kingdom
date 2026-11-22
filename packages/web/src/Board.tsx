@@ -6,13 +6,14 @@ import {
   LOCATION_ORDER,
   PLOTS,
   PROFESSIONS,
+  TRACKS,
   type LocationId,
   type RegionId,
   type SlotAction,
 } from '@vampire/data';
 import { useState } from 'react';
 import styles from './Board.module.css';
-import { RichText } from './Icon';
+import { Icon, RichText } from './Icon';
 import { profColor } from './colors';
 import { LAYOUT } from './layout';
 import { locName, playerName, regionName } from './labels';
@@ -266,24 +267,58 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
                 }}
                 title={`Участок у ${p.adjacent.map(locName).join(' и ')}${surcharge ? ' (двойной, с доплатой)' : ''}${b ? `: ${BUILDINGS[b.type].name}, ${playerName(b.owner)}` : ' — свободен'}`}
               >
-                {b ? BUILDINGS[b.type].name : surcharge ? 'двойной' : 'участок'}
+                {b ? (
+                  BUILDINGS[b.type].name
+                ) : surcharge ? (
+                  <RichText
+                    text={Object.entries(p.surcharge)
+                      .map(([r, v]) => `+${v} ${R[r as keyof typeof R]}`)
+                      .join(' ')}
+                  />
+                ) : (
+                  ' '
+                )}
               </span>
             );
           })}
-          <span
-            className={`${styles.node} ${styles.citadel}`}
-            style={{
-              left: `${LAYOUT[region].star[0]}%`,
-              top: `${LAYOUT[region].star[1]}%`,
-              ...(citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}),
-            }}
-            title={citadel ? `Цитадель: ${playerName(citadel.owner)}` : 'Место Цитадели свободно'}
-          >
-            ★{citadel ? ` ${playerName(citadel.owner)}` : ''}
-            {atStar.map((w) => (
-              <Token key={w.id} w={w} />
-            ))}
-          </span>
+          {(() => {
+            // Цитадель: построена / доступна смотрящему (влияние ≥ порога) / закрыта.
+            const need = TRACKS[region].citadelAt;
+            const have = obs.players[obs.viewer]?.influence[region] ?? 0;
+            const open = !citadel && have >= need;
+            const title = citadel
+              ? `Цитадель построена: ${playerName(citadel.owner)}`
+              : open
+                ? `Цитадель доступна: у вас ${have} влияния (нужно ${need}) — 7 золота + 3 руды`
+                : `Цитадель закрыта: нужно ${need} влияния в регионе, у вас ${have}`;
+            return (
+              <span
+                className={`${styles.node} ${styles.citadel} ${open ? styles.citadelOpen : ''} ${!citadel && !open ? styles.citadelLocked : ''}`}
+                style={{
+                  left: `${LAYOUT[region].star[0]}%`,
+                  top: `${LAYOUT[region].star[1]}%`,
+                  ...(citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}),
+                }}
+                title={title}
+              >
+                <Icon name={open ? 'citadelOpen' : 'citadel'} size={26} />
+                <span>
+                  {citadel ? (
+                    playerName(citadel.owner)
+                  ) : open ? (
+                    'можно строить'
+                  ) : (
+                    <>
+                      {have} / {need} <Icon name="influence" size={14} />
+                    </>
+                  )}
+                </span>
+                {atStar.map((w) => (
+                  <Token key={w.id} w={w} />
+                ))}
+              </span>
+            );
+          })()}
         </div>
       </section>
     );

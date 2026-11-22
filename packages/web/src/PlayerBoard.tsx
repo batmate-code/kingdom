@@ -125,7 +125,10 @@ export function PlayerBoard({
                   key={n}
                   className={`${styles.pip} ${n <= p.influence[r] ? styles.pipOn : ''} ${TRACKS[r].vpMarks.includes(n) ? styles.pipMark : ''}`}
                   style={n <= p.influence[r] ? { background: PLAYER_COLORS[player] } : {}}
-                />
+                  title={n === TRACKS[r].citadelAt ? `С ${n} влияния доступна Цитадель` : undefined}
+                >
+                  {n === TRACKS[r].citadelAt && <Icon name="citadel" size={12} />}
+                </span>
               ))}
               <span className={styles.muted}>{p.influence[r]}</span>
             </div>

@@ -96,8 +96,11 @@
 }
 
 .pip {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 3px;
   background: #2d2735;
   border: 1px solid #4a4256;
