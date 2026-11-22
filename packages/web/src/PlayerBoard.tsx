@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { PLAYER_COLORS } from './Board';
 import { locName, playerName, regionName } from './labels';
 import { cardUrl } from './cards';
+import { profStyle } from './colors';
 import styles from './PlayerBoard.module.css';
 
 const BUILDING_ROWS: BuildingId[] = ['crypt', 'abbey', 'shop'];
@@ -47,7 +48,7 @@ function WorkerCard({ w }: { w: Worker }) {
       <div className={styles.workerInfo}>
         <b>{w.character ? CHARACTERS[w.character].name : 'Без улучшения'}</b>
         {w.profession && (
-          <span className={styles.prof} style={{ background: PROFESSIONS[w.profession].color }}>
+          <span className={styles.prof} style={profStyle(w.profession)}>
             {PROFESSIONS[w.profession].name}
           </span>
         )}
@@ -191,10 +192,7 @@ export function PlayerBoard({
               <div className={styles.workerInfo}>
                 <b>Драфт: {p.draftPick.character ? CHARACTERS[p.draftPick.character].name : '—'}</b>
                 {p.draftPick.profession && (
-                  <span
-                    className={styles.prof}
-                    style={{ background: PROFESSIONS[p.draftPick.profession].color }}
-                  >
+                  <span className={styles.prof} style={profStyle(p.draftPick.profession)}>
                     {PROFESSIONS[p.draftPick.profession].name}
                   </span>
                 )}

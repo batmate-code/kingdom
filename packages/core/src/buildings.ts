@@ -15,7 +15,7 @@ import {
 } from '@vampire/data';
 import { getWorker } from './board';
 import type { Ctx } from './context';
-import { alchemize, changeResources, pay, paymentVariants } from './economy';
+import { changeResources, payMaybeAlchemy, paymentVariants } from './economy';
 import { addPrestige } from './prestige';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
@@ -93,7 +93,7 @@ export function buildOptions(
 export function applyBuild(c: Ctx, player: PlayerId, choice: BuildChoice): void {
   const number = ownedOfType(c.draft, player, choice.building);
   const cost = buildCost(choice);
-  pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'build');
+  payMaybeAlchemy(c, player, cost, choice.alchemy, 'build');
   c.draft.buildings.push({
     type: choice.building,
     owner: player,

@@ -1,6 +1,7 @@
 import type { Action, Observation } from '@vampire/core';
 import { CHARACTERS, PROFESSIONS } from '@vampire/data';
 import { cardUrl } from './cards';
+import { profStyle } from './colors';
 import styles from './Draft.module.css';
 
 type DraftAction = Extract<Action, { type: 'draftPick' }>;
@@ -61,7 +62,7 @@ export function Draft({
               key={`${id}${i}`}
               type="button"
               className={`${styles.prof} ${action ? styles.pickable : ''}`}
-              style={{ background: PROFESSIONS[id].color }}
+              style={profStyle(id)}
               disabled={!action}
               onClick={() => action && onPick(action)}
             >

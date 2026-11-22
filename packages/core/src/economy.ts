@@ -70,6 +70,24 @@ export function alchemize(cost: Partial<Resources>): Partial<Resources> {
   };
 }
 
+/**
+ * Оплатить цену; с заменой Алхимика — 1 руда → 1 золото. Замена одна на всё размещение
+ * Алхимика (ответ автора, 22.11), поэтому после неё Алхимик больше не действует.
+ */
+export function payMaybeAlchemy(
+  c: Ctx,
+  player: PlayerId,
+  cost: Partial<Resources>,
+  alchemy: boolean | undefined,
+  reason: ResourceReason,
+): void {
+  if (alchemy) {
+    if (c.draft.alchemy !== player) throw new Error('Алхимик сейчас не действует');
+    c.draft.alchemy = null;
+  }
+  pay(c, player, alchemy ? alchemize(cost) : cost, reason);
+}
+
 /** Варианты оплаты: обычная и (если доступно) с заменой Алхимика; только по карману. */
 export function paymentVariants(
   state: GameState,

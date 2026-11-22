@@ -2,7 +2,7 @@ import { LOCATIONS, LOCATION_ORDER, REGION_ORDER, TRACKS, type SlotAction } from
 import { distinctWorkers, getWorker } from './board';
 import { buildOptions } from './buildings';
 import type { Ctx } from './context';
-import { alchemize, changeInfluence, changeResources, pay, paymentVariants } from './economy';
+import { changeInfluence, changeResources, pay, payMaybeAlchemy, paymentVariants } from './economy';
 import type {
   ChanceryConversion,
   GameState,
@@ -162,7 +162,7 @@ const HANDLERS: HandlerRegistry = {
       } else if (choice.kind === 'marketSell') {
         // Алхимик: вместо руды платится 1 золото (1 золото → 4 золота/крови — ответ автора).
         const cost = { ore: action.ore };
-        pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'market');
+        payMaybeAlchemy(c, player, cost, choice.alchemy, 'market');
         changeResources(
           c,
           player,
@@ -321,7 +321,7 @@ const HANDLERS: HandlerRegistry = {
     apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'revive') mismatch(choice);
       const cost = { ore: action.oreCost };
-      pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'revive');
+      payMaybeAlchemy(c, player, cost, choice.alchemy, 'revive');
       const w = c.draft.workers.find((x) => x.id === choice.workerId);
       if (!w || w.owner !== player || w.position.kind !== 'hospital') {
         throw new Error(`Рабочий ${choice.workerId} не в госпитале`);
@@ -396,7 +396,7 @@ const HANDLERS: HandlerRegistry = {
       const offer = action.offers[choice.offer];
       if (!offer) throw new Error(`Нет обмена ${choice.offer} в Ратуше`);
       const cost = { ore: offer.ore };
-      pay(c, player, choice.alchemy ? alchemize(cost) : cost, 'cityHall');
+      payMaybeAlchemy(c, player, cost, choice.alchemy, 'cityHall');
       changeInfluence(c, player, choice.region, offer.influence, 'cityHall');
     },
   },

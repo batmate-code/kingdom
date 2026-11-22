@@ -12,6 +12,7 @@ import {
 } from '@vampire/data';
 import { useState } from 'react';
 import styles from './Board.module.css';
+import { profColor } from './colors';
 import { LAYOUT } from './layout';
 import { locName, playerName, regionName } from './labels';
 
@@ -52,10 +53,9 @@ export function slotShort(a: SlotAction): string {
   }
 }
 
-/** Инициалы персонажа на фишке. */
-function initials(w: Worker): string {
-  if (!w.character) return '';
-  return CHARACTERS[w.character].name.slice(0, 2);
+/** Номер рабочего игрока на фишке (1–3). */
+function workerNumber(w: Worker): number {
+  return Number(w.id.split('w')[1] ?? 0) + 1;
 }
 
 function workerTitle(w: Worker): string {
@@ -74,7 +74,7 @@ export function Token({
   selected?: boolean;
   onClick?: () => void;
 }) {
-  const ring = w.profession ? PROFESSIONS[w.profession].color : '#2a2430';
+  const ring = w.profession ? profColor(w.profession) : '#2a2430';
   return (
     <button
       type="button"
@@ -84,7 +84,7 @@ export function Token({
       onClick={onClick}
       disabled={!onClick}
     >
-      {initials(w)}
+      {workerNumber(w)}
     </button>
   );
 }
@@ -169,7 +169,7 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
           {loc.professionToken && (
             <span
               className={styles.profToken}
-              style={{ background: PROFESSIONS[loc.professionToken].color }}
+              style={{ background: profColor(loc.professionToken) }}
               title={`Жетон профессии: ${PROFESSIONS[loc.professionToken].name} — она вытесняет из второго слота`}
             />
           )}

@@ -699,3 +699,23 @@ describe('Найдено симулятором', () => {
     expect(s.round).toBe(2);
   });
 });
+
+describe('Найдено в игре', () => {
+  it('Алхимик: замена руды на золото — один раз за размещение (ответ автора, 22.11)', () => {
+    // Алхимик-Архитектор на Рынке: продать «руду» за 1 золото, потом стройка — уже без замены.
+    let s = give(start({ gold: 2, ore: 0 }), 'p0w0', 'alchemist', 'architect');
+    s = place(s, 'market', 1, { workerId: 'p0w0' });
+    s = act(s, {
+      type: 'locationAction',
+      choice: { kind: 'marketSell', receive: { gold: 4, blood: 0 }, alchemy: true },
+    });
+    expect(res(s, 0)).toMatchObject({ gold: 5, ore: 0 });
+    // Лавка (3 золота + 1 руда) без руды больше недоступна; Склеп и Аббатство — да.
+    const builds = getLegalActions(s).flatMap((a) =>
+      a.type === 'build' && a.choice ? [a.choice] : [],
+    );
+    expect(builds.some((b) => b.alchemy)).toBe(false);
+    expect(builds.some((b) => b.building === 'shop')).toBe(false);
+    expect(builds.some((b) => b.building === 'abbey')).toBe(true);
+  });
+});
