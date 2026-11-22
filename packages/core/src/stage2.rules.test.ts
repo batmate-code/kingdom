@@ -46,9 +46,16 @@ describe('Таверна, первый слот', () => {
     expect(res(s, 0)).toEqual(res(before, 0));
   });
 
-  it('Рабочий без улучшения ничего не получает', () => {
-    const s = place(withTavernPool(turnTo(newGame(), 0)), 'tavern', 1, { workerId: 'p0w0' });
-    expect(s.pending).toEqual({ kind: 'placement', player: 1 });
+  it('Рабочий без улучшения бесплатно берёт пару из пула (ответ автора, 22.11)', () => {
+    let s = place(withTavernPool(turnTo(newGame(), 0)), 'tavern', 1, { workerId: 'p0w0' });
+    expect(locationOptions(s)).toHaveLength(2 * 2 + 1);
+    s = choose(s, { kind: 'tavernSwap', character: 'diplomat', profession: 'spy' });
+    const w = s.workers.find((x) => x.id === 'p0w0');
+    expect(w).toMatchObject({ character: 'diplomat', profession: 'spy' });
+    // Пара ушла из пула, взамен ничего не вернулось.
+    expect(s.offer).toEqual({ characters: ['oreMiner'], professions: ['guard'] });
+    // Новый персонаж в этом размещении не сработал (Дипломат дал бы влияние).
+    expect(s.players[0]?.influence.valley).toBe(0);
   });
 
   it('Пустой пул — заменить не на что', () => {

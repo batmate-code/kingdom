@@ -331,13 +331,12 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
-  // Замена пары на оставшуюся после драфта, без отступных. Рабочий без улучшения ничего
-  // не получает (ответ автора). Старая пара возвращается в пул Таверны.
+  // Замена пары на оставшуюся после драфта, без отступных; старая пара возвращается в пул.
+  // Рабочий без улучшения бесплатно берёт пару из пула (ответ автора, 22.11).
+  // Новый персонаж в этом размещении не срабатывает: эффект персонажа уже прошёл.
   tavernSwap: {
     mandatory: false,
-    options(state, _player, ctx) {
-      const worker = getWorker(state, ctx.workerId);
-      if (worker.character === null) return [];
+    options(state) {
       const out: LocationChoice[] = [];
       for (const character of state.offer.characters) {
         for (const profession of state.offer.professions) {
@@ -349,12 +348,18 @@ const HANDLERS: HandlerRegistry = {
     apply(c, player, ctx, _action, choice) {
       if (choice.kind !== 'tavernSwap') mismatch(choice);
       const worker = c.draft.workers.find((w) => w.id === ctx.workerId);
-      if (!worker || worker.character === null || worker.profession === null) {
-        throw new Error('У рабочего нет пары для замены');
-      }
+      if (!worker) throw new Error(`Нет рабочего ${ctx.workerId}`);
       const offer = c.draft.offer;
-      offer.characters.splice(offer.characters.indexOf(choice.character), 1, worker.character);
-      offer.professions.splice(offer.professions.indexOf(choice.profession), 1, worker.profession);
+      const ci = offer.characters.indexOf(choice.character);
+      const pi = offer.professions.indexOf(choice.profession);
+      if (ci < 0 || pi < 0) throw new Error('Такой пары нет в пуле Таверны');
+      if (worker.character !== null && worker.profession !== null) {
+        offer.characters.splice(ci, 1, worker.character);
+        offer.professions.splice(pi, 1, worker.profession);
+      } else {
+        offer.characters.splice(ci, 1);
+        offer.professions.splice(pi, 1);
+      }
       worker.character = choice.character;
       worker.profession = choice.profession;
       // Ресурсы с карты старого персонажа (Доносчик, Рудный барон) уходят в банк (OQ-40, автор).
