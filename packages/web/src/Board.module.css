@@ -347,3 +347,32 @@
 .slotLine {
   white-space: nowrap;
 }
+
+.regionBody {
+  display: flex;
+  gap: 10px;
+}
+
+.regionBody > .map {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Трек Леса слева, у Долины и Города — справа (как на поле). */
+.regionBody:not(.trackLeft) {
+  flex-direction: row-reverse;
+}
+
+.entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  background: #fbf9f4;
+  color: #1d1a20;
+  padding: 2px 10px;
+  border-radius: 10px;
+  text-shadow: none;
+}

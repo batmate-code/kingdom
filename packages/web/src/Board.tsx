@@ -1,6 +1,7 @@
 import type { Action, Observation, Worker } from '@vampire/core';
 import {
   BUILDINGS,
+  CITY_ENTRY,
   CHARACTERS,
   LOCATIONS,
   LOCATION_ORDER,
@@ -16,6 +17,7 @@ import styles from './Board.module.css';
 import { Icon, RichText } from './Icon';
 import { profColor } from './colors';
 import { LAYOUT } from './layout';
+import { Track } from './Track';
 import { locName, playerName, regionName } from './labels';
 
 export const PLAYER_COLORS = ['#d94848', '#3f7fd6', '#e0b13c', '#4caf6a'];
@@ -65,6 +67,14 @@ export function slotLines(a: SlotAction): string[] {
     case 'cityHall':
       return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`);
   }
+}
+
+/** Цена входа в Город по наблюдению: база + шаг за каждый пройденный рубеж, не выше максимума. */
+function entryCost(obs: Observation): number {
+  return Math.min(
+    CITY_ENTRY.base + CITY_ENTRY.raiseStep * obs.cityEntryRaisedRegions.length,
+    CITY_ENTRY.max,
+  );
 }
 
 /** Номер рабочего игрока на фишке (1–3). */
@@ -215,6 +225,14 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
       <section className={`${styles.region} ${styles[region]}`}>
         <div className={styles.regionTitle}>
           {regionName(region)}
+          {region === 'city' && (
+            <span
+              className={styles.entry}
+              title="Плата за вход в Город золотом (Аристократ не платит)"
+            >
+              Вход: <Icon name="gold" size={16} /> {entryCost(obs)}
+            </span>
+          )}
           {obs.commissariat?.region === region && (
             <span
               className={styles.badge}
@@ -234,91 +252,94 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
             </span>
           ))}
         </div>
-        <div className={styles.map} style={{ height: LAYOUT[region].height }}>
-          <svg className={styles.links} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {PLOTS.filter((p) => p.region === region).flatMap((p) => {
-              const [hx, hy] = LAYOUT[region].plots[p.id] ?? [50, 50];
-              return p.adjacent.map((l) => {
-                const [lx, ly] = LAYOUT[region].locations[l] ?? [50, 50];
-                return <line key={p.id + l} x1={hx} y1={hy} x2={lx} y2={ly} />;
-              });
+        <div className={`${styles.regionBody} ${region === 'forest' ? styles.trackLeft : ''}`}>
+          <Track obs={obs} region={region} />
+          <div className={styles.map} style={{ height: LAYOUT[region].height }}>
+            <svg className={styles.links} viewBox="0 0 100 100" preserveAspectRatio="none">
+              {PLOTS.filter((p) => p.region === region).flatMap((p) => {
+                const [hx, hy] = LAYOUT[region].plots[p.id] ?? [50, 50];
+                return p.adjacent.map((l) => {
+                  const [lx, ly] = LAYOUT[region].locations[l] ?? [50, 50];
+                  return <line key={p.id + l} x1={hx} y1={hy} x2={lx} y2={ly} />;
+                });
+              })}
+            </svg>
+            {LOCATION_ORDER.filter((l) => LOCATIONS[l].region === region).map((l) => {
+              const [x, y] = LAYOUT[region].locations[l] ?? [50, 50];
+              return (
+                <div key={l} className={styles.node} style={{ left: `${x}%`, top: `${y}%` }}>
+                  <Location id={l} />
+                </div>
+              );
             })}
-          </svg>
-          {LOCATION_ORDER.filter((l) => LOCATIONS[l].region === region).map((l) => {
-            const [x, y] = LAYOUT[region].locations[l] ?? [50, 50];
-            return (
-              <div key={l} className={styles.node} style={{ left: `${x}%`, top: `${y}%` }}>
-                <Location id={l} />
-              </div>
-            );
-          })}
-          {PLOTS.filter((p) => p.region === region).map((p) => {
-            const [x, y] = LAYOUT[region].plots[p.id] ?? [50, 50];
-            const b = obs.buildings.find((v) => v.plot === p.id);
-            const surcharge = Object.keys(p.surcharge).length > 0;
-            return (
-              <span
-                key={p.id}
-                className={`${styles.node} ${styles.hex} ${surcharge ? styles.hexDouble : ''}`}
-                style={{
-                  left: `${x}%`,
-                  top: `${y}%`,
-                  ...(b ? { background: PLAYER_COLORS[b.owner], color: '#fff' } : {}),
-                }}
-                title={`Участок у ${p.adjacent.map(locName).join(' и ')}${surcharge ? ' (двойной, с доплатой)' : ''}${b ? `: ${BUILDINGS[b.type].name}, ${playerName(b.owner)}` : ' — свободен'}`}
-              >
-                {b ? (
-                  BUILDINGS[b.type].name
-                ) : surcharge ? (
-                  <RichText
-                    text={Object.entries(p.surcharge)
-                      .map(([r, v]) => `+${v} ${R[r as keyof typeof R]}`)
-                      .join(' ')}
-                  />
-                ) : (
-                  ' '
-                )}
-              </span>
-            );
-          })}
-          {(() => {
-            // Цитадель: построена / доступна смотрящему (влияние ≥ порога) / закрыта.
-            const need = TRACKS[region].citadelAt;
-            const have = obs.players[obs.viewer]?.influence[region] ?? 0;
-            const open = !citadel && have >= need;
-            const title = citadel
-              ? `Цитадель построена: ${playerName(citadel.owner)}`
-              : open
-                ? `Цитадель доступна: у вас ${have} влияния (нужно ${need}) — 7 золота + 3 руды`
-                : `Цитадель закрыта: нужно ${need} влияния в регионе, у вас ${have}`;
-            return (
-              <span
-                className={`${styles.node} ${styles.citadel} ${open ? styles.citadelOpen : ''} ${!citadel && !open ? styles.citadelLocked : ''}`}
-                style={{
-                  left: `${LAYOUT[region].star[0]}%`,
-                  top: `${LAYOUT[region].star[1]}%`,
-                  ...(citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}),
-                }}
-                title={title}
-              >
-                <Icon name={open ? 'citadelOpen' : 'citadel'} size={26} />
-                <span>
-                  {citadel ? (
-                    playerName(citadel.owner)
-                  ) : open ? (
-                    'можно строить'
+            {PLOTS.filter((p) => p.region === region).map((p) => {
+              const [x, y] = LAYOUT[region].plots[p.id] ?? [50, 50];
+              const b = obs.buildings.find((v) => v.plot === p.id);
+              const surcharge = Object.keys(p.surcharge).length > 0;
+              return (
+                <span
+                  key={p.id}
+                  className={`${styles.node} ${styles.hex} ${surcharge ? styles.hexDouble : ''}`}
+                  style={{
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    ...(b ? { background: PLAYER_COLORS[b.owner], color: '#fff' } : {}),
+                  }}
+                  title={`Участок у ${p.adjacent.map(locName).join(' и ')}${surcharge ? ' (двойной, с доплатой)' : ''}${b ? `: ${BUILDINGS[b.type].name}, ${playerName(b.owner)}` : ' — свободен'}`}
+                >
+                  {b ? (
+                    BUILDINGS[b.type].name
+                  ) : surcharge ? (
+                    <RichText
+                      text={Object.entries(p.surcharge)
+                        .map(([r, v]) => `+${v} ${R[r as keyof typeof R]}`)
+                        .join(' ')}
+                    />
                   ) : (
-                    <>
-                      {have} / {need} <Icon name="influence" size={14} />
-                    </>
+                    ' '
                   )}
                 </span>
-                {atStar.map((w) => (
-                  <Token key={w.id} w={w} />
-                ))}
-              </span>
-            );
-          })()}
+              );
+            })}
+            {(() => {
+              // Цитадель: построена / доступна смотрящему (влияние ≥ порога) / закрыта.
+              const need = TRACKS[region].citadelAt;
+              const have = obs.players[obs.viewer]?.influence[region] ?? 0;
+              const open = !citadel && have >= need;
+              const title = citadel
+                ? `Цитадель построена: ${playerName(citadel.owner)}`
+                : open
+                  ? `Цитадель доступна: у вас ${have} влияния (нужно ${need}) — 7 золота + 3 руды`
+                  : `Цитадель закрыта: нужно ${need} влияния в регионе, у вас ${have}`;
+              return (
+                <span
+                  className={`${styles.node} ${styles.citadel} ${open ? styles.citadelOpen : ''} ${!citadel && !open ? styles.citadelLocked : ''}`}
+                  style={{
+                    left: `${LAYOUT[region].star[0]}%`,
+                    top: `${LAYOUT[region].star[1]}%`,
+                    ...(citadel ? { background: PLAYER_COLORS[citadel.owner], color: '#fff' } : {}),
+                  }}
+                  title={title}
+                >
+                  <Icon name={open ? 'citadelOpen' : 'citadel'} size={26} />
+                  <span>
+                    {citadel ? (
+                      playerName(citadel.owner)
+                    ) : open ? (
+                      'можно строить'
+                    ) : (
+                      <>
+                        {have} / {need} <Icon name="influence" size={14} />
+                      </>
+                    )}
+                  </span>
+                  {atStar.map((w) => (
+                    <Token key={w.id} w={w} />
+                  ))}
+                </span>
+              );
+            })()}
+          </div>
         </div>
       </section>
     );
