@@ -40,6 +40,7 @@ import {
   type GameState,
   type Observation,
   type RuleToggles,
+  resolveConfig,
 } from '@vampire/core';
 import {
   CHARACTERS,
@@ -371,8 +372,10 @@ export function main(argv: string[]): string {
       const [k, v] = (argv[i + 1] ?? '').split('=');
       (rules as Record<string, unknown>)[k!] = v === 'true' ? true : v === 'false' ? false : v;
     });
+    // Полный набор правил на момент создания: смена значений по умолчанию не ломает запись партии.
+    const full = resolveConfig({ playerCount: seats.length, rules }).rules;
     const g: AgentGame = {
-      config: { playerCount: seats.length, rules },
+      config: { playerCount: seats.length, rules: full },
       seed: Number(arg(argv, '--seed') ?? Date.now() % 100000),
       seats,
       actions: [],
