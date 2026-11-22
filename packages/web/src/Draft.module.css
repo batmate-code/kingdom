@@ -15,55 +15,51 @@
   color: #4fd37a;
 }
 
-.cards {
-  display: flex;
+/* Десять карт в один ряд: ширина карты подстраивается под ширину поля. */
+.row {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .card {
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 128px;
-  padding: 4px !important;
+  aspect-ratio: 5 / 7;
+  width: 100%;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  overflow: hidden;
   background: #2a2330 !important;
-  font-size: 11px;
 }
 
 .card img {
-  width: 120px;
-  height: 168px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 5px;
+  display: block;
 }
 
 .card:disabled {
   opacity: 1 !important;
+  cursor: default !important;
 }
 
-.profs {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-
-.prof {
-  font-weight: 700;
-  border: none !important;
-}
-
-.prof:disabled {
-  opacity: 0.85 !important;
+.profCard {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .pickable {
-  outline: 2px solid #4fd37a;
-  cursor: pointer;
+  outline: 3px solid #4fd37a;
+  outline-offset: 2px;
+  cursor: pointer !important;
 }
 
 .pickable:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
