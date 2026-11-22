@@ -1,12 +1,30 @@
 import type { CombatTokenDef, CombatTokenId } from './types';
 
 export const COMBAT_TOKENS: Readonly<Record<CombatTokenId, CombatTokenDef>> = {
-  retreat: { id: 'retreat', name: 'Отступление', count: 1, strength: 0 },
-  attack: { id: 'attack', name: 'Атака', count: 1, strength: 1 },
-  massacre: { id: 'massacre', name: 'Резня', count: 1, strength: 2 },
-  domination: { id: 'domination', name: 'Доминирование', count: 1, strength: 0 },
-  defense: { id: 'defense', name: 'Защита', count: 1, strength: 1 },
-  decoy: { id: 'decoy', name: 'Приманка', count: 5, strength: 0 },
+  retreat: {
+    id: 'retreat',
+    name: 'Отступление',
+    count: 1,
+    strength: 0,
+    text: 'Проигрыш боя; все свои рабочие региона уходят в регион, где боя ещё не было. В Городе — просто проигрыш',
+  },
+  attack: { id: 'attack', name: 'Атака', count: 1, strength: 1, text: '+1 к силе' },
+  massacre: { id: 'massacre', name: 'Резня', count: 1, strength: 2, text: '+2 к силе' },
+  domination: {
+    id: 'domination',
+    name: 'Доминация',
+    count: 1,
+    strength: 0,
+    text: 'При победе +1 влияние сверх награды; отменяет Отступление соперника. Нельзя, если в регионе нет соперников',
+  },
+  defense: {
+    id: 'defense',
+    name: 'Защита',
+    count: 1,
+    strength: 1,
+    text: '+1 к силе; отменяет Резню соперника',
+  },
+  decoy: { id: 'decoy', name: 'Приманка', count: 5, strength: 0, text: 'Без эффекта — блеф' },
 };
 
 /**

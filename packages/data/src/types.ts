@@ -129,6 +129,8 @@ export interface CombatTokenDef {
   count: number;
   /** Прибавка к силе. */
   strength: number;
+  /** Эффект жетона для интерфейса (правила, таблица жетонов боя). */
+  text: string;
 }
 
 export type CharacterId =

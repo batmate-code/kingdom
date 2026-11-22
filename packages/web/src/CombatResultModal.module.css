@@ -1,0 +1,115 @@
+.dialog {
+  width: min(92%, 760px);
+  align-items: center;
+}
+
+.steps {
+  align-self: flex-start;
+}
+
+.mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  border-radius: 50%;
+  color: #140f12;
+  font-weight: 800;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.kicker {
+  color: #9a90a6;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: clamp(12px, 0.8vw, 15px);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 30px 1fr 1.4fr 70px 30px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 8px 10px;
+  border-left: 6px solid;
+  border-radius: 10px;
+  background: rgba(20, 15, 22, 0.75);
+}
+
+.win {
+  background: #3a2f46;
+  box-shadow: 0 0 0 1px #c9a24a inset;
+}
+
+.name {
+  font-weight: 700;
+  font-size: clamp(15px, 1.1vw, 19px);
+}
+
+.token {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Trajan Sans Pro', 'Cormorant SC', Georgia, serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #f0d48a;
+  font-size: clamp(13px, 0.95vw, 17px);
+}
+
+.token img {
+  height: 40px;
+  width: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px #000);
+}
+
+.token i,
+.power i {
+  font-family: inherit;
+  font-weight: 400;
+  text-transform: none;
+  color: #9a90a6;
+  font-size: 14px;
+}
+
+.power {
+  text-align: right;
+  font-size: clamp(22px, 1.8vw, 32px);
+  font-weight: 800;
+}
+
+.crown {
+  font-size: 24px;
+  color: #e9c87c;
+  text-align: center;
+}
+
+.verdict {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(14px, 1vw, 18px);
+  color: #ece6f2;
+}
+
+.go {
+  padding: 10px 28px !important;
+  font-size: 16px;
+  font-weight: 700;
+  border: 2px solid #c9a24a !important;
+  border-radius: 10px !important;
+  background: #b0405a !important;
+}

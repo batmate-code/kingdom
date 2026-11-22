@@ -148,11 +148,6 @@ export function combatWinner(strengths: readonly CombatStrength[]): PlayerId | n
   return top.player;
 }
 
-function handSize(state: GameState, player: PlayerId): number {
-  const hand = state.players[player]?.combatTokens.hand;
-  return hand ? COMBAT_TOKEN_ORDER.reduce((s, t) => s + hand[t], 0) : 0;
-}
-
 /** Регионы, где боя в этом раунде ещё не было (после `region`). */
 export function laterRegions(region: RegionId): RegionId[] {
   return REGION_ORDER.slice(REGION_ORDER.indexOf(region) + 1);
@@ -205,15 +200,22 @@ export function startCombat(c: Ctx, region: RegionId): void {
   const play = participants.length >= 2 || d.config.rules.combatTokensWithoutOpponents;
   const asks = play
     ? turnOrder(d)
-        .filter((p) => participants.includes(p) && handSize(d, p) > 0)
+        .filter((p) => participants.includes(p) && combatTokenOptions(d, p).length > 0)
         .map((player) => ({ t: 'askCombatToken' as const, player, region }))
     : [];
   d.tasks.unshift(...asks, { t: 'revealCombat', region }, { t: 'combatOutcome', region });
 }
 
+/**
+ * Жетоны, которые игрок может положить в идущем бою. Доминацию нельзя играть, если в регионе
+ * сейчас нет соперников (автор, 23.11).
+ */
 export function combatTokenOptions(state: GameState, player: PlayerId): CombatTokenId[] {
   const hand = state.players[player]?.combatTokens.hand;
-  return hand ? COMBAT_TOKEN_ORDER.filter((t) => hand[t] > 0) : [];
+  if (!hand) return [];
+  const region = state.combat?.region;
+  const alone = region !== undefined && combatParticipants(state, region).length <= 1;
+  return COMBAT_TOKEN_ORDER.filter((t) => hand[t] > 0 && !(alone && t === 'domination'));
 }
 
 export function applyCombatToken(c: Ctx, player: PlayerId, token: CombatTokenId): void {

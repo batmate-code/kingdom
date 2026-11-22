@@ -1,27 +1,19 @@
 import { BOT_FACTORIES } from '@vampire/bots';
-import {
-  actionLabel,
-  combatStrengths,
-  getLegalActions,
-  getObservation,
-  getScores,
-  type Action,
-  type PlayerScore,
-  type RuleToggles,
-  type Worker,
-} from '@vampire/core';
-import { REGION_ORDER } from '@vampire/data';
+import { getScores, type Action, type PlayerScore, type RuleToggles } from '@vampire/core';
 import { useEffect, useRef, useState } from 'react';
 import styles from './App.module.css';
-import { ActionBar, effectText, previewEffect } from './ActionBar';
+import { ActionBar } from './ActionBar';
 import { BoardMock } from './board/BoardMock';
 import { EntryPrice } from './EntryPrice';
 import { Watch } from './Watch';
 import { PLAYER_COLORS } from './Board';
-import { BoardSvg, type BoardStrengths, type BoardTargets } from './board/BoardSvg';
+import { BoardSvg, type BoardTargets } from './board/BoardSvg';
 import { Icon, RichText } from './Icon';
+import { CombatModal } from './CombatModal';
+import { CombatResultModal } from './CombatResultModal';
 import { DraftModal } from './DraftModal';
 import { RoundModal } from './RoundModal';
+import { screenView, targetHint } from './view';
 import { TurnToast } from './TurnToast';
 import { HandPanel, PlayersPanel } from './SidePanel';
 import { playerName } from './labels';
@@ -102,22 +94,9 @@ function Setup() {
   );
 }
 
-type PlaceAction = Extract<Action, { type: 'place' }>;
-
-/** Ключ «одинаковых» рабочих: ядро предлагает ход только для одного из них. */
-const pairKey = (w: Worker) => `${w.owner}|${w.profession ?? '-'}|${w.character ?? '-'}`;
-
-function groupBy(actions: Action[], key: (a: Action) => string | null): Record<string, Action[]> {
-  const out: Record<string, Action[]> = {};
-  for (const a of actions) {
-    const k = key(a);
-    if (k !== null) (out[k] ??= []).push(a);
-  }
-  return out;
-}
-
 function Game() {
-  const { state, seats, log, error, botStep, reset, act, undo, history, lastMove } = useGame();
+  const { state, seats, log, error, botStep, reset, act, undo, history, lastMove, combatReports } =
+    useGame();
   const canUndo = history.some((h) => h.byHuman);
   const [delay, setDelay] = useState(400);
   const [paused, setPaused] = useState(false);
@@ -130,6 +109,9 @@ function Game() {
   if (state && roundScores.current[state.round] === undefined) {
     roundScores.current[state.round] = getScores(state);
   }
+  // Окно итогов боя: первый ещё не просмотренный бой (id итогов растут на всю сессию).
+  const [combatSeen, setCombatSeen] = useState(-1);
+  const combatResult = combatReports.find((r) => r.id > combatSeen) ?? null;
   const logEnd = useRef<HTMLDivElement>(null);
   const pending = state?.pending ?? null;
   const botTurn = pending !== null && seats[pending.player] !== 'human';
@@ -157,10 +139,10 @@ function Game() {
   }, [undo]);
 
   useEffect(() => {
-    if (!botTurn || paused || roundOpen) return;
+    if (!botTurn || paused || roundOpen || combatResult) return;
     const t = setTimeout(() => botStep(), delay);
     return () => clearTimeout(t);
-  }, [state, botTurn, paused, roundOpen, delay, botStep]);
+  }, [state, botTurn, paused, roundOpen, combatResult, delay, botStep]);
 
   // Тело в фигурных скобках: в новых Chrome scrollIntoView возвращает Promise, а эффект может
   // вернуть только функцию очистки.
@@ -169,62 +151,24 @@ function Game() {
   }, [log]);
 
   if (!state) return null;
-  // Смотрим глазами человека, который ходит (или первого человека за столом).
-  const viewer = pending && !botTurn ? pending.player : Math.max(0, seats.indexOf('human'));
-  const obs = getObservation(state, viewer);
-  const legal = pending && !botTurn ? getLegalActions(state) : [];
-
-  // Цели на поле: размещение (по выбранному рабочему или всеми) и стройка.
-  const placements = legal.filter((a): a is PlaceAction => a.type === 'place');
-  const selectedWorker = obs.workers.find((w) => w.id === selected);
-  const actingId = selectedWorker
-    ? placements.find((a) => {
-        const w = obs.workers.find((x) => x.id === a.workerId);
-        return w && pairKey(w) === pairKey(selectedWorker);
-      })?.workerId
-    : undefined;
-  const usable = selectedWorker ? placements.filter((a) => a.workerId === actingId) : placements;
-  const slots = groupBy(usable, (a) => (a.type === 'place' ? `${a.location}:${a.slot}` : null));
-  const plots = groupBy(legal, (a) =>
-    a.type === 'build' && a.choice ? (a.choice.plot ?? `citadel:${a.choice.region}`) : null,
+  const { viewer, obs, legal, slots, plots, barLegal, strengths, drafting, human } = screenView(
+    state,
+    seats,
+    selected,
+    focus,
   );
   const hasTargets = Object.keys(slots).length + Object.keys(plots).length > 0;
   const targets: BoardTargets | undefined = hasTargets
     ? {
         slots,
         plots,
-        hint: (actions) =>
-          actions
-            .map((a) => {
-              const e = effectText(previewEffect(state, a, viewer));
-              return `${actionLabel(state, a)}${e ? ` — ${e}` : ''}`;
-            })
-            .join('\n'),
+        hint: (actions) => targetHint(state, viewer, actions),
         onPick: (actions) => {
           if (actions.length === 1) act(actions[0]!);
           else setFocus(actions);
         },
       }
     : undefined;
-
-  // Сила игроков в регионах — пока идёт размещение и бои (Ж6).
-  const strengths: BoardStrengths | undefined =
-    state.phase === 'placement' || state.phase === 'combat'
-      ? Object.fromEntries(
-          REGION_ORDER.map((r) => [
-            r,
-            combatStrengths(state, r).map((x) => ({ player: x.player, strength: x.strength })),
-          ]),
-        )
-      : undefined;
-
-  const barLegal =
-    focus ??
-    legal.filter(
-      (a) => a.type !== 'place' && a.type !== 'draftPick' && !(a.type === 'build' && a.choice),
-    );
-  const drafting = obs.phase === 'draft' || obs.phase === 'upgrade';
-  const human = seats[viewer] === 'human';
 
   return (
     <div className={styles.game}>
@@ -262,7 +206,17 @@ function Game() {
           phase={state.phase}
           human={pending !== null && seats[pending.player] === 'human'}
         />
-        {roundOpen && (
+        {combatResult && (
+          <CombatResultModal
+            report={combatResult}
+            earlier={combatReports.filter(
+              (r) => r.round === combatResult.round && r.id < combatResult.id,
+            )}
+            viewer={viewer}
+            onClose={() => setCombatSeen(combatResult.id)}
+          />
+        )}
+        {roundOpen && !combatResult && (
           <RoundModal
             state={state}
             scores={getScores(state)}
@@ -270,6 +224,16 @@ function Game() {
             seats={seats}
             viewer={viewer}
             onClose={() => setRoundShown(state.round)}
+          />
+        )}
+        {!roundOpen && !combatResult && (
+          <CombatModal
+            state={state}
+            obs={obs}
+            legal={legal}
+            strengths={strengths}
+            viewer={viewer}
+            onPick={act}
           />
         )}
         {drafting && (
@@ -318,7 +282,9 @@ function Game() {
                   ? 'Кликните подсвеченный участок или место Цитадели'
                   : pending?.kind === 'draftPick'
                     ? 'Выберите карту в окне драфта'
-                    : null
+                    : pending?.kind === 'combatToken'
+                      ? 'Выберите жетон боя в окне над полем'
+                      : null
           }
           error={error}
           onAct={act}

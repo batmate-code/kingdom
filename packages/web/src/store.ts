@@ -5,10 +5,14 @@ import {
   getLegalActions,
   getObservation,
   type Action,
+  type CombatPlay,
+  type CombatStrength,
   type GameEvent,
   type GameState,
+  type PlayerId,
   type RuleToggles,
 } from '@vampire/core';
+import type { RegionId } from '@vampire/data';
 import { create } from 'zustand';
 import { eventText } from './labels';
 
@@ -38,10 +42,52 @@ function moveMarks(events: readonly GameEvent[]): { slots: string[]; plots: stri
   return { slots, plots };
 }
 
+/** Итог боя региона для окна итогов: вскрытые жетоны, силы, победитель. */
+export interface CombatReport {
+  id: number;
+  round: number;
+  region: RegionId;
+  plays: CombatPlay[];
+  /** Силы без отступивших (как считает ядро). */
+  strengths: CombatStrength[];
+  winner: PlayerId | null;
+}
+
+/** Собрать итоги боёв из событий хода (жетоны вскрываются раньше, чем бой разрешается). */
+function collectCombat(
+  reports: CombatReport[],
+  revealed: Partial<Record<RegionId, CombatPlay[]>>,
+  round: number,
+  events: readonly GameEvent[],
+): { combatReports: CombatReport[]; revealed: Partial<Record<RegionId, CombatPlay[]>> } {
+  let r = reports;
+  let v = revealed;
+  for (const e of events) {
+    if (e.type === 'combatTokensRevealed') v = { ...v, [e.region]: e.plays };
+    if (e.type === 'combatResolved' && e.strengths.length > 0) {
+      r = [
+        ...r,
+        {
+          id: reportId++,
+          round,
+          region: e.region,
+          plays: v[e.region] ?? [],
+          strengths: e.strengths,
+          winner: e.winner,
+        },
+      ];
+    }
+    if (e.type === 'roundStarted') v = {};
+  }
+  return { combatReports: r, revealed: v };
+}
+
 /** Снимок до хода: к нему возвращает отмена. */
 interface Snapshot {
   state: GameState;
   log: LogLine[];
+  combatReports: CombatReport[];
+  revealed: Partial<Record<RegionId, CombatPlay[]>>;
   /** Чей был ход: отмена откатывает до последнего хода человека. */
   byHuman: boolean;
 }
@@ -55,6 +101,10 @@ interface GameStore {
   error: string | null;
   /** Последний ход бота с размещением или постройкой — подсвечивается на поле. */
   lastMove: LastMove | null;
+  /** Итоги боёв партии по порядку; окно показывает ещё не просмотренные. */
+  combatReports: CombatReport[];
+  /** Вскрытые жетоны боёв, которые ещё не разрешились. */
+  revealed: Partial<Record<RegionId, CombatPlay[]>>;
   start(seats: Seat[], seed: number, rules?: Partial<RuleToggles>): void;
   act(action: Action, byHuman?: boolean): void;
   /** Отменить последний ход человека (и ходы ботов после него). */
@@ -66,6 +116,7 @@ interface GameStore {
 }
 
 let lineId = 0;
+let reportId = 0;
 const MAX_LOG = 400;
 const MAX_HISTORY = 500;
 
@@ -85,6 +136,8 @@ export const useGame = create<GameStore>((set, get) => ({
   log: [],
   error: null,
   lastMove: null,
+  combatReports: [],
+  revealed: {},
 
   start(seats, seed, rules = {}) {
     const { state, events } = createGameWithEvents({ playerCount: seats.length, rules }, seed);
@@ -101,11 +154,13 @@ export const useGame = create<GameStore>((set, get) => ({
       error: null,
       history: [],
       lastMove: null,
+      combatReports: [],
+      revealed: {},
     });
   },
 
   act(action, byHuman = true) {
-    const { state, log, history } = get();
+    const { state, log, history, combatReports, revealed } = get();
     if (!state) return;
     try {
       const r = applyAction(state, action);
@@ -119,7 +174,8 @@ export const useGame = create<GameStore>((set, get) => ({
         state: r.state,
         log: appendLog(log, r.state, r.events),
         error: null,
-        history: [...history, { state, log, byHuman }].slice(-MAX_HISTORY),
+        ...collectCombat(combatReports, revealed, state.round, r.events),
+        history: [...history, { state, log, byHuman, combatReports, revealed }].slice(-MAX_HISTORY),
       });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
@@ -142,7 +198,14 @@ export const useGame = create<GameStore>((set, get) => ({
     while (history.length > 0) {
       const snap = history.pop()!;
       if (snap.byHuman) {
-        set({ state: snap.state, log: snap.log, history, error: null });
+        set({
+          state: snap.state,
+          log: snap.log,
+          combatReports: snap.combatReports,
+          revealed: snap.revealed,
+          history,
+          error: null,
+        });
         return;
       }
     }
@@ -153,6 +216,16 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   reset() {
-    set({ state: null, seats: [], bots: [], log: [], error: null, history: [], lastMove: null });
+    set({
+      state: null,
+      seats: [],
+      bots: [],
+      log: [],
+      error: null,
+      history: [],
+      lastMove: null,
+      combatReports: [],
+      revealed: {},
+    });
   },
 }));

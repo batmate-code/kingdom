@@ -233,7 +233,7 @@ export function renderReport(s: AggregateStats, title: string): string {
   const INF_REASON: Record<string, string> = {
     combat: 'победа в бою',
     combatBonus: 'награда за бой',
-    domination: 'Доминирование',
+    domination: 'Доминация',
     cityHall: 'Ратуша',
     diplomat: 'Дипломат',
     manipulator: 'Манипулятор',
