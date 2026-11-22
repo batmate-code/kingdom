@@ -7,8 +7,8 @@ import styles from './Draft.module.css';
 type DraftAction = Extract<Action, { type: 'draftPick' }>;
 
 /**
- * Выкладка драфта картами: персонажи — карты, профессии — цветные плашки.
- * Если сейчас выбирает человек — кликом берётся персонаж или профессия.
+ * Выкладка драфта одним рядом карт: персонажи — картинки карт, профессии — карты, залитые
+ * цветом профессии с названием. Если выбирает человек — кликом берётся карта.
  */
 export function Draft({
   obs,
@@ -20,12 +20,13 @@ export function Draft({
   onPick(a: Action): void;
 }) {
   const picks = legal.filter((a): a is DraftAction => a.type === 'draftPick');
+  const { characters, professions } = obs.offer;
+  if (characters.length + professions.length === 0) return null;
+
   const pickCharacter = (id: string) =>
     picks.find((a) => a.pick.kind === 'character' && a.pick.character === id);
   const pickProfession = (id: string) =>
     picks.find((a) => a.pick.kind === 'profession' && a.pick.profession === id);
-  const { characters, professions } = obs.offer;
-  if (characters.length + professions.length === 0) return null;
 
   return (
     <div className={styles.draft}>
@@ -33,7 +34,7 @@ export function Draft({
         {obs.phase === 'draft' ? 'Драфт' : 'Пул Таверны'}
         {picks.length > 0 && <span className={styles.hint}> — кликните, чтобы взять</span>}
       </div>
-      <div className={styles.cards}>
+      <div className={styles.row}>
         {characters.map((id) => {
           const action = pickCharacter(id);
           const c = CHARACTERS[id];
@@ -47,21 +48,16 @@ export function Draft({
               title={`${c.name}: ${c.text} (содержание ${c.upkeep})`}
             >
               <img src={cardUrl(id)} alt={c.name} />
-              <span>
-                {c.name} · {c.upkeep} кр
-              </span>
             </button>
           );
         })}
-      </div>
-      <div className={styles.profs}>
         {professions.map((id, i) => {
           const action = pickProfession(id);
           return (
             <button
               key={`${id}${i}`}
               type="button"
-              className={`${styles.prof} ${action ? styles.pickable : ''}`}
+              className={`${styles.card} ${styles.profCard} ${action ? styles.pickable : ''}`}
               style={profStyle(id)}
               disabled={!action}
               onClick={() => action && onPick(action)}
