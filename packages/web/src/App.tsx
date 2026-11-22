@@ -1,7 +1,14 @@
 import { BOT_FACTORIES } from '@vampire/bots';
-import { cityEntryCost, getLegalActions, getObservation, type Action } from '@vampire/core';
+import {
+  cityEntryCost,
+  cityEntryResource,
+  getLegalActions,
+  getObservation,
+  type Action,
+} from '@vampire/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
+import { Watch } from './Watch';
 import { Board, PLAYER_COLORS } from './Board';
 import { Icon, RichText } from './Icon';
 import { Draft } from './Draft';
@@ -132,7 +139,7 @@ function Game() {
           Раунд {state.round} / {state.config.rounds}
         </b>
         <span>
-          <Icon name="cityEntry" /> {cityEntryCost(state)} <Icon name="gold" />
+          <Icon name="cityEntry" /> {cityEntryCost(state)} <Icon name={cityEntryResource(state)} />
         </span>
         <span>Колода: {obs.deckSize}</span>
         <span className={styles.spacer} />
@@ -206,6 +213,12 @@ function autostartSeed(): number | null {
 }
 
 export function App() {
+  const watch = new URLSearchParams(window.location.search).get('watch');
+  if (watch) return <Watch file={watch} />;
+  return <Play />;
+}
+
+function Play() {
   const started = useGame((s) => s.state !== null);
   useEffect(() => {
     const seed = autostartSeed();

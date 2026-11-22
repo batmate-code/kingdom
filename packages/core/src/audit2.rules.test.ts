@@ -199,7 +199,7 @@ describe('Палач (Профессии)', () => {
     expect(res(s, 1).blood).toBe(0); // Офицер: 2 − 1 = 1
   });
 
-  it('OQ-16 (автор): Палач, перешедший в первый слот вытеснением, не вытесняет второго', () => {
+  it('OQ-16 (автор, изменено 23.11): Палач, перешедший в первый слот вытеснением, выбивает и второго', () => {
     let s = newGame({}, 1);
     s = setWorker(s, 'p0w0', { profession: 'executioner', character: 'bloodsucker' });
     s = edit(s, (d) => {
@@ -213,8 +213,25 @@ describe('Палач (Профессии)', () => {
     const log: GameEvent[] = [];
     s = place(s, 'mine', 2, { workerId: 'p0w0', displace: true, log });
     expect(worker(s, 'p2w0')?.position).toEqual({ kind: 'hospital' });
-    expect(worker(s, 'p1w0')?.position).toMatchObject({ kind: 'slot', location: 'witchCircle' });
-    expect(log.filter((e) => e.type === 'workerDisplaced')).toHaveLength(1);
+    expect(s.pending?.kind).toBe('executioner');
+    s = act(s, { type: 'executioner', target: 'p1w0' }, log);
+    expect(worker(s, 'p1w0')?.position).toEqual({ kind: 'hospital' });
+    expect(log.filter((e) => e.type === 'workerDisplaced')).toHaveLength(2);
+    expect(res(s, 1).compromat).toBe(1); // от Палача — 1 компромат (автор, 23.11)
+  });
+
+  it('OQ-16: прежнее правило доступно переключателем', () => {
+    let s = newGame({ rules: { executionerOnDisplacement: false } }, 1);
+    s = setWorker(s, 'p0w0', { profession: 'executioner', character: 'bloodsucker' });
+    s = edit(s, (d) => {
+      d.locations.mine.professionToken = 'executioner';
+      for (const w of d.workers) {
+        if (w.id === 'p2w0') w.position = { kind: 'slot', location: 'mine', slot: 1 };
+        if (w.id === 'p1w0') w.position = { kind: 'slot', location: 'witchCircle', slot: 1 };
+      }
+    });
+    s = turnTo(s, 0);
+    s = place(s, 'mine', 2, { workerId: 'p0w0', displace: true });
     expect(s.pending?.kind).not.toBe('executioner');
   });
 });

@@ -239,7 +239,7 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
               className={styles.entry}
               title="Плата за вход в Город золотом (Аристократ не платит)"
             >
-              Вход: <Icon name="gold" size={16} /> {entryCost(obs)}
+              Вход: <Icon name={obs.config.rules.cityEntryResource} size={16} /> {entryCost(obs)}
             </span>
           )}
           {obs.commissariat?.region === region && (

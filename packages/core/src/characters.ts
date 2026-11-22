@@ -229,12 +229,17 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     // При свободном порядке действие локации может быть уже разыграно — тогда заменять нечего.
     options: (state, e) =>
       pendingLocationStep(state, e.workerId)
-        ? LOCATION_ORDER.filter((l) => l !== e.location && LOCATIONS[l].region === e.region).map(
-            (location) => ({ kind: 'madman', location }),
-          )
+        ? [
+            ...LOCATION_ORDER.filter(
+              (l) => l !== e.location && LOCATIONS[l].region === e.region,
+            ).map((location): CharacterChoice => ({ kind: 'madman', location })),
+            // Эффект можно не использовать — тогда обычное действие своей локации (автор, 23.11).
+            { kind: 'madman', location: null },
+          ]
         : [],
     apply(c, e, choice) {
       const { location } = expect(choice, 'madman');
+      if (location === null) return;
       const task = pendingLocationStep(c.draft, e.workerId);
       if (!task) throw new Error('Нет действия локации');
       task.context = { workerId: e.workerId, location, slot: 1, copy: true };

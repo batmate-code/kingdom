@@ -24,15 +24,18 @@ export function startRound(c: Ctx): void {
   d.phase = 'draft';
   c.events.push({ type: 'roundStarted', round: d.round, firstPlayer: d.firstPlayer });
 
-  const tokens = [...LOCATION_PROFESSION_TOKENS];
-  shuffleInPlace(d, tokens);
-  const dealt = {} as Record<LocationId, ProfessionId>;
-  LOCATION_ORDER.forEach((loc, i) => {
-    const token = tokens[i] as ProfessionId;
-    d.locations[loc].professionToken = token;
-    dealt[loc] = token;
-  });
-  c.events.push({ type: 'professionTokensDealt', tokens: dealt });
+  // Жетоны профессий: один раз на партию (правило автора 23.11) или заново каждый раунд.
+  if (!d.config.rules.professionTokensOnce || d.round === 1) {
+    const tokens = [...LOCATION_PROFESSION_TOKENS];
+    shuffleInPlace(d, tokens);
+    const dealt = {} as Record<LocationId, ProfessionId>;
+    LOCATION_ORDER.forEach((loc, i) => {
+      const token = tokens[i] as ProfessionId;
+      d.locations[loc].professionToken = token;
+      dealt[loc] = token;
+    });
+    c.events.push({ type: 'professionTokensDealt', tokens: dealt });
+  }
 
   for (const p of d.players) p.passed = false;
   d.placementCurrent = d.firstPlayer;

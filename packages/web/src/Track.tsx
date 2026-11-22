@@ -1,5 +1,5 @@
 import type { Observation } from '@vampire/core';
-import { TRACKS, type RegionId } from '@vampire/data';
+import { TRACKS, TRACK_BOOSTS, type RegionId } from '@vampire/data';
 import { PLAYER_COLORS } from './Board';
 import { Icon } from './Icon';
 import { playerName, regionName } from './labels';
@@ -60,6 +60,19 @@ export function Track({ obs, region }: { obs: Observation; region: RegionId }) {
                   <Icon name="cityEntryRaise" size={16} />
                 </span>
               )}
+              {obs.config.rules.trackBoosts &&
+                TRACK_BOOSTS[region]
+                  .filter((b) => b.at === n)
+                  .flatMap((b) => Object.entries(b.gain))
+                  .map(([res, amount]) => (
+                    <span
+                      key={res}
+                      title={`Бонус позиции: +${amount} — каждому игроку один раз за партию`}
+                    >
+                      +{amount}
+                      <Icon name={res as 'gold' | 'blood' | 'ore' | 'compromat'} size={14} />
+                    </span>
+                  ))}
             </span>
             <span className={styles.players}>
               {here.map((i) => (

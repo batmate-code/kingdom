@@ -15,8 +15,20 @@ export function newGame(
   seed = 1,
   opts: { withDraft?: boolean } = {},
 ): GameState {
-  // Сценарии писались при случайном первом игроке (seed задаёт, кто ходит первым) — сохраняем.
-  const s = createGame({ ...config, rules: { randomFirstPlayer: true, ...config.rules } }, seed);
+  // Сценарии писались при случайном первом игроке (seed задаёт, кто ходит первым), входе в Город
+  // за золото и без бонусов треков — сохраняем; новые правила проверяются отдельными тестами.
+  const s = createGame(
+    {
+      ...config,
+      rules: {
+        randomFirstPlayer: true,
+        cityEntryResource: 'gold',
+        trackBoosts: false,
+        ...config.rules,
+      },
+    },
+    seed,
+  );
   return opts.withDraft ? s : skipDraft(s);
 }
 

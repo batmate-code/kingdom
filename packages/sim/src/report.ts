@@ -1,5 +1,7 @@
 import {
+  BUILDINGS,
   CHARACTERS,
+  PLOTS,
   CHARACTER_ORDER,
   LOCATIONS,
   LOCATION_ORDER,
@@ -41,6 +43,7 @@ export const REASON_NAME: Record<string, string> = {
   character: 'эффекты персонажей',
   snitch: 'Доносчик',
   oreBaron: 'Рудный барон',
+  trackBoost: 'бонус трека',
 };
 
 const f1 = (x: number) => (Number.isFinite(x) ? x.toFixed(1) : '—');
@@ -203,16 +206,27 @@ export function renderReport(s: AggregateStats, title: string): string {
         .join(', ') || '—';
     out.push(`**${RES_NAME[r]}.** Откуда: ${rows(x.gained)}. Куда: ${rows(x.spent)}.`, '');
   }
-  out.push('Запас на игрока в конце раунда:', '');
+  out.push('Запас на игрока в конце раунда (в скобках — у победителя):', '');
   const rounds = Math.max(...RES.map((r) => s.stockByRound[r].length));
   out.push(
     table(
       ['Ресурс', ...Array.from({ length: rounds }, (_, i) => `Р${i + 1}`)],
       RES.map((r) => [
         RES_NAME[r],
-        ...Array.from({ length: rounds }, (_, i) => f1((s.stockByRound[r][i] ?? 0) / perPlayer)),
+        ...Array.from(
+          { length: rounds },
+          (_, i) =>
+            `${f1((s.stockByRound[r][i] ?? 0) / perPlayer)} (${f1((s.stockByRoundWinners[r][i] ?? 0) / Math.max(1, s.winnerSlots))})`,
+        ),
       ]),
     ),
+    '',
+  );
+  out.push(
+    `Рабочих в госпитале (максимум за раунд, на партию, все игроки): ${Array.from(
+      { length: rounds },
+      (_, i) => `Р${i + 1} ${f2((s.hospitalByRound[i] ?? 0) / g)}`,
+    ).join(', ')}.`,
     '',
   );
   // Влияние
@@ -265,6 +279,54 @@ export function renderReport(s: AggregateStats, title: string): string {
         ];
       }),
     ),
+    '',
+  );
+  // Участки
+  out.push('## Участки', '');
+  out.push(
+    'Как часто участок застраивается за партию (не больше одного здания на участок), в каком раунде в среднем, доля построек у победителей и какие здания. Двойные участки — с доплатой; Цитадели — на звёздах.',
+    '',
+  );
+  const regionName = (id: string) => REGIONS.find((r) => r.id === id)?.name ?? id;
+  const keys = [...PLOTS.map((p) => p.id), ...REGION_ORDER.map((r) => `citadel-${r}`)];
+  out.push(
+    table(
+      ['Участок', 'Тип', 'Застроен', 'Раунд', 'У победителей', 'Здания'],
+      keys.map((key) => {
+        const plot = PLOTS.find((p) => p.id === key);
+        const kind = plot ? (plot.adjacent.length > 1 ? 'двойной' : 'одиночный') : 'Цитадель';
+        const name = plot
+          ? `${regionName(plot.region)}: ${plot.adjacent.map((l) => LOCATIONS[l].name).join(' + ')}`
+          : `Цитадель: ${regionName(key.replace('citadel-', ''))}`;
+        const x = s.plots[key];
+        if (!x) return [name, kind, '0%', '—', '—', '—'];
+        const buildings = Object.entries(x.buildings)
+          .sort((a, b) => b[1] - a[1])
+          .map(
+            ([b, n]) => `${BUILDINGS[b as keyof typeof BUILDINGS]?.name ?? b} ${pct(n / x.built)}`,
+          )
+          .join(', ');
+        return [
+          name,
+          kind,
+          pct(x.built / g),
+          f1(x.round / x.built),
+          pct(x.byWinner / x.built),
+          buildings,
+        ];
+      }),
+    ),
+    '',
+    `Норма доли у победителей: ${pct(s.winnerSlots / Math.max(1, s.playerSlots))}.`,
+    '',
+  );
+  const builtWhere = (pred: (key: string) => boolean) =>
+    Object.entries(s.plots)
+      .filter(([k]) => pred(k))
+      .reduce((a, [, x]) => a + x.built, 0) / g;
+  const adjacentCount = (k: string) => PLOTS.find((p) => p.id === k)?.adjacent.length ?? 0;
+  out.push(
+    `Построек за партию: одиночные участки ${f2(builtWhere((k) => adjacentCount(k) === 1))}, двойные ${f2(builtWhere((k) => adjacentCount(k) > 1))}, Цитадели ${f2(builtWhere((k) => k.startsWith('citadel-')))}.`,
     '',
   );
   return out.join('\n');

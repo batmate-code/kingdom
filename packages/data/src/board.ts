@@ -1,4 +1,12 @@
-import type { LocationDef, LocationId, PlotDef, RegionDef, RegionId, TrackDef } from './types';
+import type {
+  LocationDef,
+  LocationId,
+  PlotDef,
+  RegionDef,
+  RegionId,
+  Resources,
+  TrackDef,
+} from './types';
 
 /** Регионы в порядке боёв: Лес → Долина → Город. */
 export const REGIONS: readonly RegionDef[] = [
@@ -132,12 +140,35 @@ export const TRACKS: Readonly<Record<RegionId, TrackDef>> = {
 /** Вход в Город: базовая цена в золоте, +raiseStep за каждый сработавший рубеж, не больше max. */
 export const CITY_ENTRY = { base: 1, raiseStep: 1, max: 3 } as const;
 
+/**
+ * Эксперимент автора (23.11): бонус за первое достижение позиции трека влияния (trackBoosts).
+ * Каждый игрок получает бонус позиции один раз за партию, даже если потом потерял и вернул влияние.
+ */
+export const TRACK_BOOSTS: Readonly<
+  Record<RegionId, readonly { at: number; gain: Partial<Resources> }[]>
+> = {
+  forest: [{ at: 2, gain: { gold: 2 } }],
+  valley: [{ at: 2, gain: { blood: 2 } }],
+  city: [
+    { at: 2, gain: { ore: 1 } },
+    { at: 4, gain: { ore: 1 } },
+  ],
+};
+
 /** Престиж: трек до max, по 1 ПО на каждой отметке. */
 export const PRESTIGE_TRACK = { max: 40, vpMarks: [3, 6, 10, 15, 20, 26, 33, 40] } as const;
 
 const forestSurcharge = { gold: 2 };
 const valleySurcharge = { gold: 2 };
 const citySurcharge = { ore: 1 };
+
+/**
+ * Эксперимент автора (22.11): доплата за двойной участок по региону вместо обычной (PLOTS).
+ * Включается переключателем правил plotSurcharge.
+ */
+export const PLOT_SURCHARGE_VARIANTS = {
+  ore: { forest: { ore: 1 }, valley: { ore: 1 }, city: { compromat: 1 } },
+} as const satisfies Record<string, Record<RegionId, Partial<Resources>>>;
 
 /** Участки под здания: по 5 на регион. Цитадель стоит на звезде, не на участке. */
 export const PLOTS: readonly PlotDef[] = [

@@ -1,5 +1,6 @@
 import {
   CHARACTERS,
+  DRAFT_BY_PLAYERS,
   GAME,
   PROFESSION_ORDER,
   UPKEEP_TIERS,
@@ -10,6 +11,7 @@ import {
 import { distinctWorkers } from './board';
 import type { Ctx } from './context';
 import { changeResources } from './economy';
+import { randomInt } from './rng';
 import type { DraftPick, GameState, PlayerId, Task, UpgradeChoice } from './types';
 
 export function upkeepTier(character: CharacterId): UpkeepTier {
@@ -48,8 +50,16 @@ export function discardPair(
  */
 export function dealDraft(c: Ctx): Task[] {
   const d = c.draft;
-  const characters = d.deck.splice(0, Math.min(GAME.draftCharacters, d.deck.length));
-  const professions = PROFESSION_ORDER.slice(0, GAME.draftProfessions);
+  const byPlayers = d.config.rules.draftSize === 'players';
+  const size = d.players.length + DRAFT_BY_PLAYERS.extra;
+  const characters = d.deck.splice(
+    0,
+    Math.min(byPlayers ? size : GAME.draftCharacters, d.deck.length),
+  );
+  // Эксперимент автора: случайные профессии, повторы возможны.
+  const professions = byPlayers
+    ? Array.from({ length: size }, () => PROFESSION_ORDER[randomInt(d, PROFESSION_ORDER.length)]!)
+    : PROFESSION_ORDER.slice(0, GAME.draftProfessions);
   d.offer = { characters, professions: [...professions] };
   c.events.push({
     type: 'draftOffered',

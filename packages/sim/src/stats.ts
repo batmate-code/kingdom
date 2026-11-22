@@ -53,6 +53,10 @@ export interface GameStats {
   >;
   /** Запас ресурсов в конце каждого раунда (сумма по игрокам). */
   stockByRound: Record<Res, number[]>;
+  /** То же у победителей (сумма по победителям партии). */
+  stockByRoundWinners: Record<Res, number[]>;
+  /** Рабочих в госпитале по раундам: максимум за раунд (сумма по игрокам). */
+  hospitalByRound: number[];
   /** Сброшенные на содержании пары (нехватка крови или выбор). */
   upkeepDiscards: number;
   /** Влияние по регионам: приход и потери по причинам, итог (сумма по игрокам и у победителей). */
@@ -68,6 +72,11 @@ export interface GameStats {
       firstToMax: number;
       citadels: number;
     }
+  >;
+  /** Участки: сколько построено, каких зданий, у победителей; Цитадели — под ключом citadel-<регион>. */
+  plots: Record<
+    string,
+    { built: number; byWinner: number; round: number; buildings: Record<string, number> }
   >;
 }
 
@@ -85,9 +94,17 @@ export class StatsCollector {
   private readonly flows: { player: PlayerId; res: Res; amount: number; reason: ResourceReason }[] =
     [];
   private readonly stock: Record<Res, number[]> = { gold: [], blood: [], ore: [], compromat: [] };
+  private readonly hospital: number[] = [];
+  /** Запас каждого игрока в конце раунда: [раунд][игрок][ресурс]. */
+  private readonly stockPerPlayer: Record<Res, number>[][] = [];
   private readonly influence: { region: string; amount: number; reason: string }[] = [];
+  private readonly builds: { player: PlayerId; key: string; building: string; round: number }[] =
+    [];
 
   onEvents(events: readonly GameEvent[], state: GameState): void {
+    const inHospital = state.workers.filter((w) => w.position.kind === 'hospital').length;
+    const r = state.round - 1;
+    this.hospital[r] = Math.max(this.hospital[r] ?? 0, inHospital);
     for (const e of events) {
       switch (e.type) {
         case 'workerPlaced':
@@ -125,10 +142,19 @@ export class StatsCollector {
         case 'influenceChanged':
           this.influence.push({ region: e.region, amount: e.to - e.from, reason: e.reason });
           break;
+        case 'buildingBuilt':
+          this.builds.push({
+            player: e.player,
+            key: e.plot ?? `citadel-${e.region}`,
+            building: e.building,
+            round: state.round,
+          });
+          break;
         case 'roundEnded':
           for (const r of RES) {
             this.stock[r][e.round - 1] = state.players.reduce((s, p) => s + p.resources[r], 0);
           }
+          this.stockPerPlayer[e.round - 1] = state.players.map((p) => ({ ...p.resources }));
           break;
         default:
           break;
@@ -233,6 +259,15 @@ export class StatsCollector {
       bucket[f.reason] = (bucket[f.reason] ?? 0) + Math.abs(f.amount);
     }
 
+    const plots: GameStats['plots'] = {};
+    for (const b of this.builds) {
+      const pl = (plots[b.key] ??= { built: 0, byWinner: 0, round: 0, buildings: {} });
+      pl.built += 1;
+      pl.round += b.round;
+      if (isWinner(b.player)) pl.byWinner += 1;
+      pl.buildings[b.building] = (pl.buildings[b.building] ?? 0) + 1;
+    }
+
     return {
       players: state.players.length,
       winners,
@@ -241,8 +276,16 @@ export class StatsCollector {
       characters,
       resources,
       stockByRound: this.stock,
+      hospitalByRound: this.hospital,
+      stockByRoundWinners: Object.fromEntries(
+        RES.map((r) => [
+          r,
+          this.stockPerPlayer.map((round) => winners.reduce((s, w) => s + (round[w]?.[r] ?? 0), 0)),
+        ]),
+      ) as Record<Res, number[]>,
       upkeepDiscards: this.discards.filter((d) => d.reason === 'upkeep').length,
       influence,
+      plots,
     };
   }
 }
@@ -256,8 +299,11 @@ export interface AggregateStats {
   characters: GameStats['characters'];
   resources: GameStats['resources'];
   stockByRound: Record<Res, number[]>;
+  stockByRoundWinners: Record<Res, number[]>;
+  hospitalByRound: number[];
   upkeepDiscards: number;
   influence: GameStats['influence'];
+  plots: GameStats['plots'];
 }
 
 export function emptyAggregate(): AggregateStats {
@@ -271,8 +317,11 @@ export function emptyAggregate(): AggregateStats {
       RES.map((r) => [r, { gained: {}, spent: {}, leftAtEnd: 0, leftAtEndWinners: 0 }]),
     ) as GameStats['resources'],
     stockByRound: { gold: [], blood: [], ore: [], compromat: [] },
+    stockByRoundWinners: { gold: [], blood: [], ore: [], compromat: [] },
+    hospitalByRound: [],
     upkeepDiscards: 0,
     influence: {},
+    plots: {},
   };
 }
 
@@ -301,5 +350,10 @@ export function mergeStats(agg: AggregateStats, g: GameStats): void {
   addNumbers(agg.characters, g.characters);
   addNumbers(agg.resources, g.resources);
   addNumbers(agg.stockByRound, g.stockByRound);
+  addNumbers(agg.stockByRoundWinners, g.stockByRoundWinners);
+  g.hospitalByRound.forEach((x, i) => {
+    agg.hospitalByRound[i] = (agg.hospitalByRound[i] ?? 0) + (x ?? 0);
+  });
   addNumbers(agg.influence, g.influence);
+  addNumbers(agg.plots, g.plots);
 }

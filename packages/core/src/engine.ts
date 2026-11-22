@@ -3,6 +3,7 @@ import {
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   GAME,
+  START_RESOURCE_VARIANTS,
   LOCATION_ORDER,
   type CombatTokenId,
   type LocationId,
@@ -133,7 +134,12 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     firstPlayer: 0,
     phase: 'draft',
     players: Array.from({ length: n }, () => ({
-      resources: { ...GAME.startResources },
+      resources: {
+        ...(config.rules.startResources === 'base'
+          ? GAME.startResources
+          : START_RESOURCE_VARIANTS[config.rules.startResources]),
+      },
+      trackBoostsTaken: [],
       influence: { forest: 0, valley: 0, city: 0 },
       prestige: 0,
       passed: false,

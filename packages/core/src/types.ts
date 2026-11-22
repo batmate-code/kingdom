@@ -42,6 +42,8 @@ export interface PlayerState {
    * остаётся в руке до вскрытия, иначе рука выдала бы его.
    */
   combatTokens: { hand: Record<CombatTokenId, number>; discard: Record<CombatTokenId, number> };
+  /** Полученные бонусы позиций треков (переключатель trackBoosts): ключи «регион-позиция». */
+  trackBoostsTaken: string[];
 }
 
 /** Постройка. Цитадель стоит на звезде региона (plot = null), остальные — на участке. */
@@ -218,7 +220,8 @@ export type CharacterChoice =
   | { kind: 'blackmailer'; target: PlayerId }
   | { kind: 'hypocrite'; workerId: string; profession: ProfessionId }
   | { kind: 'intriguer'; location: LocationId }
-  | { kind: 'madman'; location: LocationId }
+  /** null — не использовать эффект (ответ автора 23.11). */
+  | { kind: 'madman'; location: LocationId | null }
   | {
       kind: 'commissar';
       workerId: string;
@@ -272,7 +275,8 @@ export type ResourceReason =
   | 'cityCitadel'
   | 'character'
   | 'snitch'
-  | 'oreBaron';
+  | 'oreBaron'
+  | 'trackBoost';
 
 /** Откуда изменение влияния (для журнала и статистики). */
 export type InfluenceReason =
@@ -305,7 +309,8 @@ export type GameEvent =
       location: LocationId;
       slot: SlotIndex;
     }
-  | { type: 'cityEntryPaid'; player: PlayerId; gold: number }
+  | { type: 'cityEntryPaid'; player: PlayerId; cost: number; resource: 'gold' | 'blood' }
+  | { type: 'trackBoost'; player: PlayerId; region: RegionId; at: number }
   | {
       type: 'workerDisplaced';
       by: PlayerId;

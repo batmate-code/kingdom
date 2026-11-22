@@ -95,7 +95,7 @@ describe('Палач', () => {
     s = act(s, { type: 'executioner', target: 'p1w0' }, log);
     expect(s.workers.find((w) => w.id === 'p1w0')?.position).toEqual({ kind: 'hospital' });
     // Владелец вытесненного — 2 компромата, Палач — ничего; замка нет.
-    expect(res(s, 1).compromat).toBe(2);
+    expect(res(s, 1).compromat).toBe(1); // автор, 23.11: было 2
     expect(res(s, 0).compromat).toBe(0);
     expect(s.locations.witchCircle.slot2Locked).toBe(false);
     expect(log).toContainEqual(

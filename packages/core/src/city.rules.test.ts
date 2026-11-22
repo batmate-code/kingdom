@@ -26,7 +26,7 @@ describe('Вход в Город', () => {
     const log: GameEvent[] = [];
     const s = place(start(), 'chancery', 1, { log });
     expect(res(s, 0).gold).toBe(1);
-    expect(log).toContainEqual({ type: 'cityEntryPaid', player: 0, gold: 1 });
+    expect(log).toContainEqual({ type: 'cityEntryPaid', player: 0, cost: 1, resource: 'gold' });
   });
 
   it('Без золота на вход в Город не выставить', () => {

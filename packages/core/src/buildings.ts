@@ -6,6 +6,7 @@ import {
   LOCATIONS,
   MAX_BUILDINGS_PER_TYPE,
   PLOTS,
+  PLOT_SURCHARGE_VARIANTS,
   REGION_ORDER,
   TRACKS,
   type BuildingId,
@@ -19,11 +20,22 @@ import { changeResources, payMaybeAlchemy, paymentVariants } from './economy';
 import { addPrestige } from './prestige';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
+/** Доплата за участок по текущему правилу plotSurcharge. */
+export function plotSurcharge(state: GameState, plotId: string | null): Partial<Resources> {
+  const plot = plotId === null ? null : PLOTS.find((p) => p.id === plotId);
+  if (!plot) return {};
+  const variant = state.config.rules.plotSurcharge;
+  if (variant === 'base' || Object.keys(plot.surcharge).length === 0) return plot.surcharge;
+  return PLOT_SURCHARGE_VARIANTS[variant][plot.region];
+}
+
 /** Цена постройки: цена здания + доплата двойного участка. */
-export function buildCost(choice: BuildChoice): Partial<Resources> {
+export function buildCost(state: GameState, choice: BuildChoice): Partial<Resources> {
   const cost: Partial<Resources> = { ...BUILDINGS[choice.building].cost };
-  const plot = choice.plot === null ? null : PLOTS.find((p) => p.id === choice.plot);
-  for (const [r, v] of Object.entries(plot?.surcharge ?? {}) as [keyof Resources, number][]) {
+  for (const [r, v] of Object.entries(plotSurcharge(state, choice.plot)) as [
+    keyof Resources,
+    number,
+  ][]) {
     cost[r] = (cost[r] ?? 0) + v;
   }
   return cost;
@@ -80,7 +92,7 @@ export function buildOptions(
                 (nearLocation === null || plot.adjacent.includes(nearLocation)),
             ).map((plot) => ({ building, region, plot: plot.id }));
       for (const choice of candidates) {
-        for (const v of paymentVariants(state, player, buildCost(choice))) {
+        for (const v of paymentVariants(state, player, buildCost(state, choice))) {
           out.push(v.alchemy ? { ...choice, alchemy: true } : choice);
         }
       }
@@ -92,7 +104,7 @@ export function buildOptions(
 /** Построить: оплата, здание на участке (Цитадель — на звезде), престиж по номеру здания типа. */
 export function applyBuild(c: Ctx, player: PlayerId, choice: BuildChoice): void {
   const number = ownedOfType(c.draft, player, choice.building);
-  const cost = buildCost(choice);
+  const cost = buildCost(c.draft, choice);
   payMaybeAlchemy(c, player, cost, choice.alchemy, 'build');
   c.draft.buildings.push({
     type: choice.building,

@@ -273,12 +273,21 @@ describe('Персонажи, содержание 2', () => {
     expect(s.powerTokens).toEqual([{ owner: 0, region: 'forest', count: 2 }]);
   });
 
+  it('Безумец: эффект можно не использовать — тогда действие своей локации (автор, 23.11)', () => {
+    let s = give(start(), 'p0w0', 'madman');
+    const gold = res(s, 0).gold;
+    s = place(s, 'mine', 2, { workerId: 'p0w0' });
+    s = pick(s, { kind: 'madman', location: null });
+    expect(res(s, 0).gold).toBe(gold + 2); // Рудник, второй слот
+  });
+
   it('Безумец: вместо своей локации — первый слот другой локации региона', () => {
     let s = give(start(), 'p0w0', 'madman');
     s = place(s, 'mine', 2, { workerId: 'p0w0' });
     expect(characterChoices(s)).toEqual([
       { kind: 'madman', location: 'witchCircle' },
       { kind: 'madman', location: 'lair' },
+      { kind: 'madman', location: null },
     ]);
     const log: GameEvent[] = [];
     s = pick(s, { kind: 'madman', location: 'witchCircle' }, log);

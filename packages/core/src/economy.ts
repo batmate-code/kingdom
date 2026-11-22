@@ -2,6 +2,7 @@ import {
   ALCHEMY,
   CITY_ENTRY,
   TRACKS,
+  TRACK_BOOSTS,
   type RegionId,
   type ResourceId,
   type Resources,
@@ -103,6 +104,11 @@ export function paymentVariants(
   return out;
 }
 
+/** Чем платят вход в Город (переключатель cityEntryResource). */
+export function cityEntryResource(state: GameState): 'gold' | 'blood' {
+  return state.config.rules.cityEntryResource;
+}
+
 export function cityEntryCost(state: GameState): number {
   return Math.min(
     CITY_ENTRY.base + CITY_ENTRY.raiseStep * state.cityEntryRaisedRegions.length,
@@ -137,5 +143,14 @@ export function changeInfluence(
   }
   if (to === track.max && c.draft.firstToMax[region] === undefined) {
     c.draft.firstToMax[region] = player;
+  }
+  if (c.draft.config.rules.trackBoosts) {
+    for (const boost of TRACK_BOOSTS[region]) {
+      const key = `${region}-${boost.at}`;
+      if (to < boost.at || p.trackBoostsTaken.includes(key)) continue;
+      p.trackBoostsTaken.push(key);
+      c.events.push({ type: 'trackBoost', player, region, at: boost.at });
+      changeResources(c, player, boost.gain, 'trackBoost');
+    }
   }
 }

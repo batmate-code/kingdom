@@ -1,6 +1,7 @@
 /** Этап 4: здания, участки, Цитадели, престиж, подсчёт (rules.md, «Здания и участки», «Конец игры»). */
 import type { BuildingId, RegionId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
+import { buildCost, plotSurcharge } from './buildings';
 import { getLegalActions } from './engine';
 import { getScores } from './scores';
 import type { Action, BuildChoice, GameEvent, GameState, Position } from './types';
@@ -470,5 +471,26 @@ describe('Крайние случаи стройки и подсчёта', () =>
     }
     s = act(s, { type: 'combatReward', choice: 'build' });
     expect(buildChoices(s)).toContainEqual({ building: 'citadel', region: 'forest', plot: null });
+  });
+});
+
+describe('Доплата за двойной участок (переключатель plotSurcharge)', () => {
+  it('base: Лес +2 золота, Город +1 руда; ore: Лес +1 руда, Город +1 компромат', () => {
+    const base = newGame();
+    const ore = newGame({ rules: { plotSurcharge: 'ore' } });
+    const forest: BuildChoice = { building: 'crypt', region: 'forest', plot: 'forest-mine-lair' };
+    const city: BuildChoice = { building: 'crypt', region: 'city', plot: 'city-chancery' };
+    const cityDouble: BuildChoice = {
+      building: 'crypt',
+      region: 'city',
+      plot: 'city-underground-chancery',
+    };
+    expect(plotSurcharge(base, forest.plot)).toEqual({ gold: 2 });
+    expect(plotSurcharge(base, cityDouble.plot)).toEqual({ ore: 1 });
+    expect(plotSurcharge(ore, forest.plot)).toEqual({ ore: 1 });
+    expect(plotSurcharge(ore, cityDouble.plot)).toEqual({ compromat: 1 });
+    expect(plotSurcharge(ore, city.plot)).toEqual({});
+    const crypt = buildCost(ore, forest);
+    expect(crypt.gold ?? 0).toBe(buildCost(base, forest).gold! - 2);
   });
 });
