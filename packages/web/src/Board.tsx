@@ -24,33 +24,45 @@ type PlaceAction = Extract<Action, { type: 'place' }>;
 /** Краткие подписи ресурсов для действий слотов. */
 const R = { gold: 'зол', blood: 'кр', ore: 'руд', compromat: 'комп' } as const;
 
-/** Действие слота коротко, как на поле. */
-export function slotShort(a: SlotAction): string {
+/**
+ * Действие слота как на поле: по одному обмену на строку (строки не переносятся внутри).
+ * Слова ресурсов потом заменяются иконками (RichText).
+ */
+export function slotLines(a: SlotAction): string[] {
   switch (a.kind) {
     case 'gain':
-      return Object.entries(a.gain)
-        .map(([k, v]) => `+${v} ${R[k as keyof typeof R]}`)
-        .join(' ');
+      return [
+        Object.entries(a.gain)
+          .map(([k, v]) => `+${v} ${R[k as keyof typeof R]}`)
+          .join('  '),
+      ];
     case 'lairStash':
-      return `копилка; ${a.bloodPerOre} кр → руда`;
+      return ['забрать копилку', `${a.bloodPerOre} кр → 1 руд`];
     case 'mass':
-      return `1 → ${a.rate} зол↔кр ×${a.maxTimes}`;
+      return [`1 зол → ${a.rate} кр  ×${a.maxTimes}`, `1 кр → ${a.rate} зол  ×${a.maxTimes}`];
     case 'market':
-      return `${a.buyCost} → руда; руда → ${a.sellGain}`;
+      return [`${a.buyCost} зол/кр → ${a.ore} руд`, `${a.ore} руд → ${a.sellGain} зол/кр`];
     case 'chancery':
-      return `комп → 2 / руда ×${a.maxTimes}; ${a.buildRightCost} комп → стройка`;
+      return [
+        `${a.conversionCost} комп → ${a.goldBlood} зол/кр  ×${a.maxTimes}`,
+        `${a.conversionCost} комп → ${a.ore} руд  ×${a.maxTimes}`,
+        `${a.buildRightCost} комп → стройка`,
+      ];
     case 'chanceryBuild':
-      return `${a.compromatCost} комп → стройка`;
+      return [`${a.compromatCost} комп → стройка`];
     case 'copy':
-      return `${a.goldCost} зол → любое действие${a.scope.length < 3 ? ' Леса/Долины' : ''}`;
+      return [
+        `${a.goldCost} зол → любое действие`,
+        a.scope.length < 3 ? 'Леса или Долины' : 'на поле',
+      ];
     case 'commissariatToken':
-      return 'жетон: госпиталь в бой';
+      return ['жетон Комиссариата:', 'госпиталь бьётся за тебя'];
     case 'revive':
-      return `${a.oreCost} руд → из госпиталя`;
+      return [`${a.oreCost} руд → вернуть`, 'из госпиталя'];
     case 'tavernSwap':
-      return 'заменить пару';
+      return ['заменить пару', 'на пару из пула'];
     case 'cityHall':
-      return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`).join('; ');
+      return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`);
   }
 }
 
@@ -152,9 +164,13 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
           ))}
           {locked && <span className={styles.lock}>🔒</span>}
         </div>
-        <span className={styles.slotText}>
-          <RichText text={slotShort(action)} />
-        </span>
+        <div className={styles.slotText}>
+          {slotLines(action).map((line, i) => (
+            <div key={i} className={styles.slotLine}>
+              <RichText text={line} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   };

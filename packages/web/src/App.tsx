@@ -179,7 +179,19 @@ function Game() {
   );
 }
 
+/** ?autostart[=seed] — сразу начать партию «человек + 2 бота» (для проверки вида поля). */
+function autostartSeed(): number | null {
+  const v = new URLSearchParams(window.location.search).get('autostart');
+  return v === null ? null : Number(v) || 1;
+}
+
 export function App() {
   const started = useGame((s) => s.state !== null);
+  useEffect(() => {
+    const seed = autostartSeed();
+    if (seed !== null && !useGame.getState().state) {
+      useGame.getState().start(['human', 'heuristic', 'heuristic'], seed);
+    }
+  }, []);
   return <div className={styles.app}>{started ? <Game /> : <Setup />}</div>;
 }

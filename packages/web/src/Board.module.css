@@ -316,9 +316,13 @@
 
 .node .location {
   min-width: 0;
-  width: 190px;
+  width: 215px;
 }
 
 .hexDouble {
   font-weight: 700;
+}
+
+.slotLine {
+  white-space: nowrap;
 }
