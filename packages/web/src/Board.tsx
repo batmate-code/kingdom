@@ -17,6 +17,7 @@ import styles from './Board.module.css';
 import { Icon, RichText } from './Icon';
 import { profColor } from './colors';
 import { LAYOUT } from './layout';
+import { PrestigeTrack } from './PrestigeTrack';
 import { Track } from './Track';
 import { locName, playerName, regionName } from './labels';
 
@@ -379,6 +380,8 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
           <Region region="valley" />
         </div>
       </div>
+
+      <PrestigeTrack obs={obs} />
 
       {me !== null && (
         <div className={styles.reserve}>
