@@ -14,24 +14,24 @@ export interface RegionLayout {
 
 export const LAYOUT: Record<RegionId, RegionLayout> = {
   city: {
-    height: 380,
+    height: 300,
     locations: {
-      underground: [28, 20],
-      commissariat: [70, 20],
-      chancery: [33, 64],
-      cityHall: [80, 64],
+      underground: [28, 22],
+      commissariat: [70, 22],
+      chancery: [33, 70],
+      cityHall: [80, 70],
     },
     plots: {
       'city-underground-chancery': [9, 42],
       'city-underground-commissariat': [49, 12],
       'city-commissariat-cityHall': [93, 30],
-      'city-chancery': [50, 92],
-      'city-cityHall': [62, 84],
+      'city-chancery': [52, 94],
+      'city-cityHall': [62, 90],
     },
     star: [55, 50],
   },
   forest: {
-    height: 470,
+    height: 380,
     locations: {
       mine: [38, 24],
       witchCircle: [26, 72],
@@ -44,10 +44,10 @@ export const LAYOUT: Record<RegionId, RegionLayout> = {
       'forest-witchCircle': [30, 96],
       'forest-lair': [74, 92],
     },
-    star: [50, 46],
+    star: [45, 48],
   },
   valley: {
-    height: 470,
+    height: 380,
     locations: {
       market: [44, 18],
       mass: [28, 72],
@@ -60,6 +60,6 @@ export const LAYOUT: Record<RegionId, RegionLayout> = {
       'valley-mass-tavern': [55, 94],
       'valley-tavern': [90, 86],
     },
-    star: [52, 44],
+    star: [46, 45],
   },
 };

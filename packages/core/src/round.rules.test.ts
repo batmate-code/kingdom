@@ -1,3 +1,4 @@
+import { createGame } from './engine';
 import { LOCATION_ORDER, PROFESSION_ORDER } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { getLegalActions, isTerminal } from './engine';
@@ -14,7 +15,13 @@ describe('Подготовка раунда', () => {
     }
   });
 
-  it('Первый игрок в 1-м раунде случаен, но определяется seed', () => {
+  it('Первый игрок в 1-м раунде — Игрок 1 (ответ автора, 22.11)', () => {
+    for (const seed of [1, 2, 3, 7, 11]) {
+      expect(createGame({ playerCount: 3 }, seed).firstPlayer).toBe(0);
+    }
+  });
+
+  it('Переключатель randomFirstPlayer: случайный, но определяется seed', () => {
     const firsts = new Set(Array.from({ length: 30 }, (_, seed) => newGame({}, seed).firstPlayer));
     expect(firsts.size).toBe(3);
     expect(newGame({}, 7).firstPlayer).toBe(newGame({}, 7).firstPlayer);

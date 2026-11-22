@@ -58,7 +58,7 @@ describe('Драфт: порядок кругов (Структура раунд
   });
 
   it('Профессии: запас не ограничен — в следующем раунде снова выкладываются все 5', () => {
-    let s = createGame({ playerCount: 3 }, 7);
+    let s = createGame({ playerCount: 3, rules: { randomFirstPlayer: true } }, 7);
     while (s.round === 1 && s.pending) {
       s = act(s, s.pending.kind === 'placement' ? { type: 'pass' } : firstLegal(s));
     }
@@ -237,7 +237,7 @@ describe('Таверна, первый слот (Локации)', () => {
   });
 
   it('Таверна: пул после драфта 3+3 при 2 игроках даёт 3 × 3 вариантов замены и пропуск', () => {
-    let s = createGame({ playerCount: 2 }, 4);
+    let s = createGame({ playerCount: 2, rules: { randomFirstPlayer: true } }, 4);
     while (s.pending?.kind === 'draftPick') s = act(s, firstLegal(s));
     while (s.pending?.kind === 'upgrade') {
       s = act(s, {

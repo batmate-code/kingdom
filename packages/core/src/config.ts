@@ -31,6 +31,8 @@ export interface RuleToggles {
    * 'free' — игрок сам выбирает, какой эффект разыграть следующим (эксперимент для баланса).
    */
   effectOrder: 'fixed' | 'free';
+  /** Первый игрок 1-го раунда случайный (иначе — Игрок 1, ответ автора 22.11). Для симулятора. */
+  randomFirstPlayer: boolean;
 }
 
 export interface GameConfig {
@@ -65,6 +67,7 @@ export const DEFAULT_RULES: RuleToggles = {
   cryptCountsSecondSlot: true,
   buildRightWithoutOptions: false,
   effectOrder: 'fixed',
+  randomFirstPlayer: false,
 };
 
 export function resolveConfig(input: GameConfigInput = {}): GameConfig {

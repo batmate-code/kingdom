@@ -174,8 +174,8 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
   };
   const events: GameEvent[] = [];
   const state = produce(initial, (draft) => {
-    // Первый игрок в 1-м раунде — случайно [интерпретация в правилах].
-    draft.firstPlayer = randomInt(draft, n);
+    // Первый игрок в 1-м раунде — Игрок 1 (ответ автора, 22.11); случайно — переключатель.
+    draft.firstPlayer = draft.config.rules.randomFirstPlayer ? randomInt(draft, n) : 0;
     shuffleInPlace(draft, draft.deck);
     run({ draft, events });
     if (draft.config.checkInvariants) assertInvariants(draft);

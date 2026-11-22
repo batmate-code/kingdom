@@ -14,7 +14,7 @@ function setOffer(state: GameState, characters: CharacterId[]): GameState {
 }
 
 const game = (playerCount = 3, seed = 1) =>
-  setOffer(createGame({ playerCount }, seed), [
+  setOffer(createGame({ playerCount, rules: { randomFirstPlayer: true } }, seed), [
     'bloodsucker',
     'storekeeper',
     'officer',

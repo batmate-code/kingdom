@@ -15,7 +15,8 @@ export function newGame(
   seed = 1,
   opts: { withDraft?: boolean } = {},
 ): GameState {
-  const s = createGame(config, seed);
+  // Сценарии писались при случайном первом игроке (seed задаёт, кто ходит первым) — сохраняем.
+  const s = createGame({ ...config, rules: { randomFirstPlayer: true, ...config.rules } }, seed);
   return opts.withDraft ? s : skipDraft(s);
 }
 

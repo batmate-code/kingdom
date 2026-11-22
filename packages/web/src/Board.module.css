@@ -1,8 +1,8 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 0;
   overflow: auto;
 }
 
@@ -313,6 +313,20 @@
 
 .map {
   position: relative;
+  container-type: inline-size;
+}
+
+/* Узкий регион — карточки локаций мельче, чтобы не наезжали друг на друга. */
+@container (max-width: 620px) {
+  .node .location {
+    transform: scale(0.82);
+  }
+}
+
+@container (max-width: 520px) {
+  .node .location {
+    transform: scale(0.7);
+  }
 }
 
 .links {
