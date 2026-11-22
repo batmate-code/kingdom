@@ -162,6 +162,14 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
         <div
           className={`${styles.circle} ${slot === 2 ? styles.circle2 : ''} ${here.length ? styles.target : ''} ${canDisplace ? styles.targetDisplace : ''}`}
           onClick={here.length ? () => clickSlot(id, slot) : undefined}
+          style={
+            slot === 2 && obs.locations[id].professionToken
+              ? {
+                  // Второй слот — цвет профессии, которая вытесняет из первого (жетон локации).
+                  background: `linear-gradient(#fff 50%, ${profColor(obs.locations[id].professionToken)} 50%)`,
+                }
+              : undefined
+          }
           title={
             here.length
               ? canDisplace
