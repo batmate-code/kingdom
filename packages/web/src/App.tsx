@@ -163,7 +163,7 @@ function Game() {
               <Actions legal={legal.filter((a) => a.type !== 'place' && a.type !== 'draftPick')} />
             )}
           </div>
-          <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} />
+          <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} seats={seats} />
           <details className={styles.log}>
             <summary>Журнал</summary>
             {log.map((l) => (

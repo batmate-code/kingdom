@@ -64,10 +64,13 @@ export function PlayerBoard({
   obs,
   state,
   defaultPlayer,
+  seats,
 }: {
   obs: Observation;
   state: GameState;
   defaultPlayer: number;
+  /** Кто в кресле: 'human' или имя бота. */
+  seats: readonly string[];
 }) {
   const [picked, setPicked] = useState<number | null>(null);
   const player = picked ?? defaultPlayer;
@@ -90,7 +93,7 @@ export function PlayerBoard({
             onClick={() => setPicked(i === defaultPlayer ? null : i)}
           >
             {playerName(i)}
-            {i === defaultPlayer ? ' (вы)' : ''}
+            {seats[i] && seats[i] !== 'human' ? ' · бот' : i === defaultPlayer ? ' (вы)' : ''}
           </button>
         ))}
       </div>
