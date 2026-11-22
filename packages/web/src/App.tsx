@@ -87,12 +87,25 @@ function Actions({ legal }: { legal: Action[] }) {
 }
 
 function Game() {
-  const { state, seats, log, error, botStep, reset, act } = useGame();
+  const { state, seats, log, error, botStep, reset, act, undo, history } = useGame();
+  const canUndo = history.some((h) => h.byHuman);
   const [delay, setDelay] = useState(400);
   const [paused, setPaused] = useState(false);
   const logEnd = useRef<HTMLDivElement>(null);
   const pending = state?.pending ?? null;
   const botTurn = pending !== null && seats[pending.player] !== 'human';
+
+  // Ctrl+Z — отменить ход.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo]);
 
   useEffect(() => {
     if (!botTurn || paused) return;
@@ -132,6 +145,13 @@ function Game() {
           </select>
         </label>
         <button onClick={() => setPaused(!paused)}>{paused ? '▶ Продолжить' : '⏸ Пауза'}</button>
+        <button
+          onClick={undo}
+          disabled={!canUndo}
+          title="Отменить ваш последний ход и ходы ботов после него (Ctrl+Z)"
+        >
+          ↶ Отменить ход
+        </button>
         <button onClick={reset}>Новая партия</button>
       </header>
       <main className={styles.main}>

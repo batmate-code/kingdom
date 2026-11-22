@@ -19,14 +19,26 @@ interface LogLine {
   text: string;
 }
 
+/** Снимок до хода: к нему возвращает отмена. */
+interface Snapshot {
+  state: GameState;
+  log: LogLine[];
+  /** Чей был ход: отмена откатывает до последнего хода человека. */
+  byHuman: boolean;
+}
+
 interface GameStore {
   state: GameState | null;
+  history: Snapshot[];
   seats: Seat[];
   bots: (Bot | null)[];
   log: LogLine[];
   error: string | null;
   start(seats: Seat[], seed: number): void;
-  act(action: Action): void;
+  act(action: Action, byHuman?: boolean): void;
+  /** Отменить последний ход человека (и ходы ботов после него). */
+  undo(): void;
+  canUndo(): boolean;
   /** Ход бота, если сейчас его очередь. Возвращает true, если ход сделан. */
   botStep(): boolean;
   reset(): void;
@@ -34,6 +46,7 @@ interface GameStore {
 
 let lineId = 0;
 const MAX_LOG = 400;
+const MAX_HISTORY = 500;
 
 function appendLog(log: LogLine[], state: GameState, events: readonly GameEvent[]): LogLine[] {
   const lines = events.flatMap((e) => {
@@ -45,6 +58,7 @@ function appendLog(log: LogLine[], state: GameState, events: readonly GameEvent[
 
 export const useGame = create<GameStore>((set, get) => ({
   state: null,
+  history: [],
   seats: [],
   bots: [],
   log: [],
@@ -57,15 +71,20 @@ export const useGame = create<GameStore>((set, get) => ({
       const factory = BOT_FACTORIES[seat];
       return factory ? factory(seed * 31 + i) : null;
     });
-    set({ state, seats, bots, log: appendLog([], state, events), error: null });
+    set({ state, seats, bots, log: appendLog([], state, events), error: null, history: [] });
   },
 
-  act(action) {
-    const { state, log } = get();
+  act(action, byHuman = true) {
+    const { state, log, history } = get();
     if (!state) return;
     try {
       const r = applyAction(state, action);
-      set({ state: r.state, log: appendLog(log, r.state, r.events), error: null });
+      set({
+        state: r.state,
+        log: appendLog(log, r.state, r.events),
+        error: null,
+        history: [...history, { state, log, byHuman }].slice(-MAX_HISTORY),
+      });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
     }
@@ -78,11 +97,26 @@ export const useGame = create<GameStore>((set, get) => ({
     const bot = bots[player];
     if (!bot) return false;
     const action = bot.chooseAction(getObservation(state, player), getLegalActions(state));
-    get().act(action);
+    get().act(action, false);
     return true;
   },
 
+  undo() {
+    const history = [...get().history];
+    while (history.length > 0) {
+      const snap = history.pop()!;
+      if (snap.byHuman) {
+        set({ state: snap.state, log: snap.log, history, error: null });
+        return;
+      }
+    }
+  },
+
+  canUndo() {
+    return get().history.some((h) => h.byHuman);
+  },
+
   reset() {
-    set({ state: null, seats: [], bots: [], log: [], error: null });
+    set({ state: null, seats: [], bots: [], log: [], error: null, history: [] });
   },
 }));

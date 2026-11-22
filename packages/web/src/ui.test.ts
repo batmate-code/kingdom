@@ -20,4 +20,23 @@ describe('Интерфейс: хранилище и подписи', () => {
     expect(isTerminal(useGame.getState().state!)).toBe(true);
     expect(useGame.getState().log.some((l) => l.text.includes('Партия окончена'))).toBe(true);
   });
+
+  it('Отмена возвращает к моменту перед последним ходом человека, вместе с ходами ботов', () => {
+    const store = useGame.getState();
+    store.start(['human', 'random-grouped', 'random-grouped'], 3);
+    // Доходим до хода человека.
+    while (useGame.getState().botStep()) {
+      /* боты ходят */
+    }
+    const before = useGame.getState().state!;
+    const logBefore = useGame.getState().log.length;
+    useGame.getState().act(getLegalActions(before)[0]!);
+    while (useGame.getState().botStep()) {
+      /* ответные ходы ботов */
+    }
+    expect(useGame.getState().canUndo()).toBe(true);
+    useGame.getState().undo();
+    expect(useGame.getState().state).toBe(before);
+    expect(useGame.getState().log).toHaveLength(logBefore);
+  });
 });
