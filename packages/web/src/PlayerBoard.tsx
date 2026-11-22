@@ -10,6 +10,7 @@ import {
   REGION_ORDER,
   TRACKS,
   type BuildingId,
+  type RegionId,
 } from '@vampire/data';
 import { useState } from 'react';
 import { PLAYER_COLORS } from './Board';
@@ -28,11 +29,12 @@ const BUILDING_TEXT: Record<'crypt' | 'abbey' | 'shop', string> = {
   shop: `+${BUILDING_EFFECTS.shopGoldPerVisit} зол, когда чужой рабочий приходит в соседнюю локацию`,
 };
 
-const CITADEL_TEXT =
-  `Нужно влияние: Лес ${TRACKS.forest.citadelAt}, Долина ${TRACKS.valley.citadelAt}, Город ${TRACKS.city.citadelAt}. ` +
-  `Лес: +${BUILDING_EFFECTS.forestCitadelStrength} к силе в бою. ` +
-  `Долина: содержание −${BUILDING_EFFECTS.valleyCitadelUpkeepDiscount} кр за персонажа. ` +
-  `Город: +${BUILDING_EFFECTS.cityCitadelCompromatPerVisit} комп за чужой визит в Город`;
+/** Цитадель по регионам: порог влияния и бонус владельцу. */
+const CITADEL_ROWS: [RegionId, string][] = [
+  ['forest', `+${BUILDING_EFFECTS.forestCitadelStrength} к силе в бою Леса`],
+  ['valley', `содержание −${BUILDING_EFFECTS.valleyCitadelUpkeepDiscount} кр за персонажа`],
+  ['city', `+${BUILDING_EFFECTS.cityCitadelCompromatPerVisit} комп за чужой визит в Город`],
+];
 const RES_LABEL = { gold: 'Золото', blood: 'Кровь', ore: 'Руда', compromat: 'Компромат' } as const;
 
 function costText(type: BuildingId): string {
@@ -208,7 +210,17 @@ export function PlayerBoard({
               </span>
             </div>
             <div className={styles.effect}>
-              <RichText text={CITADEL_TEXT} />
+              {CITADEL_ROWS.map(([region, bonus]) => (
+                <div key={region} className={styles.citadelRow}>
+                  <b>{regionName(region)}</b>
+                  <span>
+                    от {TRACKS[region].citadelAt} <Icon name="influence" size={14} />
+                  </span>
+                  <span>
+                    <RichText text={bonus} />
+                  </span>
+                </div>
+              ))}
             </div>
             <div className={styles.chain}>
               <span

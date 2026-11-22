@@ -226,3 +226,11 @@
   padding: 1px 6px;
   border-radius: 8px;
 }
+
+.citadelRow {
+  display: grid;
+  grid-template-columns: 62px 58px 1fr;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
