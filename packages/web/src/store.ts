@@ -20,6 +20,24 @@ interface LogLine {
   text: string;
 }
 
+/** Последний ход бота на поле: какие слоты (`локация:слот`) и участки (id или `citadel:регион`) он занял. */
+export interface LastMove {
+  player: number;
+  slots: string[];
+  plots: string[];
+}
+
+/** Что на поле изменил ход: размещения и постройки. */
+function moveMarks(events: readonly GameEvent[]): { slots: string[]; plots: string[] } {
+  const slots: string[] = [];
+  const plots: string[] = [];
+  for (const e of events) {
+    if (e.type === 'workerPlaced') slots.push(`${e.location}:${e.slot}`);
+    if (e.type === 'buildingBuilt') plots.push(e.plot ?? `citadel:${e.region}`);
+  }
+  return { slots, plots };
+}
+
 /** Снимок до хода: к нему возвращает отмена. */
 interface Snapshot {
   state: GameState;
@@ -35,6 +53,8 @@ interface GameStore {
   bots: (Bot | null)[];
   log: LogLine[];
   error: string | null;
+  /** Последний ход бота с размещением или постройкой — подсвечивается на поле. */
+  lastMove: LastMove | null;
   start(seats: Seat[], seed: number, rules?: Partial<RuleToggles>): void;
   act(action: Action, byHuman?: boolean): void;
   /** Отменить последний ход человека (и ходы ботов после него). */
@@ -64,6 +84,7 @@ export const useGame = create<GameStore>((set, get) => ({
   bots: [],
   log: [],
   error: null,
+  lastMove: null,
 
   start(seats, seed, rules = {}) {
     const { state, events } = createGameWithEvents({ playerCount: seats.length, rules }, seed);
@@ -72,7 +93,15 @@ export const useGame = create<GameStore>((set, get) => ({
       const factory = BOT_FACTORIES[seat];
       return factory ? factory(seed * 31 + i) : null;
     });
-    set({ state, seats, bots, log: appendLog([], state, events), error: null, history: [] });
+    set({
+      state,
+      seats,
+      bots,
+      log: appendLog([], state, events),
+      error: null,
+      history: [],
+      lastMove: null,
+    });
   },
 
   act(action, byHuman = true) {
@@ -80,7 +109,13 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!state) return;
     try {
       const r = applyAction(state, action);
+      const actor = state.pending?.player;
+      const marks = moveMarks(r.events);
+      const moved = marks.slots.length + marks.plots.length > 0;
       set({
+        ...(moved && !byHuman && actor !== undefined
+          ? { lastMove: { player: actor, ...marks } }
+          : {}),
         state: r.state,
         log: appendLog(log, r.state, r.events),
         error: null,
@@ -118,6 +153,6 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   reset() {
-    set({ state: null, seats: [], bots: [], log: [], error: null, history: [] });
+    set({ state: null, seats: [], bots: [], log: [], error: null, history: [], lastMove: null });
   },
 }));

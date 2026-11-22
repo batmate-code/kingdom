@@ -1,0 +1,525 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #e9c87c;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hand {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Карточка игрока. */
+.player {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 5px solid;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.turn {
+  background: #2a2232;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #140f12;
+  font-weight: 800;
+  font-size: 13px;
+  flex: none;
+}
+
+.name {
+  font-size: clamp(14px, 0.9vw, 18px);
+}
+
+.seat {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.first {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid #e9c87c;
+  color: #e9c87c;
+}
+
+.score {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(18px, 1.25vw, 26px);
+  font-weight: 800;
+}
+
+.score img {
+  vertical-align: -4px;
+}
+
+.prestige {
+  margin-left: 6px;
+  font-size: 15px;
+  color: #cfc4b3;
+}
+
+.resources {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.res {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #2e2638;
+  border-radius: 6px;
+  padding: 3px 0;
+  font-size: clamp(15px, 1vw, 20px);
+}
+
+/* Влияние: полоски в цветах регионов. */
+.influence {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.infRow {
+  display: grid;
+  grid-template-columns: 58px 1fr 18px;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(12px, 0.75vw, 15px);
+}
+
+.infName {
+  font-weight: 700;
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+}
+
+.seg {
+  flex: 1;
+  height: clamp(10px, 0.7vw, 14px);
+  border-radius: 2px;
+  background: #3a3244;
+  box-sizing: border-box;
+}
+
+.segMark {
+  outline: 1px solid #e9c87c;
+  outline-offset: -1px;
+}
+
+.infVal {
+  text-align: right;
+}
+
+/* Рабочие строками. */
+.workers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.worker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(12px, 0.75vw, 15px);
+  border-radius: 6px;
+  padding: 1px 2px;
+  min-width: 0;
+}
+
+.worker > button {
+  flex: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: #2e2638;
+}
+
+.selected {
+  background: #3a2f46;
+}
+
+.workerName {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prof {
+  font-size: 11px;
+  border-radius: 8px;
+  padding: 0 6px;
+  flex: none;
+}
+
+.where {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.draftPick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Здания: значок и счёт. */
+.buildings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.bld {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 6px;
+  background: #2e2638;
+  font-size: 12px;
+  padding: 2px 0;
+  color: var(--muted);
+}
+
+.bld path,
+.bld rect,
+.bld circle {
+  fill: #9a90a6;
+}
+
+.bldOn {
+  color: #140f12;
+  font-weight: 700;
+}
+
+.bldOn path,
+.bldOn rect,
+.bldOn circle {
+  fill: #1b1418;
+}
+
+.tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tokenChip {
+  font-size: clamp(11px, 0.7vw, 14px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 6px;
+  color: #cfc4b3;
+}
+
+/* Справка по зданиям. */
+.ref {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.ref summary {
+  cursor: pointer;
+  color: #e9c87c;
+}
+
+.refRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 6px;
+}
+
+.refRow path,
+.refRow rect,
+.refRow circle {
+  fill: #cfc4b3;
+}
+
+.refText {
+  color: var(--muted);
+}
+
+.refText img,
+.ref img {
+  height: 14px;
+  vertical-align: -2px;
+}
+
+/* Вкладки игроков. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-radius: 8px !important;
+  background: #211c28;
+  color: #ece6f2 !important;
+  font-size: clamp(13px, 0.8vw, 16px);
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.tabActive {
+  color: #140f12 !important;
+  font-weight: 700;
+}
+
+.tabVp {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 2px;
+  font-weight: 700;
+}
+
+.turnMark {
+  font-size: 10px;
+}
+
+/* Планшет игрока (как на картоне автора). */
+.planshet {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+  background: #1a1520;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.chains {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chainRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: help;
+}
+
+.chainRow:hover {
+  background: #2a2232;
+  border-radius: 6px;
+}
+
+.bIcon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(66px, 4.2vw, 88px);
+  flex: none;
+}
+
+.bIcon img {
+  height: clamp(26px, 1.9vw, 44px);
+}
+
+.bCost {
+  font-size: clamp(11px, 0.7vw, 15px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bCost img {
+  height: 12px;
+  vertical-align: -2px;
+}
+
+.chainStep {
+  display: flex;
+  align-items: center;
+}
+
+.arrow {
+  color: #cfc4b3;
+  font-size: clamp(12px, 0.8vw, 18px);
+  margin: 0 1px;
+}
+
+.hexBox {
+  position: relative;
+  width: clamp(44px, 3vw, 70px);
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 52 / 46;
+}
+
+.hexSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hexVal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-weight: 800;
+  font-size: clamp(14px, 0.95vw, 20px);
+  color: #ece6f2;
+}
+
+.hexVal img {
+  height: clamp(13px, 0.85vw, 18px);
+}
+
+.hexValOn {
+  color: #140f12;
+}
+
+.citadelCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: help;
+}
+
+.citadelImg {
+  height: clamp(50px, 3.8vw, 96px);
+}
+
+.citadelWhere {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cards {
+  grid-column: 1 / 3;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.cardSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: help;
+}
+
+.cardImg {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 2px solid #0d090c;
+  background: #2e2638;
+}
+
+.cardNum {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  font-size: clamp(14px, 0.95vw, 19px);
+}
+
+/* Лупа карты рабочего: поверх поля слева от панели. */
+.zoom {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.85));
+}
+
+.zoom img {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 3px solid #c9a24a;
+}
+
+.zoomProf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.25;
+}

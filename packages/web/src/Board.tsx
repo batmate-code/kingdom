@@ -21,7 +21,11 @@ import { PrestigeTrack } from './PrestigeTrack';
 import { Track } from './Track';
 import { locName, playerName, regionName } from './labels';
 
-export const PLAYER_COLORS = ['#d94848', '#3f7fd6', '#e0b13c', '#4caf6a'];
+/**
+ * Цвета игроков (автор, 22.11): 1 — аквамариновый Крайола, 2 — бледный фиолетово-красный,
+ * 3 — жёлто-оранжевый Крайола; 4-й (партии на четверых) — прежний зелёный.
+ */
+export const PLAYER_COLORS = ['#78dbe2', '#db7093', '#ffae42', '#4caf6a'];
 
 type PlaceAction = Extract<Action, { type: 'place' }>;
 

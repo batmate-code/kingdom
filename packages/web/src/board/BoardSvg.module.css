@@ -1,0 +1,297 @@
+/* Шрифт автора: Trajan Sans Pro Black (установлен в системе; файл в репозиторий не кладём — лицензия). */
+@font-face {
+  font-family: 'Board Trajan';
+  src: local('Trajan Sans Pro Black'), local('TrajanSansPro-Black');
+  font-weight: 400 900;
+}
+
+/* Основной текст: Trajan Sans Pro Regular, пока он не установлен — Semibold (тоже из системы). */
+@font-face {
+  font-family: 'Board Trajan Text';
+  src:
+    local('Trajan Sans Pro Regular'), local('TrajanSansPro-Regular'),
+    local('Trajan Sans Pro Semibold'), local('TrajanSansPro-Semibold');
+  font-weight: 400 900;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: 'Board Trajan Text', 'Board Trajan', 'Cormorant SC', Georgia, serif;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 10px 16px 8px;
+  color: #eadfcf;
+  font-size: 25px;
+  line-height: 1.2;
+}
+
+.cardTitle {
+  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: 0.02em;
+  color: #e9c87c;
+  text-align: center;
+  text-shadow: 0 2px 4px #000;
+  height: 44px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 113px;
+}
+
+.socketSpace {
+  flex: none;
+  width: 82px;
+}
+
+.slotText {
+  /* Эффекты локаций — исходным шрифтом интерфейса: Trajan (только заглавные) слишком широк. */
+  font-family: system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 25px;
+  line-height: 1.18;
+}
+
+.slotText img {
+  height: 31px;
+  vertical-align: -8px;
+}
+
+.lock {
+  margin-left: 6px;
+  font-size: 20px;
+}
+
+.lockGlyph {
+  fill: #ff6b6b;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.tokenNum {
+  fill: #140f12;
+  font-family: inherit;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 2px;
+}
+
+.hexText {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #f1e5cf;
+  font-size: 17px;
+  text-align: center;
+  line-height: 1.05;
+}
+
+.hexText img {
+  height: 22px;
+  vertical-align: -5px;
+}
+
+.starIcon {
+  display: flex;
+  justify-content: center;
+}
+
+.trackTitle {
+  fill: #f0d48a;
+  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-size: 24px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.trackNum {
+  fill: #efe4d2;
+  font-size: 26px;
+}
+
+.marks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  color: #f1e5cf;
+  font-size: 17px;
+}
+
+.boost img {
+  height: 18px;
+  vertical-align: -4px;
+}
+
+.prestigeNum {
+  fill: #b8ad9c;
+  font-size: 22px;
+}
+
+.prestigeMark {
+  fill: #f0d48a;
+  font-size: 25px;
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: #f1e5cf;
+  font-size: 26px;
+}
+
+.entry img {
+  height: 26px;
+}
+
+.stash {
+  text-align: center;
+  color: #e3d8c4;
+  font-size: 19px;
+}
+
+.stash img {
+  height: 20px;
+  vertical-align: -4px;
+}
+
+.regionLabel {
+  fill: #e9c87c;
+  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-size: 30px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Подпись здания на светлом цвете игрока. */
+.builtName {
+  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+  color: #1b1418;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+}
+
+/* Жетон первенства на вершине трека. */
+.firstBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: linear-gradient(#f4dc93, #b88a2e);
+  color: #1b1418;
+  font-size: 18px;
+  box-shadow: 0 0 8px rgba(244, 220, 147, 0.6);
+}
+
+/* Копилка Логова — строкой в карточке (Е2). */
+.stashLine {
+  font-family: system-ui, sans-serif;
+  font-weight: 600;
+  margin-top: 2px;
+  color: #e9c87c;
+  font-size: 22px;
+}
+
+/* Доплата двойного участка — только значок ресурса (В2). */
+.surcharge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 22px;
+}
+
+.surcharge img {
+  height: 34px;
+}
+
+/* Неактивное место Цитадели (Б1). */
+.dim {
+  opacity: 0.5;
+}
+
+/* Подпись «Вход» у цены входа в Город (Е1). */
+.entryLabel {
+  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  text-transform: uppercase;
+  color: #e9c87c;
+  font-size: 22px;
+  margin-right: 4px;
+}
+
+/* Цель хода (Ж1): пульсирующее золотое кольцо, курсор-рука. */
+.target {
+  cursor: pointer;
+}
+
+.targetRing {
+  stroke: #ffe9a8;
+  stroke-width: 6px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.target:hover .targetRing {
+  stroke: #ffffff;
+  stroke-width: 9px;
+  fill: rgba(255, 233, 168, 0.3);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-opacity: 0.35;
+  }
+}
+
+/* Последний ход соперника (Ж5). */
+.lastMove {
+  pointer-events: none;
+}
+
+/* Сила в регионе, жетоны силы, Комиссариат (Ж6, Ж7). */
+.statusWrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.statusPill {
+  font-family: system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  color: #140f12;
+  background: #e9dfcf;
+  border: 3px solid transparent;
+  border-radius: 14px;
+  padding: 1px 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}

@@ -83,7 +83,7 @@ export function Draft({
         style={profStyle(id)}
         disabled={!action}
         onClick={() => action && onPick(action)}
-        title={takenBy !== null ? `Взял ${playerName(takenBy)}` : undefined}
+        title={`${PROFESSIONS[id].name}: ${PROFESSIONS[id].text}${takenBy !== null ? ` — взял ${playerName(takenBy)}` : ''}`}
       >
         {PROFESSIONS[id].name}
         {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}

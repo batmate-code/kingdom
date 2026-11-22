@@ -10,12 +10,12 @@ import {
 } from '@vampire/core';
 import { useEffect, useRef, useState } from 'react';
 import styles from './App.module.css';
-import { Board } from './Board';
+import { BoardSvg } from './board/BoardSvg';
 import { Draft } from './Draft';
 import { EntryPrice } from './EntryPrice';
 import { Icon, RichText } from './Icon';
 import { playerName } from './labels';
-import { PlayerBoard } from './PlayerBoard';
+import { PlayersPanel } from './SidePanel';
 
 /** Файл партии агента (формат sim/src/agent.ts; здесь — только нужные поля). */
 interface AgentGameFile {
@@ -112,7 +112,7 @@ export function Watch({ file }: { file: string }) {
 
   return (
     <div className={styles.app}>
-      <div className={styles.game}>
+      <div className={styles.watch}>
         <header className={styles.header}>
           <b>
             Раунд {state.round} / {state.config.rounds}
@@ -133,10 +133,14 @@ export function Watch({ file }: { file: string }) {
         </header>
         <main className={styles.main}>
           <div className={styles.left}>
-            <Board obs={obs} placements={[]} onPlace={() => undefined} />
-            <div className={styles.draftArea}>
-              <Draft obs={obs} legal={[]} onPick={() => undefined} />
+            <div className={styles.watchBoard}>
+              <BoardSvg obs={obs} landscape />
             </div>
+            {(obs.phase === 'draft' || obs.phase === 'upgrade') && (
+              <div className={styles.draftArea}>
+                <Draft obs={obs} legal={[]} onPick={() => undefined} />
+              </div>
+            )}
           </div>
           <aside className={styles.side}>
             <div className={styles.turn}>
@@ -163,7 +167,7 @@ export function Watch({ file }: { file: string }) {
                 </div>
               ))}
             </div>
-            <PlayerBoard obs={obs} state={state} defaultPlayer={agentSeat} seats={seats} />
+            <PlayersPanel obs={obs} state={state} viewer={agentSeat} seats={seats} />
             <details className={styles.log}>
               <summary>Журнал</summary>
               {log.slice(-200).map((l, i) => (

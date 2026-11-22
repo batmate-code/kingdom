@@ -90,6 +90,8 @@ export interface ProfessionDef {
   immuneToDisplacement: boolean;
   /** Не платит за вход в Город. */
   freeCityEntry: boolean;
+  /** Эффект профессии для подсказок интерфейса (по таблице профессий в rules.md). */
+  text: string;
 }
 
 export interface TrackDef {

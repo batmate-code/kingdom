@@ -1,0 +1,1042 @@
+import { plotSurcharge, type Action, type Observation, type Worker } from '@vampire/core';
+import {
+  BUILDINGS,
+  LOCATIONS,
+  LOCATION_ORDER,
+  PLOTS,
+  PRESTIGE_TRACK,
+  REGION_ORDER,
+  TRACKS,
+  TRACK_BOOSTS,
+  type LocationId,
+  type RegionId,
+  type Resources,
+} from '@vampire/data';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { PLAYER_COLORS, slotLines } from '../Board';
+import { profColor } from '../colors';
+import { EntryPrice } from '../EntryPrice';
+import { Icon, RichText } from '../Icon';
+import { locName, regionName } from '../labels';
+import styles from './BoardSvg.module.css';
+import { CityWall, Ground, HospitalGarden, LandscapeDefs, Scenery, smooth } from './Landscape';
+import {
+  CARD,
+  CITY_DY,
+  CITY_ENTRY_BOX,
+  HEX_R,
+  LOCATION_CENTERS,
+  PLOT_CENTERS,
+  PRESTIGE_BOX,
+  REGION_SHAPES,
+  STARS,
+  SX,
+  TRACK_BOXES,
+  VIEW,
+  hexPoints,
+  points,
+} from './geometry';
+
+const GOLD = '#c9a24a';
+const REGION_FILL: Record<RegionId | 'hospital', [string, string]> = {
+  city: ['#3c3748', '#221f2b'],
+  forest: ['#2b4030', '#141f17'],
+  valley: ['#55242a', '#260f13'],
+  hospital: ['#4a4540', '#2a2623'],
+};
+
+/** Треки влияния — в цвет своего региона, чуть ярче заливки региона. */
+const TRACK_FILL: Record<RegionId, [string, string]> = {
+  city: ['#56506a', '#2c2836'],
+  forest: ['#3d6446', '#1a2b1f'],
+  valley: ['#7a3038', '#33151a'],
+};
+
+const RES_SHORT: Record<keyof Resources, string> = {
+  gold: 'зол',
+  blood: 'кр',
+  ore: 'руд',
+  compromat: 'комп',
+};
+
+/**
+ * Цели хода на поле (блок Ж): гнёзда слотов (`локация:слот`) и участки (id участка или
+ * `citadel:регион`) с допустимыми ходами. Клик отдаёт ходы цели наружу: один — сделать сразу,
+ * несколько — выбрать в строке решения.
+ */
+export interface BoardTargets {
+  slots: Record<string, Action[]>;
+  plots: Record<string, Action[]>;
+  /** Подсказка при наведении: что даст ход (предпросмотр). */
+  hint(actions: Action[]): string;
+  onPick(actions: Action[]): void;
+}
+
+/** Последний ход соперника на поле — обводка цветом игрока. */
+export interface BoardLastMove {
+  player: number;
+  slots: string[];
+  plots: string[];
+}
+
+/** Сила игроков в регионе перед боем (Ж6). */
+export type BoardStrengths = Partial<Record<RegionId, { player: number; strength: number }[]>>;
+
+interface BoardCtx {
+  targets?: BoardTargets | undefined;
+  lastMove?: BoardLastMove | null | undefined;
+  strengths?: BoardStrengths | undefined;
+}
+
+const Ctx = createContext<BoardCtx>({});
+
+/** Подсветка цели: пульсирующее кольцо, клик — ход, наведение — подсказка. */
+function TargetMark({ shape, actions }: { shape: ReactNode; actions: Action[] }) {
+  const { targets } = useContext(Ctx);
+  if (!targets) return null;
+  return (
+    <g
+      className={styles.target}
+      onClick={(e) => {
+        e.stopPropagation();
+        targets.onPick(actions);
+      }}
+    >
+      <title>{targets.hint(actions)}</title>
+      {shape}
+    </g>
+  );
+}
+
+/** HTML внутри SVG: масштабируется вместе с полем. */
+export function Html({
+  x,
+  y,
+  w,
+  h,
+  className,
+  children,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  className?: string | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <foreignObject x={x} y={y} width={w} height={h}>
+      <div className={className}>{children}</div>
+    </foreignObject>
+  );
+}
+
+/**
+ * Фишка рабочего (решение автора Г2): заливка цветом игрока, внутри порядковый номер,
+ * снаружи рамка цвета профессии и тень — чтобы отделяться от кольца слота той же профессии.
+ */
+export function Token({ w, cx, cy, r = 30 }: { w: Worker; cx: number; cy: number; r?: number }) {
+  const num = Number(w.id.split('w')[1] ?? 0) + 1;
+  return (
+    <g filter="url(#tokenShadow)">
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill={PLAYER_COLORS[w.owner]}
+        stroke={w.profession ? profColor(w.profession) : '#2a2228'}
+        strokeWidth={6}
+      />
+      <circle cx={cx} cy={cy} r={r + 3.5} fill="none" stroke="#0d090c" strokeWidth={1.5} />
+      <text
+        x={cx}
+        y={cy + r * 0.36}
+        className={styles.tokenNum}
+        textAnchor="middle"
+        fontSize={r * 1.05}
+      >
+        {num}
+      </text>
+    </g>
+  );
+}
+
+/** Маркер игрока на треке: кружок цвета игрока с номером игрока (Д1). */
+function PlayerMarker({
+  player,
+  cx,
+  cy,
+  r = 13,
+}: {
+  player: number;
+  cx: number;
+  cy: number;
+  r?: number;
+}) {
+  return (
+    <g filter="url(#tokenShadow)">
+      <circle cx={cx} cy={cy} r={r} fill={PLAYER_COLORS[player]} stroke="#0d090c" strokeWidth={2} />
+      <text
+        x={cx}
+        y={cy + r * 0.38}
+        textAnchor="middle"
+        className={styles.tokenNum}
+        fontSize={r * 1.1}
+      >
+        {player + 1}
+      </text>
+    </g>
+  );
+}
+
+function LocationCard({
+  id,
+  obs,
+  onHover,
+}: {
+  id: LocationId;
+  obs: Observation;
+  onHover?: (h: Hovered | null) => void;
+}) {
+  const [cx, cy] = LOCATION_CENTERS[id];
+  const x = cx - CARD.width / 2;
+  const y = cy - CARD.height / 2;
+  const loc = obs.locations[id];
+  const token = loc.professionToken;
+  const blocked = obs.blocks.some((b) => b.location === id);
+  const def = LOCATIONS[id];
+  // Центры гнёзд слотов внутри карточки (совпадают с вёрсткой .slot в CSS).
+  const sockets: [[number, number], [number, number]] = [
+    [x + 60, y + 107],
+    [x + 60, y + 222],
+  ];
+  return (
+    <g
+      onMouseEnter={() => onHover?.({ kind: 'location', id })}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <rect
+        x={x}
+        y={y}
+        width={CARD.width}
+        height={CARD.height}
+        rx={14}
+        fill="url(#cardFill)"
+        stroke={GOLD}
+        strokeWidth={2.5}
+        filter="url(#cardShadow)"
+      />
+      <rect
+        x={x + 6}
+        y={y + 6}
+        width={CARD.width - 12}
+        height={CARD.height - 12}
+        rx={10}
+        fill="none"
+        stroke={GOLD}
+        strokeOpacity={0.35}
+      />
+      <Html x={x} y={y} w={CARD.width} h={CARD.height} className={styles.card}>
+        <div className={styles.cardTitle}>
+          {locName(id)}
+          {blocked && <span className={styles.lock}>🔒</span>}
+        </div>
+        {def.slots.map((action, i) => (
+          <div key={i} className={styles.slot}>
+            <div className={styles.socketSpace} />
+            <div className={styles.slotText}>
+              {slotLines(action, obs).map((line, j) => (
+                <div key={j}>
+                  <RichText text={line} />
+                </div>
+              ))}
+              {action.kind === 'lairStash' && (
+                <div className={styles.stashLine}>
+                  копилка: <RichText text={`${obs.lair.stash} руд`} />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </Html>
+      {/* Гнёзда слотов: второй — с цветом жетона профессии. */}
+      {sockets.map(([sx, sy], i) => (
+        <g key={i}>
+          <circle cx={sx} cy={sy} r={34} fill="url(#socket)" stroke={GOLD} strokeWidth={2} />
+          {i === 1 && token && (
+            <circle
+              cx={sx}
+              cy={sy}
+              r={39}
+              fill="none"
+              stroke={profColor(token)}
+              strokeWidth={6}
+              strokeOpacity={0.9}
+            />
+          )}
+          {i === 1 && loc.slot2Locked && (
+            <text x={sx} y={sy + 10} textAnchor="middle" className={styles.lockGlyph}>
+              ✕
+            </text>
+          )}
+        </g>
+      ))}
+      <path
+        d={`M ${sockets[1][0] - 40} ${sockets[1][1] - 10} Q ${sockets[0][0] - 58} ${(sockets[0][1] + sockets[1][1]) / 2} ${sockets[0][0] - 34} ${sockets[0][1] + 14}`}
+        fill="none"
+        stroke={GOLD}
+        strokeOpacity={0.9}
+        strokeWidth={4}
+        markerEnd="url(#arrow)"
+      />
+      {obs.workers
+        .filter((w) => w.position.kind === 'slot' && w.position.location === id)
+        .map((w, i) => {
+          const slot = w.position.kind === 'slot' ? w.position.slot : 1;
+          const [sx, sy] = sockets[slot - 1]!;
+          return <Token key={w.id} w={w} cx={sx + i * 6} cy={sy} />;
+        })}
+      <SocketMarks id={id} sockets={sockets} />
+    </g>
+  );
+}
+
+/** Последний ход соперника и цели хода на гнёздах карточки. */
+function SocketMarks({ id, sockets }: { id: LocationId; sockets: [number, number][] }) {
+  const { targets, lastMove } = useContext(Ctx);
+  return (
+    <>
+      {sockets.map(([sx, sy], i) => {
+        const key = `${id}:${i + 1}`;
+        const last = lastMove?.slots.includes(key);
+        const actions = targets?.slots[key];
+        return (
+          <g key={key}>
+            {last && lastMove && (
+              <circle
+                cx={sx}
+                cy={sy}
+                r={46}
+                fill="none"
+                stroke={PLAYER_COLORS[lastMove.player]}
+                strokeWidth={5}
+                strokeDasharray="10 7"
+                className={styles.lastMove}
+              />
+            )}
+            {actions && actions.length > 0 && (
+              <TargetMark
+                actions={actions}
+                shape={
+                  <circle
+                    cx={sx}
+                    cy={sy}
+                    r={44}
+                    className={styles.targetRing}
+                    fill="rgba(255,233,168,0.14)"
+                  />
+                }
+              />
+            )}
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+/** Сила игроков перед боем, жетоны силы и жетон Комиссариата — плашкой над местом Цитадели. */
+function RegionStatus({ region, obs }: { region: RegionId; obs: Observation }) {
+  const { strengths } = useContext(Ctx);
+  const [cx, cy] = STARS[region];
+  const rows = strengths?.[region] ?? [];
+  const power = obs.powerTokens.filter((t) => t.region === region && t.count > 0);
+  const commissar = obs.commissariat?.region === region ? obs.commissariat.owner : null;
+  if (rows.length === 0 && power.length === 0 && commissar === null) return null;
+  const w = 250;
+  return (
+    <Html x={cx - w / 2} y={cy - 150} w={w} h={66} className={styles.statusWrap}>
+      <div className={styles.status}>
+        {rows.map((r) => (
+          <span
+            key={`s${r.player}`}
+            className={styles.statusPill}
+            style={{ background: PLAYER_COLORS[r.player] }}
+            title={`Сила Игрока ${r.player + 1} в регионе`}
+          >
+            ⚔ {r.strength}
+          </span>
+        ))}
+        {power.map((t) => (
+          <span
+            key={`p${t.owner}`}
+            className={styles.statusPill}
+            style={{ borderColor: PLAYER_COLORS[t.owner] }}
+            title={`Жетоны силы Игрока ${t.owner + 1}`}
+          >
+            +{t.count}
+          </span>
+        ))}
+        {commissar !== null && (
+          <span
+            className={styles.statusPill}
+            style={{ borderColor: PLAYER_COLORS[commissar] }}
+            title={`Жетон Комиссариата у Игрока ${commissar + 1}: госпиталь бьётся здесь`}
+          >
+            Комиссариат
+          </span>
+        )}
+      </div>
+    </Html>
+  );
+}
+
+/** Последний ход соперника и цель хода на участке / месте Цитадели. */
+function PlotMarks({ id, c, r }: { id: string; c: readonly [number, number]; r: number }) {
+  const { targets, lastMove } = useContext(Ctx);
+  const actions = targets?.plots[id];
+  return (
+    <>
+      {lastMove?.plots.includes(id) && (
+        <polygon
+          points={hexPoints(c, r + 12)}
+          fill="none"
+          stroke={PLAYER_COLORS[lastMove.player]}
+          strokeWidth={5}
+          strokeDasharray="10 7"
+          className={styles.lastMove}
+        />
+      )}
+      {actions && actions.length > 0 && (
+        <TargetMark
+          actions={actions}
+          shape={
+            <polygon
+              points={hexPoints(c, r + 10)}
+              className={styles.targetRing}
+              fill="rgba(255,233,168,0.14)"
+            />
+          }
+        />
+      )}
+    </>
+  );
+}
+
+/** Силуэты зданий для построенных участков (В3). */
+export function BuildingGlyph({ type, cx, cy }: { type: string; cx: number; cy: number }) {
+  const ink = '#1b1418';
+  const light = 'rgba(255,255,255,.55)';
+  if (type === 'crypt')
+    return (
+      <g transform={`translate(${cx} ${cy})`} fill={ink}>
+        <path d="M -14 16 L -14 -6 A 14 14 0 0 1 14 -6 L 14 16 Z" />
+        <path
+          d="M -2 -14 L 2 -14 L 2 -9 L 7 -9 L 7 -5 L 2 -5 L 2 8 L -2 8 L -2 -5 L -7 -5 L -7 -9 L -2 -9 Z"
+          fill={light}
+        />
+      </g>
+    );
+  if (type === 'abbey')
+    return (
+      <g transform={`translate(${cx} ${cy})`} fill={ink}>
+        <path d="M -20 16 L -20 -2 L -8 -12 L -8 -22 L 0 -30 L 8 -22 L 8 -12 L 20 -2 L 20 16 Z" />
+        <rect x={-4} y={4} width={8} height={12} rx={4} fill={light} />
+      </g>
+    );
+  return (
+    <g transform={`translate(${cx} ${cy})`} fill={ink}>
+      <path d="M -22 -6 L -16 -20 L 16 -20 L 22 -6 Z" />
+      <rect x={-18} y={-6} width={36} height={22} />
+      <circle cx={0} cy={5} r={6} fill={light} />
+    </g>
+  );
+}
+
+function Plot({
+  id,
+  obs,
+  onHover,
+}: {
+  id: string;
+  obs: Observation;
+  onHover?: (h: Hovered | null) => void;
+}) {
+  const c = PLOT_CENTERS[id];
+  const plot = PLOTS.find((p) => p.id === id);
+  if (!c || !plot) return null;
+  const built = obs.buildings.find((b) => b.plot === id);
+  // Доплата — только значок ресурса (решение автора В2: «+1» читалось как награда).
+  const surcharge = Object.entries(plotSurcharge(obs, id)) as [keyof Resources, number][];
+  return (
+    <g onMouseEnter={() => onHover?.({ kind: 'plot', id })} onMouseLeave={() => onHover?.(null)}>
+      <polygon
+        points={hexPoints(c, HEX_R)}
+        fill={built ? PLAYER_COLORS[built.owner] : 'url(#hexFill)'}
+        stroke={GOLD}
+        strokeWidth={2.5}
+        filter="url(#cardShadow)"
+      />
+      <polygon
+        points={hexPoints(c, HEX_R - 8)}
+        fill="none"
+        stroke={built ? 'rgba(0,0,0,.35)' : GOLD}
+        strokeOpacity={0.35}
+      />
+      {built ? (
+        <>
+          <BuildingGlyph type={built.type} cx={c[0]} cy={c[1] - 12} />
+          <Html x={c[0] - 56} y={c[1] + 8} w={112} h={26} className={styles.hexText}>
+            <span className={styles.builtName}>{BUILDINGS[built.type].name}</span>
+          </Html>
+        </>
+      ) : (
+        surcharge.length > 0 && (
+          <Html x={c[0] - 40} y={c[1] - 24} w={80} h={48} className={styles.hexText}>
+            {surcharge.map(([k, v]) => (
+              <span key={k} className={styles.surcharge} title="Доплата за двойной участок">
+                {v > 1 && v}
+                <Icon name={k} size={34} />
+              </span>
+            ))}
+          </Html>
+        )
+      )}
+      <PlotMarks id={id} c={c} r={HEX_R} />
+    </g>
+  );
+}
+
+function Star({ region, obs }: { region: RegionId; obs: Observation }) {
+  const c = STARS[region];
+  const citadel = obs.buildings.find((b) => b.type === 'citadel' && b.region === region);
+  const visitors = obs.workers.filter(
+    (w) => w.position.kind === 'citadelSpot' && w.position.region === region,
+  );
+  // Б1: яркое место — только если смотрящему игроку хватает влияния на Цитадель здесь.
+  const ready =
+    !citadel && (obs.players[obs.viewer]?.influence[region] ?? 0) >= TRACKS[region].citadelAt;
+  const lit = ready || citadel !== undefined;
+  const key = `citadel:${region}`;
+  return (
+    <g>
+      <polygon
+        points={hexPoints(c, 76)}
+        fill={citadel ? PLAYER_COLORS[citadel.owner] : ready ? 'url(#goldFill)' : '#2e2618'}
+        stroke={ready ? '#ffe9a8' : GOLD}
+        strokeOpacity={lit ? 1 : 0.55}
+        strokeWidth={3}
+        filter={ready ? 'url(#glow)' : 'url(#cardShadow)'}
+      />
+      <polygon
+        points={hexPoints(c, 62)}
+        fill="none"
+        stroke={citadel ? 'rgba(0,0,0,.4)' : ready ? '#7d5f22' : GOLD}
+        strokeOpacity={lit ? 1 : 0.35}
+        strokeWidth={2.5}
+      />
+      <Html
+        x={c[0] - 50}
+        y={c[1] - 48}
+        w={100}
+        h={96}
+        className={lit ? styles.starIcon : `${styles.starIcon} ${styles.dim}`}
+      >
+        <Icon name={citadel ? 'citadel' : 'citadelOpen'} size={78} />
+      </Html>
+      <PlotMarks id={key} c={c} r={76} />
+      {visitors.map((w, i) => (
+        <Token key={w.id} w={w} cx={c[0] - 40 + i * 40} cy={c[1] + 100} r={24} />
+      ))}
+    </g>
+  );
+}
+
+function InfluenceTrack({ region, obs }: { region: RegionId; obs: Observation }) {
+  const box = TRACK_BOXES[region];
+  const track = TRACKS[region];
+  const values = Array.from({ length: track.max + 1 }, (_, i) => track.max - i);
+  const boosts = TRACK_BOOSTS[region];
+  return (
+    <g>
+      <rect
+        x={box.x}
+        y={box.y}
+        width={box.w}
+        height={box.cell * values.length + 44}
+        rx={10}
+        fill={`url(#track-${region})`}
+        stroke={GOLD}
+        strokeWidth={2}
+        filter="url(#cardShadow)"
+      />
+      <text x={box.x + box.w / 2} y={box.y + 32} textAnchor="middle" className={styles.trackTitle}>
+        {regionName(region)}
+      </text>
+      {values.map((v, i) => {
+        const y = box.y + 44 + i * box.cell;
+        const marks: ReactNode[] = [];
+        if (track.vpMarks.includes(v)) marks.push(<Icon key="vp" name="vp" size={28} />);
+        // Жетон первенства — на вершине трека: золотой, пока не взят; затем цвета игрока.
+        if (v === track.max) {
+          const first = obs.firstToMax[region];
+          marks.push(
+            <span
+              key="first"
+              className={styles.firstBadge}
+              style={first !== undefined ? { background: PLAYER_COLORS[first] } : {}}
+              title={
+                first !== undefined
+                  ? `Жетон первенства: Игрок ${first + 1}`
+                  : 'Жетон первенства: первому, кто дойдёт сюда (+1 ПО)'
+              }
+            >
+              1<Icon name="vp" size={16} />
+            </span>,
+          );
+        }
+        if (v === track.citadelAt) marks.push(<Icon key="c" name="citadelOpen" size={28} />);
+        if (v === track.cityEntryRaiseAt)
+          marks.push(<Icon key="e" name="cityEntryRaise" size={28} />);
+        for (const b of boosts.filter((x) => x.at === v)) {
+          const [k, n] = Object.entries(b.gain)[0]!;
+          marks.push(
+            <span key={`b${k}`} className={styles.boost}>
+              <RichText text={`+${n} ${RES_SHORT[k as keyof Resources]}`} />
+            </span>,
+          );
+        }
+        const here = obs.players.flatMap((p, pi) => (p.influence[region] === v ? [pi] : []));
+        return (
+          <g key={v}>
+            <line
+              x1={box.x + 8}
+              x2={box.x + box.w - 8}
+              y1={y}
+              y2={y}
+              stroke={GOLD}
+              strokeOpacity={0.2}
+            />
+            <text x={box.x + 18} y={y + 36} className={styles.trackNum}>
+              {v}
+            </text>
+            <Html
+              x={box.x + 40}
+              y={y + 4}
+              w={box.w - 40 - 26 * Math.max(1, here.length)}
+              h={box.cell - 8}
+              className={styles.marks}
+            >
+              {marks}
+            </Html>
+            {here.map((pi, k) => (
+              <PlayerMarker
+                key={pi}
+                player={pi}
+                cx={box.x + box.w - 18 - k * 26}
+                cy={y + box.cell / 2}
+              />
+            ))}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function PrestigeTrack({ obs }: { obs: Observation }) {
+  const n = PRESTIGE_TRACK.max + 1;
+  const cell = PRESTIGE_BOX.w / n;
+  return (
+    <g>
+      <rect
+        x={PRESTIGE_BOX.x - 60}
+        y={PRESTIGE_BOX.y}
+        width={PRESTIGE_BOX.w + 60}
+        height={PRESTIGE_BOX.h}
+        rx={10}
+        fill="url(#trackFill)"
+        stroke={GOLD}
+        strokeWidth={2}
+      />
+      <Html x={PRESTIGE_BOX.x - 54} y={PRESTIGE_BOX.y + 26} w={48} h={48} className={styles.marks}>
+        <Icon name="prestige" size={40} />
+      </Html>
+      {Array.from({ length: n }, (_, v) => {
+        const x = PRESTIGE_BOX.x + v * cell;
+        const mark = (PRESTIGE_TRACK.vpMarks as readonly number[]).includes(v);
+        const here = obs.players.flatMap((p, pi) =>
+          Math.min(p.prestige, PRESTIGE_TRACK.max) === v ? [pi] : [],
+        );
+        return (
+          <g key={v}>
+            <line
+              x1={x}
+              x2={x}
+              y1={PRESTIGE_BOX.y + 8}
+              y2={PRESTIGE_BOX.y + PRESTIGE_BOX.h - 8}
+              stroke={GOLD}
+              strokeOpacity={0.18}
+            />
+            {mark && (
+              <rect
+                x={x + 2}
+                y={PRESTIGE_BOX.y + 6}
+                width={cell - 4}
+                height={PRESTIGE_BOX.h - 12}
+                rx={6}
+                fill={GOLD}
+                fillOpacity={0.18}
+              />
+            )}
+            <text
+              x={x + cell / 2}
+              y={PRESTIGE_BOX.y + 38}
+              textAnchor="middle"
+              className={mark ? styles.prestigeMark : styles.prestigeNum}
+            >
+              {v}
+            </text>
+            {here.map((pi, k) => (
+              <PlayerMarker
+                key={pi}
+                player={pi}
+                cx={x + cell / 2 + (k - (here.length - 1) / 2) * 19}
+                cy={PRESTIGE_BOX.y + 72}
+                r={11}
+              />
+            ))}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Что под курсором: карточка локации или участок под здание. */
+type Hovered = { kind: 'location'; id: LocationId } | { kind: 'plot'; id: string };
+
+/** Лупа: карточка локации (×1,7) или участок (×2,4) под курсором крупнее, не выходя за край поля. */
+const MAGNIFY = { location: 1.7, plot: 2.4 } as const;
+
+function Magnified({ hovered, obs }: { hovered: Hovered; obs: Observation }) {
+  const k = MAGNIFY[hovered.kind];
+  const center =
+    hovered.kind === 'location' ? LOCATION_CENTERS[hovered.id] : PLOT_CENTERS[hovered.id];
+  if (!center) return null;
+  const [cx, cy] = center;
+  const ownW = hovered.kind === 'location' ? CARD.width / 2 : HEX_R;
+  const halfW = (hovered.kind === 'location' ? CARD.width / 2 : HEX_R) * k + 12;
+  const halfH = (hovered.kind === 'location' ? CARD.height / 2 : HEX_R) * k + 12;
+  // Сбоку от объекта: справа, если помещается, иначе слева — не закрывает гнёзда под курсором.
+  const right = cx + ownW + 16 + halfW;
+  const x = right + halfW <= VIEW.width ? right : cx - ownW - 16 - halfW;
+  const y = Math.min(Math.max(cy, halfH), VIEW.height - halfH);
+  return (
+    <g
+      pointerEvents="none"
+      transform={`translate(${x} ${y}) scale(${k}) translate(${-cx} ${-cy})`}
+      filter="url(#cardShadow)"
+    >
+      {hovered.kind === 'location' ? (
+        <LocationCard id={hovered.id} obs={obs} />
+      ) : (
+        <Plot id={hovered.id} obs={obs} />
+      )}
+    </g>
+  );
+}
+
+/**
+ * Поле целиком: один SVG, масштабируется под контейнер.
+ * landscape — пейзаж под схемой (горы, лес, река, стена Города), макет ?mock=mix.
+ */
+export function BoardSvg({
+  obs,
+  landscape = false,
+  targets,
+  lastMove,
+  strengths,
+}: {
+  obs: Observation;
+  landscape?: boolean;
+  targets?: BoardTargets | undefined;
+  lastMove?: BoardLastMove | null | undefined;
+  strengths?: BoardStrengths | undefined;
+}) {
+  const hospital = obs.workers.filter((w) => w.position.kind === 'hospital');
+  const [hovered, setHovered] = useState<Hovered | null>(null);
+  const hc = landscape
+    ? ([1000 * SX, 1515 + CITY_DY] as const)
+    : ([995 * SX, 1470 + CITY_DY] as const);
+  return (
+    <Ctx.Provider value={{ targets, lastMove, strengths }}>
+      <svg
+        className={styles.svg}
+        viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          {landscape && <LandscapeDefs />}
+          {/* Фактура ткани: мелкое зерно + крупные пятна. */}
+          <filter id="cloth" x="0" y="0" width="100%" height="100%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.9"
+              numOctaves="2"
+              seed="3"
+              result="fine"
+            />
+            <feColorMatrix in="fine" type="saturate" values="0" result="fineG" />
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012"
+              numOctaves="3"
+              seed="8"
+              result="big"
+            />
+            <feColorMatrix in="big" type="saturate" values="0" result="bigG" />
+            <feBlend in="fineG" in2="bigG" mode="multiply" result="noise" />
+            <feComposite in="noise" in2="SourceGraphic" operator="in" result="clipped" />
+            <feBlend in="SourceGraphic" in2="clipped" mode="multiply" result="tex" />
+            <feComposite in="tex" in2="SourceGraphic" operator="in" />
+          </filter>
+          <filter id="regionEdge" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="8" stdDeviation="14" floodColor="#000" floodOpacity="0.75" />
+          </filter>
+          <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="7" floodColor="#000" floodOpacity="0.7" />
+          </filter>
+          <filter id="tokenShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#000" floodOpacity="0.95" />
+          </filter>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="10" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <radialGradient id="vignette" cx="50%" cy="45%" r="75%">
+            <stop offset="55%" stopColor="#000" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.75" />
+          </radialGradient>
+          {(Object.keys(REGION_FILL) as (keyof typeof REGION_FILL)[]).map((r) => (
+            <radialGradient key={r} id={`fill-${r}`} cx="45%" cy="40%" r="75%">
+              <stop offset="0%" stopColor={REGION_FILL[r][0]} />
+              <stop offset="100%" stopColor={REGION_FILL[r][1]} />
+            </radialGradient>
+          ))}
+          <linearGradient id="cardFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2a2228" />
+            <stop offset="100%" stopColor="#17121a" />
+          </linearGradient>
+          {(['city', 'forest', 'valley'] as const).map((r) => (
+            <linearGradient key={r} id={`track-${r}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={TRACK_FILL[r][0]} />
+              <stop offset="100%" stopColor={TRACK_FILL[r][1]} />
+            </linearGradient>
+          ))}
+          <linearGradient id="trackFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#231c24" />
+            <stop offset="100%" stopColor="#141017" />
+          </linearGradient>
+          <linearGradient id="hexFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3a3038" />
+            <stop offset="100%" stopColor="#1c161d" />
+          </linearGradient>
+          <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f4dc93" />
+            <stop offset="55%" stopColor="#c9a24a" />
+            <stop offset="100%" stopColor="#7d5f22" />
+          </linearGradient>
+          <radialGradient id="socket" cx="50%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#5a4b52" />
+            <stop offset="60%" stopColor="#3a2f36" />
+            <stop offset="100%" stopColor="#1c151c" />
+          </radialGradient>
+          <marker
+            id="arrow"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="5"
+            markerHeight="5"
+            orient="auto"
+          >
+            <path d="M0,0 L10,5 L0,10 z" fill={GOLD} fillOpacity="0.8" />
+          </marker>
+          {/* Всё поле — строго в границах viewBox: река и тени не торчат в поля экрана. */}
+          <clipPath id="board-clip">
+            <rect width={VIEW.width} height={VIEW.height} />
+          </clipPath>
+        </defs>
+
+        <g clipPath="url(#board-clip)">
+          {landscape ? <Ground /> : <rect width={VIEW.width} height={VIEW.height} fill="#0c090e" />}
+
+          {/* Регионы и госпиталь. */}
+          {(landscape
+            ? (['city', 'forest', 'valley'] as const)
+            : (['city', 'forest', 'valley', 'hospital'] as const)
+          ).map((r) => (
+            <g key={r} filter="url(#regionEdge)">
+              {landscape && r !== 'city' ? (
+                <>
+                  <path
+                    d={smooth(REGION_SHAPES[r])}
+                    fill={`url(#fill-${r})`}
+                    filter="url(#cloth)"
+                  />
+                  <path
+                    d={smooth(REGION_SHAPES[r])}
+                    fill="none"
+                    stroke={GOLD}
+                    strokeOpacity={0.55}
+                    strokeWidth={3}
+                  />
+                </>
+              ) : (
+                <>
+                  <polygon
+                    points={points(REGION_SHAPES[r])}
+                    fill={`url(#fill-${r})`}
+                    filter="url(#cloth)"
+                  />
+                  {!(landscape && r === 'city') && (
+                    <polygon
+                      points={points(REGION_SHAPES[r])}
+                      fill="none"
+                      stroke={GOLD}
+                      strokeOpacity={0.55}
+                      strokeWidth={3}
+                    />
+                  )}
+                </>
+              )}
+            </g>
+          ))}
+          {landscape && (
+            <>
+              <Scenery />
+              <CityWall />
+              <HospitalGarden />
+            </>
+          )}
+
+          {/* Дорожки от локаций к участкам. */}
+          {PLOTS.map((p) =>
+            p.adjacent.map((l) => {
+              const a = PLOT_CENTERS[p.id];
+              const b = LOCATION_CENTERS[l];
+              if (!a) return null;
+              return (
+                <g key={`${p.id}-${l}`}>
+                  {landscape && (
+                    <line
+                      x1={a[0]}
+                      y1={a[1]}
+                      x2={b[0]}
+                      y2={b[1]}
+                      stroke="#0b0809"
+                      strokeOpacity={0.7}
+                      strokeWidth={12}
+                      strokeLinecap="round"
+                    />
+                  )}
+                  <line
+                    x1={a[0]}
+                    y1={a[1]}
+                    x2={b[0]}
+                    y2={b[1]}
+                    stroke={GOLD}
+                    strokeOpacity={landscape ? 0.85 : 0.4}
+                    strokeWidth={landscape ? 4 : 3}
+                    strokeDasharray="2 10"
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            }),
+          )}
+
+          {REGION_ORDER.map((r) => (
+            <Star key={r} region={r} obs={obs} />
+          ))}
+          {PLOTS.map((p) => (
+            <Plot key={p.id} id={p.id} obs={obs} onHover={setHovered} />
+          ))}
+          {LOCATION_ORDER.map((l) => (
+            <LocationCard key={l} id={l} obs={obs} onHover={setHovered} />
+          ))}
+          {REGION_ORDER.map((r) => (
+            <InfluenceTrack key={r} region={r} obs={obs} />
+          ))}
+
+          {/* Вход в Город. */}
+          <rect
+            x={CITY_ENTRY_BOX.x}
+            y={CITY_ENTRY_BOX.y}
+            width={CITY_ENTRY_BOX.w}
+            height={CITY_ENTRY_BOX.h}
+            rx={10}
+            fill="url(#cardFill)"
+            stroke={GOLD}
+            strokeWidth={2}
+            filter="url(#cardShadow)"
+          />
+          <Html
+            x={CITY_ENTRY_BOX.x}
+            y={CITY_ENTRY_BOX.y}
+            w={CITY_ENTRY_BOX.w}
+            h={CITY_ENTRY_BOX.h}
+            className={styles.entry}
+          >
+            <span className={styles.entryLabel}>Вход</span>
+            <Icon name="cityEntry" size={30} /> <EntryPrice view={obs} size={26} />
+          </Html>
+
+          {/* Госпиталь. */}
+          <text
+            x={hc[0]}
+            y={(landscape ? 1430 : 1330) + CITY_DY}
+            textAnchor="middle"
+            className={styles.regionLabel}
+            fontSize={landscape ? 26 : undefined}
+          >
+            Госпиталь
+          </text>
+          <Html
+            x={hc[0] - 115}
+            y={(landscape ? 1438 : 1345) + CITY_DY}
+            w={230}
+            h={36}
+            className={styles.stash}
+          >
+            <RichText text="содержание −1 кр" />
+          </Html>
+          {hospital.map((w, i) => (
+            <Token
+              key={w.id}
+              w={w}
+              cx={hc[0] - 60 + (i % 3) * 60}
+              cy={hc[1] + Math.floor(i / 3) * 50}
+            />
+          ))}
+
+          <PrestigeTrack obs={obs} />
+          {REGION_ORDER.map((r) => (
+            <RegionStatus key={`st-${r}`} region={r} obs={obs} />
+          ))}
+          {hovered && <Magnified hovered={hovered} obs={obs} />}
+          <rect
+            width={VIEW.width}
+            height={VIEW.height}
+            fill="url(#vignette)"
+            pointerEvents="none"
+          />
+        </g>
+      </svg>
+    </Ctx.Provider>
+  );
+}
