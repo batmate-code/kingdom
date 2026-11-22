@@ -1,14 +1,29 @@
 import type { Action, Observation } from '@vampire/core';
-import { CHARACTERS, PROFESSIONS } from '@vampire/data';
+import {
+  CHARACTERS,
+  CHARACTER_ORDER,
+  PROFESSIONS,
+  PROFESSION_ORDER,
+  type CharacterId,
+  type ProfessionId,
+} from '@vampire/data';
 import { cardUrl } from './cards';
 import { profStyle } from './colors';
 import styles from './Draft.module.css';
+import { playerName } from './labels';
 
 type DraftAction = Extract<Action, { type: 'draftPick' }>;
 
+interface Slot<T> {
+  id: T;
+  /** Кто взял карту на драфте (null — ещё в пуле). */
+  takenBy: number | null;
+}
+
 /**
  * Выкладка драфта одним рядом карт: персонажи — картинки карт, профессии — карты, залитые
- * цветом профессии с названием. Если выбирает человек — кликом берётся карта.
+ * цветом профессии. До конца драфта взятые карты остаются на месте чёрно-белыми с именем
+ * взявшего. Если выбирает человек — кликом берётся карта.
  */
 export function Draft({
   obs,
@@ -20,8 +35,21 @@ export function Draft({
   onPick(a: Action): void;
 }) {
   const picks = legal.filter((a): a is DraftAction => a.type === 'draftPick');
-  const { characters, professions } = obs.offer;
-  if (characters.length + professions.length === 0) return null;
+  const drafting = obs.phase === 'draft' || obs.phase === 'upgrade';
+
+  // Выкладка раунда = что осталось в пуле + что уже взяли игроки (пока идёт драфт).
+  const chars: Slot<CharacterId>[] = obs.offer.characters.map((id) => ({ id, takenBy: null }));
+  const profs: Slot<ProfessionId>[] = obs.offer.professions.map((id) => ({ id, takenBy: null }));
+  if (drafting) {
+    obs.players.forEach((p, i) => {
+      if (p.draftPick.character) chars.push({ id: p.draftPick.character, takenBy: i });
+      if (p.draftPick.profession) profs.push({ id: p.draftPick.profession, takenBy: i });
+    });
+  }
+  // Постоянный порядок, чтобы карты не прыгали, когда их берут.
+  chars.sort((a, b) => CHARACTER_ORDER.indexOf(a.id) - CHARACTER_ORDER.indexOf(b.id));
+  profs.sort((a, b) => PROFESSION_ORDER.indexOf(a.id) - PROFESSION_ORDER.indexOf(b.id));
+  if (chars.length + profs.length === 0) return null;
 
   const pickCharacter = (id: string) =>
     picks.find((a) => a.pick.kind === 'character' && a.pick.character === id);
@@ -31,41 +59,48 @@ export function Draft({
   return (
     <div className={styles.draft}>
       <div className={styles.title}>
-        {obs.phase === 'draft' ? 'Драфт' : 'Пул Таверны'}
+        {drafting ? 'Драфт' : 'Пул Таверны'}
         {picks.length > 0 && <span className={styles.hint}> — кликните, чтобы взять</span>}
       </div>
       <div className={styles.row}>
-        {characters.map((id) => {
-          const action = pickCharacter(id);
-          const c = CHARACTERS[id];
-          return (
-            <button
-              key={id}
-              type="button"
-              className={`${styles.card} ${action ? styles.pickable : ''}`}
-              disabled={!action}
-              onClick={() => action && onPick(action)}
-              title={`${c.name}: ${c.text} (содержание ${c.upkeep})`}
-            >
-              <img src={cardUrl(id)} alt={c.name} />
-            </button>
-          );
-        })}
-        {professions.map((id, i) => {
-          const action = pickProfession(id);
-          return (
-            <button
-              key={`${id}${i}`}
-              type="button"
-              className={`${styles.card} ${styles.profCard} ${action ? styles.pickable : ''}`}
-              style={profStyle(id)}
-              disabled={!action}
-              onClick={() => action && onPick(action)}
-            >
-              {PROFESSIONS[id].name}
-            </button>
-          );
-        })}
+        <div className={styles.group}>
+          {chars.map(({ id, takenBy }, i) => {
+            const action = takenBy === null ? pickCharacter(id) : undefined;
+            const c = CHARACTERS[id];
+            return (
+              <button
+                key={`${id}${i}`}
+                type="button"
+                className={`${styles.card} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
+                disabled={!action}
+                onClick={() => action && onPick(action)}
+                title={`${c.name}: ${c.text} (содержание ${c.upkeep})${takenBy !== null ? ` — взял ${playerName(takenBy)}` : ''}`}
+              >
+                <img src={cardUrl(id)} alt={c.name} />
+                {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className={styles.group}>
+          {profs.map(({ id, takenBy }, i) => {
+            const action = takenBy === null ? pickProfession(id) : undefined;
+            return (
+              <button
+                key={`${id}${i}`}
+                type="button"
+                className={`${styles.card} ${styles.profCard} ${action ? styles.pickable : ''} ${takenBy !== null ? styles.taken : ''}`}
+                style={profStyle(id)}
+                disabled={!action}
+                onClick={() => action && onPick(action)}
+                title={takenBy !== null ? `Взял ${playerName(takenBy)}` : undefined}
+              >
+                {PROFESSIONS[id].name}
+                {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
