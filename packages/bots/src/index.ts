@@ -1,6 +1,6 @@
 import type { Action, Observation } from '@vampire/core';
 import { createHeuristicBot } from './heuristic';
-import { WEIGHTS_V1, WEIGHTS_V2, WEIGHTS_V3, WEIGHTS_V4 } from './heuristic/weights';
+import { WEIGHTS_V1, WEIGHTS_V2, WEIGHTS_V3, WEIGHTS_V4, WEIGHTS_V5 } from './heuristic/weights';
 import { createGroupedRandomBot, createRandomBot } from './random';
 
 /** Бот выбирает одно из допустимых действий по тому, что видит его игрок. */
@@ -39,4 +39,5 @@ export const BOT_FACTORIES: Readonly<Record<string, (seed: number) => Bot>> = {
   'heuristic-v2': (seed) => createHeuristicBot(seed, WEIGHTS_V2, 'heuristic-v2'),
   'heuristic-v3': (seed) => createHeuristicBot(seed, WEIGHTS_V3, 'heuristic-v3'),
   'heuristic-v4': (seed) => createHeuristicBot(seed, WEIGHTS_V4, 'heuristic-v4'),
+  'heuristic-shortage': (seed) => createHeuristicBot(seed, WEIGHTS_V5, 'heuristic-shortage'),
 };

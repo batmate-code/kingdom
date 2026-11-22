@@ -156,8 +156,33 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
 
   // Нехватка крови на содержание в конце раунда.
   if (state.phase !== 'upkeep') {
-    const upkeep = own.reduce((s, w) => s + (w.character ? CHARACTERS[w.character].upkeep : 0), 0);
-    value -= Math.max(0, upkeep - p.resources.blood) * w.upkeepShortage;
+    const held = [
+      ...own.flatMap((x) => (x.character ? [x.character] : [])),
+      ...(p.draftPick.character ? [p.draftPick.character] : []),
+    ];
+    const upkeep = held.reduce((s, c) => s + CHARACTERS[c].upkeep, 0);
+    const shortage = upkeep - p.resources.blood;
+    if (shortage > 0) {
+      if (!w.shortageByCharacter) value -= shortage * w.upkeepShortage;
+      else {
+        // Мысленно сбрасываем самых дешёвых персонажей, пока не хватит крови.
+        const worth = (c: CharacterId) =>
+          rounds * characterRoundValue(c, w) +
+          w.keepCharacter * endPrestige(CHARACTERS[c].upkeep) * w.prestigeVp;
+        const byWorth = held
+          .filter((c) => CHARACTERS[c].upkeep > 0)
+          .sort((a, b) => worth(a) - worth(b));
+        let covered = 0;
+        let loss = 0;
+        for (const c of byWorth) {
+          if (covered >= shortage) break;
+          covered += CHARACTERS[c].upkeep;
+          loss += worth(c);
+        }
+        const phase = state.phase as keyof typeof w.shortagePhase;
+        value -= loss * (w.shortagePhase[phase] ?? 1);
+      }
+    }
   }
 
   // Бои этого раунда, которые ещё впереди.
