@@ -1,6 +1,7 @@
 import {
   ALCHEMY,
   CITY_ENTRY,
+  CITY_ENTRY_MIXED,
   TRACKS,
   TRACK_BOOSTS,
   type RegionId,
@@ -104,16 +105,29 @@ export function paymentVariants(
   return out;
 }
 
-/** Чем платят вход в Город (переключатель cityEntryResource). */
-export function cityEntryResource(state: GameState): 'gold' | 'blood' {
-  return state.config.rules.cityEntryResource;
-}
+type CityEntryView = Pick<GameState, 'config' | 'cityEntryRaisedRegions'>;
 
-export function cityEntryCost(state: GameState): number {
+/** Общая цена входа в Город (сумма ресурсов): база + шаг за каждый рубеж, не выше максимума. */
+export function cityEntryCost(state: CityEntryView): number {
   return Math.min(
     CITY_ENTRY.base + CITY_ENTRY.raiseStep * state.cityEntryRaisedRegions.length,
     CITY_ENTRY.max,
   );
+}
+
+/**
+ * Цена входа в Город по ресурсам (переключатель cityEntryResource): целиком золотом, целиком кровью
+ * или 'mixed' — база кровью, подорожания золотом (CITY_ENTRY_MIXED).
+ */
+export function cityEntryPrice(state: CityEntryView): Partial<Resources> {
+  const total = cityEntryCost(state);
+  const mode = state.config.rules.cityEntryResource;
+  if (mode !== 'mixed') return { [mode]: total };
+  const base = Math.min(CITY_ENTRY.base, total);
+  const raise = total - base;
+  const price: Partial<Resources> = { [CITY_ENTRY_MIXED.base]: base };
+  if (raise > 0) price[CITY_ENTRY_MIXED.raise] = raise;
+  return price;
 }
 
 /**

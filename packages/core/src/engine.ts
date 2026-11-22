@@ -2,7 +2,9 @@ import {
   CHARACTER_ORDER,
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
+  DRAFT_BY_PLAYERS,
   GAME,
+  PROFESSION_ORDER,
   START_RESOURCE_VARIANTS,
   LOCATION_ORDER,
   type CombatTokenId,
@@ -174,6 +176,12 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     deck: [...CHARACTER_ORDER],
     discard: [],
     offer: { characters: [], professions: [] },
+    professionPool:
+      config.rules.draftSize === 'players'
+        ? PROFESSION_ORDER.flatMap((prof) =>
+            Array.from({ length: DRAFT_BY_PLAYERS.copiesPerProfession }, () => prof),
+          )
+        : [],
     tasks: [{ t: 'startRound' }],
     pending: null,
     rng: seedToState(seed),
@@ -270,6 +278,7 @@ export function getObservation(state: GameState, player: PlayerId): Observation 
     deckSize: state.deck.length,
     discard: state.discard,
     offer: state.offer,
+    professionPool: state.professionPool,
     tasks: state.tasks,
     pending: state.pending,
   };

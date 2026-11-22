@@ -9,10 +9,11 @@ export {
 } from './engine';
 export { DEFAULT_RULES, RULE_CHOICES, resolveConfig } from './config';
 export type { GameConfig, GameConfigInput, RuleToggles } from './config';
-export { cityEntryCost, cityEntryResource } from './economy';
+export { cityEntryCost, cityEntryPrice } from './economy';
 export { determinize } from './determinize';
 export { combatStrengths } from './combat';
-export { buildCost, buildOptions, plotSurcharge } from './buildings';
+export { buildCost, buildingCost, buildOptions, plotSurcharge } from './buildings';
+export { massRate } from './locationActions';
 export { getScores } from './scores';
 export type { PlayerScore } from './scores';
 export { findInvariantViolations } from './invariants';
@@ -24,6 +25,7 @@ export {
   eventText,
   locName,
   playerName,
+  priceText,
   regionName,
   resText,
   workerLabel,

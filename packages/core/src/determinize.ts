@@ -61,6 +61,7 @@ export function determinize(obs: Observation, seed: number): GameState {
     deck: deck.slice(0, obs.deckSize),
     discard: obs.discard,
     offer: obs.offer,
+    professionPool: obs.professionPool,
     tasks: obs.tasks,
     pending: obs.pending,
     rng: holder.rng,

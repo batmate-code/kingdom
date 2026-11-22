@@ -29,7 +29,8 @@ export function turnOrder(state: GameState): PlayerId[] {
 
 /**
  * Сбросить пару «персонаж + профессия» за отступные: персонаж уходит в сброс,
- * профессия — в неограниченный запас, игрок получает отступные по содержанию персонажа.
+ * профессия — в неограниченный запас (при драфте по числу игроков — обратно в пул профессий),
+ * игрок получает отступные по содержанию персонажа.
  */
 export function discardPair(
   c: Ctx,
@@ -39,8 +40,25 @@ export function discardPair(
   reason: 'draft' | 'replaced' | 'upkeep',
 ): void {
   c.draft.discard.push(character);
+  returnProfession(c, profession);
   changeResources(c, player, upkeepTier(character).severance, 'severance');
   c.events.push({ type: 'pairDiscarded', player, character, profession, reason });
+}
+
+/** Вернуть профессию в пул (только при драфте по числу игроков; иначе запас неограничен). */
+export function returnProfession(c: Ctx, profession: ProfessionId): void {
+  if (c.draft.config.rules.draftSize === 'players') c.draft.professionPool.push(profession);
+}
+
+/** Вытянуть до n случайных профессий из пула (без возврата). */
+function drawProfessions(c: Ctx, n: number): ProfessionId[] {
+  const pool = c.draft.professionPool;
+  const out: ProfessionId[] = [];
+  while (out.length < n && pool.length > 0) {
+    const [prof] = pool.splice(randomInt(c.draft, pool.length), 1);
+    if (prof) out.push(prof);
+  }
+  return out;
 }
 
 /**
@@ -56,9 +74,9 @@ export function dealDraft(c: Ctx): Task[] {
     0,
     Math.min(byPlayers ? size : GAME.draftCharacters, d.deck.length),
   );
-  // Эксперимент автора: случайные профессии, повторы возможны.
+  // Эксперимент автора: случайные профессии из пула (повторы возможны, но ограничены пулом).
   const professions = byPlayers
-    ? Array.from({ length: size }, () => PROFESSION_ORDER[randomInt(d, PROFESSION_ORDER.length)]!)
+    ? drawProfessions(c, size)
     : PROFESSION_ORDER.slice(0, GAME.draftProfessions);
   d.offer = { characters, professions: [...professions] };
   c.events.push({
@@ -140,8 +158,12 @@ export function applyUpgrade(c: Ctx, player: PlayerId, choice: UpgradeChoice): v
   c.events.push({ type: 'workerUpgraded', player, workerId: worker.id, character, profession });
 }
 
-/** Конец раунда: невзятые на драфте персонажи (пул Таверны) уходят в сброс. */
+/**
+ * Конец раунда: невзятые на драфте персонажи (пул Таверны) уходят в сброс, профессии — в пул
+ * профессий (при драфте по числу игроков).
+ */
 export function clearOffer(c: Ctx): void {
   c.draft.discard.push(...c.draft.offer.characters);
+  for (const prof of c.draft.offer.professions) returnProfession(c, prof);
   c.draft.offer = { characters: [], professions: [] };
 }

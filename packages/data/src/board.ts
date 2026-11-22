@@ -141,6 +141,12 @@ export const TRACKS: Readonly<Record<RegionId, TrackDef>> = {
 export const CITY_ENTRY = { base: 1, raiseStep: 1, max: 3 } as const;
 
 /**
+ * Вход в Город (правило автора, cityEntryResource=mixed): базовая цена платится кровью,
+ * а каждое подорожание по рубежам треков — золотом (к концу партии 1 кровь + 2 золота).
+ */
+export const CITY_ENTRY_MIXED = { base: 'blood', raise: 'gold' } as const;
+
+/**
  * Эксперимент автора (23.11): бонус за первое достижение позиции трека влияния (trackBoosts).
  * Каждый игрок получает бонус позиции один раз за партию, даже если потом потерял и вернул влияние.
  */
@@ -163,12 +169,21 @@ const valleySurcharge = { gold: 2 };
 const citySurcharge = { ore: 1 };
 
 /**
- * Эксперимент автора (22.11): доплата за двойной участок по региону вместо обычной (PLOTS).
- * Включается переключателем правил plotSurcharge.
+ * Доплата за двойной участок по региону вместо картонной (PLOTS) — правило автора по умолчанию
+ * (переключатель plotSurcharge=ore; 'base' возвращает доплату из PLOTS).
  */
 export const PLOT_SURCHARGE_VARIANTS = {
   ore: { forest: { ore: 1 }, valley: { ore: 1 }, city: { compromat: 1 } },
 } as const satisfies Record<string, Record<RegionId, Partial<Resources>>>;
+
+/**
+ * Правило автора (22.11, massBloodToGold=weak, по умолчанию): обмен крови на золото в Мессе на столько
+ * золота хуже за единицу (1 → 2 в первом слоте, 1 → 1 во втором); золото → кровь без изменений.
+ */
+export const MASS_WEAK_BLOOD_TO_GOLD_PENALTY = 1;
+
+/** Правило автора (22.11, citadelCost=cheap, по умолчанию): Цитадель — 6 золота и 2 руды (было 7 и 3). */
+export const CITADEL_COST_CHEAP = { gold: 6, ore: 2 } as const;
 
 /** Участки под здания: по 5 на регион. Цитадель стоит на звезде, не на участке. */
 export const PLOTS: readonly PlotDef[] = [

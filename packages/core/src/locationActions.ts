@@ -1,4 +1,11 @@
-import { LOCATIONS, LOCATION_ORDER, REGION_ORDER, TRACKS, type SlotAction } from '@vampire/data';
+import {
+  LOCATIONS,
+  LOCATION_ORDER,
+  MASS_WEAK_BLOOD_TO_GOLD_PENALTY,
+  REGION_ORDER,
+  TRACKS,
+  type SlotAction,
+} from '@vampire/data';
 import { distinctWorkers, getWorker } from './board';
 import { buildOptions } from './buildings';
 import type { Ctx } from './context';
@@ -68,6 +75,16 @@ function buyBuildRight(c: Ctx, player: PlayerId, compromat: number): void {
   c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'chancery' } });
 }
 
+/** Курс Мессы: сколько получаешь за единицу (кровь → золото ослаблена переключателем massBloodToGold). */
+export function massRate(
+  state: Pick<GameState, 'config'>,
+  baseRate: number,
+  from: 'gold' | 'blood',
+): number {
+  const weak = from === 'blood' && state.config.rules.massBloodToGold === 'weak';
+  return weak ? baseRate - MASS_WEAK_BLOOD_TO_GOLD_PENALTY : baseRate;
+}
+
 function mismatch(choice: LocationChoice): never {
   throw new Error(`Выбор ${choice.kind} не подходит к действию слота`);
 }
@@ -123,10 +140,11 @@ const HANDLERS: HandlerRegistry = {
     apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'mass') mismatch(choice);
       const to = choice.from === 'gold' ? 'blood' : 'gold';
+      const rate = massRate(c.draft, action.rate, choice.from);
       changeResources(
         c,
         player,
-        { [choice.from]: -action.unit * choice.times, [to]: action.rate * choice.times },
+        { [choice.from]: -action.unit * choice.times, [to]: rate * choice.times },
         'mass',
       );
     },

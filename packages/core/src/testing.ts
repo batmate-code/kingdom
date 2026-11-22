@@ -16,7 +16,9 @@ export function newGame(
   opts: { withDraft?: boolean } = {},
 ): GameState {
   // Сценарии писались при случайном первом игроке (seed задаёт, кто ходит первым), входе в Город
-  // за золото и без бонусов треков — сохраняем; новые правила проверяются отдельными тестами.
+  // за золото, без бонусов треков, с картонной доплатой участков, прежней Мессой и Цитаделью —
+  // сохраняем; новые правила
+  // проверяются отдельными тестами.
   const s = createGame(
     {
       ...config,
@@ -24,6 +26,9 @@ export function newGame(
         randomFirstPlayer: true,
         cityEntryResource: 'gold',
         trackBoosts: false,
+        plotSurcharge: 'base',
+        massBloodToGold: 'base',
+        citadelCost: 'base',
         ...config.rules,
       },
     },
@@ -37,11 +42,14 @@ export function skipDraft(state: GameState): GameState {
   const kind = state.pending?.kind;
   if (kind !== 'draftPick' && kind !== 'upgrade') return state;
   return edit(state, (d) => {
+    const players = d.config.rules.draftSize === 'players';
     for (const p of d.players) {
       if (p.draftPick.character) d.deck.unshift(p.draftPick.character);
+      if (players && p.draftPick.profession) d.professionPool.push(p.draftPick.profession);
       p.draftPick = { character: null, profession: null };
     }
     d.deck.unshift(...d.offer.characters);
+    if (players) d.professionPool.push(...d.offer.professions);
     d.offer = { characters: [], professions: [] };
     d.tasks = d.tasks.filter(
       (t) => t.t !== 'askDraft' && t.t !== 'askUpgrade' && t.t !== 'placementTurn',
@@ -85,7 +93,8 @@ export function moveWorker(state: GameState, workerId: string, position: Positio
 
 /**
  * Дать рабочему профессию и/или персонажа, сохраняя инварианты: персонаж берётся из колоды
- * (если не указан — первая карта колоды), снятый персонаж возвращается в колоду.
+ * (если не указан — первая карта колоды), снятый персонаж возвращается в колоду; при драфте по
+ * числу игроков профессия так же берётся из пула профессий и возвращается в него.
  */
 export function setWorker(
   state: GameState,
@@ -96,6 +105,14 @@ export function setWorker(
     const w = d.workers.find((x) => x.id === workerId);
     if (!w) throw new Error(`Нет рабочего ${workerId}`);
     const profession = patch.profession !== undefined ? patch.profession : w.profession;
+    if (d.config.rules.draftSize === 'players' && profession !== w.profession) {
+      if (w.profession) d.professionPool.push(w.profession);
+      if (profession) {
+        const i = d.professionPool.indexOf(profession);
+        if (i < 0) throw new Error(`Профессии ${profession} нет в пуле`);
+        d.professionPool.splice(i, 1);
+      }
+    }
     if (profession === null) {
       if (w.character) d.deck.unshift(w.character);
       w.character = null;

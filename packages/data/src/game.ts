@@ -22,9 +22,10 @@ export const START_RESOURCE_VARIANTS = {
 
 /**
  * Эксперимент автора (23.11), переключатель draftSize = 'players': персонажей и профессий на
- * драфте — число игроков + extra; профессии тянутся случайно, повторы возможны.
+ * драфте — число игроков + extra. Профессии тянутся случайно из пула: copiesPerProfession жетонов
+ * каждой профессии (5 × 6 = 30); сброшенная пара и невзятые после раунда профессии возвращаются в пул.
  */
-export const DRAFT_BY_PLAYERS = { extra: 1 } as const;
+export const DRAFT_BY_PLAYERS = { extra: 1, copiesPerProfession: 6 } as const;
 
 export const DISPLACEMENT = {
   /** Компромат владельцу вытесненного рабочего. */

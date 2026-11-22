@@ -6,6 +6,7 @@ import {
   LOCATIONS,
   MAX_BUILDINGS_PER_TYPE,
   PLOTS,
+  CITADEL_COST_CHEAP,
   PLOT_SURCHARGE_VARIANTS,
   REGION_ORDER,
   TRACKS,
@@ -21,7 +22,10 @@ import { addPrestige } from './prestige';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
 /** Доплата за участок по текущему правилу plotSurcharge. */
-export function plotSurcharge(state: GameState, plotId: string | null): Partial<Resources> {
+export function plotSurcharge(
+  state: Pick<GameState, 'config'>,
+  plotId: string | null,
+): Partial<Resources> {
   const plot = plotId === null ? null : PLOTS.find((p) => p.id === plotId);
   if (!plot) return {};
   const variant = state.config.rules.plotSurcharge;
@@ -29,9 +33,22 @@ export function plotSurcharge(state: GameState, plotId: string | null): Partial<
   return PLOT_SURCHARGE_VARIANTS[variant][plot.region];
 }
 
+/** Цена здания без доплаты участка (Цитадель — по переключателю citadelCost). */
+export function buildingCost(
+  state: Pick<GameState, 'config'>,
+  type: BuildingId,
+): Partial<Resources> {
+  return type === 'citadel' && state.config.rules.citadelCost === 'cheap'
+    ? CITADEL_COST_CHEAP
+    : BUILDINGS[type].cost;
+}
+
 /** Цена постройки: цена здания + доплата двойного участка. */
-export function buildCost(state: GameState, choice: BuildChoice): Partial<Resources> {
-  const cost: Partial<Resources> = { ...BUILDINGS[choice.building].cost };
+export function buildCost(
+  state: Pick<GameState, 'config'>,
+  choice: BuildChoice,
+): Partial<Resources> {
+  const cost: Partial<Resources> = { ...buildingCost(state, choice.building) };
   for (const [r, v] of Object.entries(plotSurcharge(state, choice.plot)) as [
     keyof Resources,
     number,

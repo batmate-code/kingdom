@@ -309,7 +309,7 @@ export type GameEvent =
       location: LocationId;
       slot: SlotIndex;
     }
-  | { type: 'cityEntryPaid'; player: PlayerId; cost: number; resource: 'gold' | 'blood' }
+  | { type: 'cityEntryPaid'; player: PlayerId; price: Partial<Resources> }
   | { type: 'trackBoost'; player: PlayerId; region: RegionId; at: number }
   | {
       type: 'workerDisplaced';
@@ -445,6 +445,11 @@ export interface GameState {
   discard: CharacterId[];
   /** Выложенное на драфт; после драфта — пары, оставшиеся для Таверны. Открыто. */
   offer: { characters: CharacterId[]; professions: ProfessionId[] };
+  /**
+   * Пул профессий для драфта draftSize = 'players' (в правилах по умолчанию пуст): жетоны, из
+   * которых тянутся профессии драфта. Состав открыт (его можно сосчитать), порядок не важен.
+   */
+  professionPool: ProfessionId[];
   tasks: Task[];
   pending: Decision | null;
   /** Состояние генератора случайных чисел. Скрыто от игроков. */
@@ -482,6 +487,7 @@ export interface Observation {
   deckSize: number;
   discard: CharacterId[];
   offer: GameState['offer'];
+  professionPool: ProfessionId[];
   /** Очередь предстоящих шагов (без скрытых данных). */
   tasks: Task[];
   pending: Decision | null;

@@ -267,7 +267,12 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       distinctWorkers(
         state.workers.filter((w) => w.owner === e.player && w.profession !== null),
       ).flatMap((w) =>
-        PROFESSION_ORDER.filter((p) => p !== w.profession).map((profession): CharacterChoice => ({
+        PROFESSION_ORDER.filter(
+          (p) =>
+            p !== w.profession &&
+            // При драфте по числу игроков новая профессия берётся из пула.
+            (state.config.rules.draftSize !== 'players' || state.professionPool.includes(p)),
+        ).map((profession): CharacterChoice => ({
           kind: 'hypocrite',
           workerId: w.id,
           profession,
@@ -278,6 +283,13 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       const w = getWorker(c.draft, workerId);
       if (w.owner !== e.player || w.profession === null) {
         throw new Error(`Нельзя сменить профессию ${workerId}`);
+      }
+      if (c.draft.config.rules.draftSize === 'players') {
+        const pool = c.draft.professionPool;
+        const i = pool.indexOf(profession);
+        if (i < 0) throw new Error(`Профессии ${profession} нет в пуле`);
+        pool.splice(i, 1);
+        pool.push(w.profession);
       }
       w.profession = profession;
       c.events.push({ type: 'professionChanged', player: e.player, workerId, profession });

@@ -37,14 +37,25 @@ export interface RuleToggles {
   /** Первый игрок 1-го раунда случайный (иначе — Игрок 1, ответ автора 22.11). Для симулятора. */
   randomFirstPlayer: boolean;
   /**
-   * Доплата за двойной участок: 'base' — по правилам (Лес/Долина +2 золота, Город +1 руда);
-   * 'ore' — эксперимент (Лес/Долина +1 руда, Город +1 компромат, PLOT_SURCHARGE_VARIANTS).
+   * Доплата за двойной участок: 'ore' — правило автора по умолчанию (Лес/Долина +1 руда, Город
+   * +1 компромат, PLOT_SURCHARGE_VARIANTS; прогоны docs/stats/2026-11-22-mixed);
+   * 'base' — прежнее (Лес/Долина +2 золота, Город +1 руда, как на картоне PLOTS).
    */
   plotSurcharge: 'base' | 'ore';
+  /**
+   * Месса, обмен крови на золото: 'weak' — правило автора по умолчанию (22.11): хуже на
+   * MASS_WEAK_BLOOD_TO_GOLD_PENALTY (1 → 2 и 1 → 1), золото → кровь как было; 'base' — прежнее (1 → 3 и 1 → 2).
+   */
+  massBloodToGold: 'base' | 'weak';
+  /** Цена Цитадели: 'cheap' — правило автора по умолчанию (22.11, CITADEL_COST_CHEAP); 'base' — прежнее (7 золота, 3 руды). */
+  citadelCost: 'base' | 'cheap';
   /** Стартовые ресурсы: 'base' — GAME.startResources (2 золота); 'blood2' — ещё +2 крови. */
   startResources: 'base' | 'blood2';
-  /** Чем платят вход в Город: 'blood' — кровью (правило автора с 23.11; та же цена и рост по рубежам); 'gold' — прежнее. */
-  cityEntryResource: 'gold' | 'blood';
+  /**
+   * Чем платят вход в Город: 'mixed' — база кровью, подорожания золотом (правило автора по умолчанию,
+   * прогоны docs/stats/2026-11-22-mixed); 'blood' — целиком кровью; 'gold' — целиком золотом (прежние).
+   */
+  cityEntryResource: 'gold' | 'blood' | 'mixed';
   /** Бонусы за позиции треков влияния (TRACK_BOOSTS): правило автора с 23.11; false — прежнее. */
   trackBoosts: boolean;
   /**
@@ -78,8 +89,10 @@ export interface GameConfigInput {
 export const RULE_CHOICES: Partial<Record<keyof RuleToggles, readonly string[]>> = {
   effectOrder: ['fixed', 'free'],
   plotSurcharge: ['base', 'ore'],
+  massBloodToGold: ['base', 'weak'],
+  citadelCost: ['base', 'cheap'],
   startResources: ['base', 'blood2'],
-  cityEntryResource: ['gold', 'blood'],
+  cityEntryResource: ['gold', 'blood', 'mixed'],
   draftSize: ['fixed', 'players'],
 };
 
@@ -96,9 +109,11 @@ export const DEFAULT_RULES: RuleToggles = {
   buildRightWithoutOptions: false,
   effectOrder: 'fixed',
   randomFirstPlayer: false,
-  plotSurcharge: 'base',
+  plotSurcharge: 'ore',
+  massBloodToGold: 'weak',
+  citadelCost: 'cheap',
   startResources: 'base',
-  cityEntryResource: 'blood',
+  cityEntryResource: 'mixed',
   trackBoosts: true,
   professionTokensOnce: true,
   draftSize: 'fixed',

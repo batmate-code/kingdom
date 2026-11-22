@@ -1,4 +1,10 @@
-import { getScores, type GameState, type Observation, type Worker } from '@vampire/core';
+import {
+  buildingCost,
+  getScores,
+  type GameState,
+  type Observation,
+  type Worker,
+} from '@vampire/core';
 import {
   BUILDING_EFFECTS,
   BUILDINGS,
@@ -37,8 +43,8 @@ const CITADEL_ROWS: [RegionId, string][] = [
 ];
 const RES_LABEL = { gold: 'Золото', blood: 'Кровь', ore: 'Руда', compromat: 'Компромат' } as const;
 
-function costText(type: BuildingId): string {
-  const c = BUILDINGS[type].cost;
+function costText(obs: Observation, type: BuildingId): string {
+  const c = buildingCost(obs, type);
   return [c.gold ? `${c.gold} зол` : '', c.ore ? `${c.ore} руд` : ''].filter(Boolean).join(' + ');
 }
 
@@ -171,7 +177,7 @@ export function PlayerBoard({
                 <div className={styles.buildingHead}>
                   <b>{BUILDINGS[type].name}</b>
                   <span className={styles.cost}>
-                    <RichText text={costText(type)} />
+                    <RichText text={costText(obs, type)} />
                   </span>
                 </div>
                 <div className={styles.effect}>
@@ -206,7 +212,7 @@ export function PlayerBoard({
                 <Icon name="citadel" size={18} /> Цитадель
               </b>
               <span className={styles.cost}>
-                <RichText text={costText('citadel')} />
+                <RichText text={costText(obs, 'citadel')} />
               </span>
             </div>
             <div className={styles.effect}>

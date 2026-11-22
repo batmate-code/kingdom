@@ -186,7 +186,7 @@ describe('Вход в Город: плата при вытеснении и по
 
   it('Вход в Город: вытесняющий в Город платит вход, как и при обычном размещении', () => {
     const { s, log } = displaceInCity('spy');
-    expect(log).toContainEqual({ type: 'cityEntryPaid', player: 1, cost: 1, resource: 'gold' });
+    expect(log).toContainEqual({ type: 'cityEntryPaid', player: 1, price: { gold: 1 } });
     expect(res(s, 1).gold).toBe(1);
   });
 

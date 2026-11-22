@@ -6,9 +6,11 @@ import {
   MAX_BUILDINGS_PER_TYPE,
   PLOTS,
   PRESTIGE_TRACK,
+  PROFESSION_ORDER,
   SLOT_CAPACITY,
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
+  DRAFT_BY_PLAYERS,
   GAME,
   LOCATION_ORDER,
   REGION_ORDER,
@@ -110,6 +112,20 @@ export function findInvariantViolations(state: GameState): string[] {
     errors.push(
       `карт персонажей ${cards.length} (уникальных ${new Set(cards).size}), должно быть ${all.length}`,
     );
+  }
+  // Драфт по числу игроков: каждый жетон профессии — в пуле, на драфте/в Таверне, у игрока или рабочего.
+  if (state.config.rules.draftSize === 'players') {
+    const profs = [
+      ...state.professionPool,
+      ...state.offer.professions,
+      ...state.players.flatMap((p) => (p.draftPick.profession ? [p.draftPick.profession] : [])),
+      ...state.workers.flatMap((w) => (w.profession ? [w.profession] : [])),
+    ];
+    for (const prof of PROFESSION_ORDER) {
+      const n = profs.filter((x) => x === prof).length;
+      if (n !== DRAFT_BY_PLAYERS.copiesPerProfession)
+        errors.push(`жетонов профессии ${prof}: ${n}`);
+    }
   }
   if (state.round < 1 || state.round > state.config.rounds) errors.push(`раунд ${state.round}`);
   if (state.phase !== 'gameOver' && state.pending === null) errors.push('нет ожидаемого решения');

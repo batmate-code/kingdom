@@ -1,7 +1,5 @@
 import {
   applyAction,
-  cityEntryCost,
-  cityEntryResource,
   createGameWithEvents,
   decisionTitle,
   eventText,
@@ -14,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { Board } from './Board';
 import { Draft } from './Draft';
+import { EntryPrice } from './EntryPrice';
 import { Icon, RichText } from './Icon';
 import { playerName } from './labels';
 import { PlayerBoard } from './PlayerBoard';
@@ -120,8 +119,7 @@ export function Watch({ file }: { file: string }) {
           </b>
           <span>фаза: {PHASE_NAME[state.phase] ?? state.phase}</span>
           <span>
-            <Icon name="cityEntry" /> {cityEntryCost(state)}{' '}
-            <Icon name={cityEntryResource(state)} />
+            <Icon name="cityEntry" /> <EntryPrice view={state} />
           </span>
           <span>
             Наблюдение: {file} · смотрим глазами {playerName(agentSeat)} · ходов{' '}

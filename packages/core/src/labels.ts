@@ -44,6 +44,14 @@ export function resText(r: Partial<Resources>): string {
   return parts.join(', ') || '—';
 }
 
+/** Цена без знаков: «1 кр + 2 зол». */
+export function priceText(r: Partial<Resources>): string {
+  const parts = (Object.keys(RES_SHORT) as (keyof Resources)[])
+    .filter((k) => r[k])
+    .map((k) => `${r[k]} ${RES_SHORT[k]}`);
+  return parts.join(' + ') || '0';
+}
+
 export function workerLabel(w: Worker | undefined): string {
   if (!w) return '?';
   const num = Number(w.id.split('w')[1] ?? 0) + 1;

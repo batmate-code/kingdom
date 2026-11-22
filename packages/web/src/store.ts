@@ -7,6 +7,7 @@ import {
   type Action,
   type GameEvent,
   type GameState,
+  type RuleToggles,
 } from '@vampire/core';
 import { create } from 'zustand';
 import { eventText } from './labels';
@@ -34,7 +35,7 @@ interface GameStore {
   bots: (Bot | null)[];
   log: LogLine[];
   error: string | null;
-  start(seats: Seat[], seed: number): void;
+  start(seats: Seat[], seed: number, rules?: Partial<RuleToggles>): void;
   act(action: Action, byHuman?: boolean): void;
   /** Отменить последний ход человека (и ходы ботов после него). */
   undo(): void;
@@ -64,8 +65,8 @@ export const useGame = create<GameStore>((set, get) => ({
   log: [],
   error: null,
 
-  start(seats, seed) {
-    const { state, events } = createGameWithEvents({ playerCount: seats.length }, seed);
+  start(seats, seed, rules = {}) {
+    const { state, events } = createGameWithEvents({ playerCount: seats.length, rules }, seed);
     const bots = seats.map((seat, i) => {
       if (seat === 'human') return null;
       const factory = BOT_FACTORIES[seat];

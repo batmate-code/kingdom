@@ -21,8 +21,7 @@ import {
   actionLabel,
   applyAction,
   buildLabel,
-  cityEntryCost,
-  cityEntryResource,
+  cityEntryPrice,
   createGame,
   decisionTitle,
   eventText,
@@ -32,6 +31,7 @@ import {
   isTerminal,
   locName,
   playerName,
+  priceText,
   regionName,
   resText,
   workerLabel,
@@ -199,7 +199,7 @@ export function renderView(g: AgentGame, s: GameState, seat: number): string {
     out.push(`${locName(l)}: ${at(1)} / ${at(2)}${notes.length ? ` (${notes.join(', ')})` : ''}`);
   }
   out.push(
-    `Копилка Логова: ${JSON.stringify(o.lair)}. Вход в Город: ${cityEntryCost(s)} ${cityEntryResource(s) === 'gold' ? 'зол' : 'кр'}.`,
+    `Копилка Логова: ${JSON.stringify(o.lair)}. Вход в Город: ${priceText(cityEntryPrice(s))}.`,
   );
   out.push(
     `Жетоны первенства: ${REGION_ORDER.map((r) => `${regionName(r)} — ${o.firstToMax[r] === undefined ? 'свободен' : playerName(o.firstToMax[r]!)}`).join(', ')}.`,
@@ -286,17 +286,16 @@ function hints(s: GameState, o: Observation, seat: number): string[] {
     `Престиж ${p.prestige}: по 1 ПО на отметках ${PRESTIGE_TRACK.vpMarks.join(', ')}` +
       (nextPrestige !== undefined ? `, до следующей ${nextPrestige - p.prestige}.` : '.'),
   );
-  const res = cityEntryResource(s) === 'gold' ? 'зол' : 'кр';
   const aristocrat = o.workers.some((w) => w.owner === seat && w.profession === 'aristocrat');
   out.push(
-    `Вход в Город сейчас ${cityEntryCost(s)} ${res} (максимум ${CITY_ENTRY.max})` +
+    `Вход в Город сейчас ${priceText(cityEntryPrice(s))} (всего не больше ${CITY_ENTRY.max})` +
       (aristocrat ? '; ваш Аристократ входит бесплатно.' : '.'),
   );
   for (const r of REGION_ORDER) {
     const at = TRACKS[r].cityEntryRaiseAt;
     if (at === null || o.cityEntryRaisedRegions.includes(r)) continue;
     out.push(
-      `Первый, кто дойдёт до ${at} влияния в регионе ${regionName(r)} (вы тоже), поднимет вход в Город на ${CITY_ENTRY.raiseStep}.`,
+      `Первый, кто дойдёт до ${at} влияния в регионе ${regionName(r)} (вы тоже), поднимет вход в Город на ${CITY_ENTRY.raiseStep}${o.config.rules.cityEntryResource === 'mixed' ? ' зол' : ''}.`,
     );
   }
   if (o.config.rules.trackBoosts) {

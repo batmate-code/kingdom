@@ -1,7 +1,6 @@
-import type { Action, Observation, Worker } from '@vampire/core';
+import { massRate, plotSurcharge, type Action, type Observation, type Worker } from '@vampire/core';
 import {
   BUILDINGS,
-  CITY_ENTRY,
   CHARACTERS,
   LOCATIONS,
   LOCATION_ORDER,
@@ -14,6 +13,7 @@ import {
 } from '@vampire/data';
 import { useState } from 'react';
 import styles from './Board.module.css';
+import { EntryPrice } from './EntryPrice';
 import { Icon, RichText } from './Icon';
 import { profColor } from './colors';
 import { LAYOUT } from './layout';
@@ -32,7 +32,7 @@ const R = { gold: 'зол', blood: 'кр', ore: 'руд', compromat: 'комп' 
  * Действие слота как на поле: по одному обмену на строку (строки не переносятся внутри).
  * Слова ресурсов потом заменяются иконками (RichText).
  */
-export function slotLines(a: SlotAction): string[] {
+export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): string[] {
   switch (a.kind) {
     case 'gain':
       return [
@@ -43,7 +43,10 @@ export function slotLines(a: SlotAction): string[] {
     case 'lairStash':
       return ['забрать копилку', `${a.bloodPerOre} кр → 1 руд`];
     case 'mass':
-      return [`1 зол → ${a.rate} кр  ×${a.maxTimes}`, `1 кр → ${a.rate} зол  ×${a.maxTimes}`];
+      return [
+        `1 зол → ${massRate(obs, a.rate, 'gold')} кр  ×${a.maxTimes}`,
+        `1 кр → ${massRate(obs, a.rate, 'blood')} зол  ×${a.maxTimes}`,
+      ];
     case 'market':
       return [`${a.buyCost} зол/кр → ${a.ore} руд`, `${a.ore} руд → ${a.sellGain} зол/кр`];
     case 'chancery':
@@ -68,14 +71,6 @@ export function slotLines(a: SlotAction): string[] {
     case 'cityHall':
       return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`);
   }
-}
-
-/** Цена входа в Город по наблюдению: база + шаг за каждый пройденный рубеж, не выше максимума. */
-function entryCost(obs: Observation): number {
-  return Math.min(
-    CITY_ENTRY.base + CITY_ENTRY.raiseStep * obs.cityEntryRaisedRegions.length,
-    CITY_ENTRY.max,
-  );
 }
 
 /** Номер рабочего игрока на фишке (1–3). */
@@ -185,7 +180,7 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
           {locked && <span className={styles.lock}>🔒</span>}
         </div>
         <div className={styles.slotText}>
-          {slotLines(action).map((line, i) => (
+          {slotLines(action, obs).map((line, i) => (
             <div key={i} className={styles.slotLine}>
               <RichText text={line} />
             </div>
@@ -235,11 +230,8 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
         <div className={styles.regionTitle}>
           {regionName(region)}
           {region === 'city' && (
-            <span
-              className={styles.entry}
-              title="Плата за вход в Город золотом (Аристократ не платит)"
-            >
-              Вход: <Icon name={obs.config.rules.cityEntryResource} size={16} /> {entryCost(obs)}
+            <span className={styles.entry} title="Плата за вход в Город (Аристократ не платит)">
+              Вход: <EntryPrice view={obs} size={16} />
             </span>
           )}
           {obs.commissariat?.region === region && (
@@ -300,7 +292,7 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
                     BUILDINGS[b.type].name
                   ) : surcharge ? (
                     <RichText
-                      text={Object.entries(p.surcharge)
+                      text={Object.entries(plotSurcharge(obs, p.id))
                         .map(([r, v]) => `+${v} ${R[r as keyof typeof R]}`)
                         .join(' ')}
                     />

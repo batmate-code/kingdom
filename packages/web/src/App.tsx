@@ -1,13 +1,8 @@
 import { BOT_FACTORIES } from '@vampire/bots';
-import {
-  cityEntryCost,
-  cityEntryResource,
-  getLegalActions,
-  getObservation,
-  type Action,
-} from '@vampire/core';
+import { getLegalActions, getObservation, type Action, type RuleToggles } from '@vampire/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
+import { EntryPrice } from './EntryPrice';
 import { Watch } from './Watch';
 import { Board, PLAYER_COLORS } from './Board';
 import { Icon, RichText } from './Icon';
@@ -15,6 +10,16 @@ import { Draft } from './Draft';
 import { PlayerBoard } from './PlayerBoard';
 import { actionLabel, decisionTitle, locName, playerName } from './labels';
 import { useGame, type Seat } from './store';
+
+/** Экспериментальные и прежние правила (переключатели ядра, отличные от значений по умолчанию). */
+const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = [
+  { label: 'Драфт: игроков + 1 персонажей и случайных профессий', rules: { draftSize: 'players' } },
+  { label: '+2 крови на старте', rules: { startResources: 'blood2' } },
+  {
+    label: 'Двойные участки по картону: Лес и Долина +2 золота, Город +1 руда',
+    rules: { plotSurcharge: 'base' },
+  },
+];
 
 const BOT_OPTIONS = ['human', ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal')];
 const SEAT_NAME: Record<string, string> = {
@@ -28,6 +33,11 @@ function Setup() {
   const start = useGame((s) => s.start);
   const [seats, setSeats] = useState<Seat[]>(['human', 'heuristic', 'heuristic']);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 100000));
+  const [experiments, setExperiments] = useState<boolean[]>(EXPERIMENTS.map(() => false));
+  const rules = Object.assign(
+    {},
+    ...EXPERIMENTS.filter((_, i) => experiments[i]).map((e) => e.rules),
+  );
   return (
     <section className={styles.setup}>
       <h1>Вампирская игра</h1>
@@ -58,7 +68,18 @@ function Setup() {
       <div className={styles.row}>
         Seed: <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
       </div>
-      <button className={styles.primary} onClick={() => start(seats, seed)}>
+      <p>Экспериментальные правила:</p>
+      {EXPERIMENTS.map((e, i) => (
+        <label key={e.label} className={styles.row}>
+          <input
+            type="checkbox"
+            checked={experiments[i]}
+            onChange={() => setExperiments(experiments.map((v, j) => (j === i ? !v : v)))}
+          />{' '}
+          {e.label}
+        </label>
+      ))}
+      <button className={styles.primary} onClick={() => start(seats, seed, rules)}>
         Начать партию
       </button>
     </section>
@@ -139,7 +160,7 @@ function Game() {
           Раунд {state.round} / {state.config.rounds}
         </b>
         <span>
-          <Icon name="cityEntry" /> {cityEntryCost(state)} <Icon name={cityEntryResource(state)} />
+          <Icon name="cityEntry" /> <EntryPrice view={state} />
         </span>
         <span>Колода: {obs.deckSize}</span>
         <span className={styles.spacer} />
@@ -223,7 +244,11 @@ function Play() {
   useEffect(() => {
     const seed = autostartSeed();
     if (seed !== null && !useGame.getState().state) {
-      useGame.getState().start(['human', 'heuristic', 'heuristic'], seed);
+      // ?rule=draftSize=players — переключатели правил (можно несколько).
+      const rules = Object.fromEntries(
+        new URLSearchParams(window.location.search).getAll('rule').map((r) => r.split('=')),
+      ) as Partial<RuleToggles>;
+      useGame.getState().start(['human', 'heuristic', 'heuristic'], seed, rules);
     }
   }, []);
   return <div className={styles.app}>{started ? <Game /> : <Setup />}</div>;

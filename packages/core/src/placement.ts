@@ -11,7 +11,7 @@ import { busyWorkerIds, distinctWorkers, getWorker, reserveWorkers, workersAt } 
 import { onDisplaced, onVisit } from './buildings';
 import { onCharacterDisplaced } from './characters';
 import type { Ctx } from './context';
-import { canAfford, changeResources, cityEntryCost, cityEntryResource, pay } from './economy';
+import { canAfford, changeResources, cityEntryPrice, pay } from './economy';
 import type { Action, EffectStep, GameState, PlayerId, Task, Worker } from './types';
 
 // Циклический импорт placement ↔ characters безопасен: на верхнем уровне модулей нет вызовов.
@@ -70,7 +70,7 @@ export function placementsFor(
         !freeEntry &&
         LOCATIONS[location].region === 'city' &&
         paysCityEntry(worker) &&
-        !canAfford(state, player, { [cityEntryResource(state)]: cityEntryCost(state) })
+        !canAfford(state, player, cityEntryPrice(state))
       ) {
         continue;
       }
@@ -151,10 +151,9 @@ export function applyPlace(
   const def = LOCATIONS[a.location];
 
   if (!opts.nested && def.region === 'city' && paysCityEntry(worker)) {
-    const cost = cityEntryCost(d);
-    const resource = cityEntryResource(d);
-    pay(c, player, { [resource]: cost }, 'cityEntry');
-    c.events.push({ type: 'cityEntryPaid', player, cost, resource });
+    const price = cityEntryPrice(d);
+    pay(c, player, price, 'cityEntry');
+    c.events.push({ type: 'cityEntryPaid', player, price });
   }
   // Копилка Логова не растёт, если кто-то занял его второй слот (ответ автора, 22.11).
   if (a.location === 'lair' && a.slot === 2) d.lair.slot2Taken = true;
