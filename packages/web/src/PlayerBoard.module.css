@@ -33,9 +33,17 @@
 }
 
 .vp {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prestige {
+  font-size: 16px;
+  margin-left: 12px;
 }
 
 .resources {
@@ -47,12 +55,14 @@
 
 .res {
   border-radius: 8px;
-  padding: 4px;
-  text-align: center;
+  padding: 4px 8px;
   display: flex;
-  flex-direction: column;
-  font-size: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   color: #1b1720;
+  background: #2d2735 !important;
+  color: #ece6f2;
 }
 
 .res b {
@@ -81,7 +91,7 @@
 }
 
 .trackName {
-  width: 58px;
+  width: 76px;
   font-size: 11px;
 }
 

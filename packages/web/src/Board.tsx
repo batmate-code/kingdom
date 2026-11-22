@@ -12,6 +12,7 @@ import {
 } from '@vampire/data';
 import { useState } from 'react';
 import styles from './Board.module.css';
+import { RichText } from './Icon';
 import { profColor } from './colors';
 import { LAYOUT } from './layout';
 import { locName, playerName, regionName } from './labels';
@@ -151,7 +152,9 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
           ))}
           {locked && <span className={styles.lock}>🔒</span>}
         </div>
-        <span className={styles.slotText}>{slotShort(action)}</span>
+        <span className={styles.slotText}>
+          <RichText text={slotShort(action)} />
+        </span>
       </div>
     );
   };
@@ -176,7 +179,11 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
         </div>
         <Slot id={id} slot={1} />
         <Slot id={id} slot={2} />
-        {id === 'lair' && <div className={styles.stash}>копилка: {obs.lair.stash} руд</div>}
+        {id === 'lair' && (
+          <div className={styles.stash}>
+            копилка: {obs.lair.stash} <RichText text="руд" />
+          </div>
+        )}
       </div>
     );
   };
@@ -284,7 +291,9 @@ export function Board({ obs, placements, onPlace }: BoardProps) {
               <Token key={w.id} w={w} />
             ))}
           </div>
-          <div className={styles.slotText}>содержание −1 кр</div>
+          <div className={styles.slotText}>
+            <RichText text="содержание −1 кр" />
+          </div>
         </div>
         <div className={styles.valleyArea}>
           <Region region="valley" />

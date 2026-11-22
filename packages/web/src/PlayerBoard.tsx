@@ -15,6 +15,7 @@ import { PLAYER_COLORS } from './Board';
 import { locName, playerName, regionName } from './labels';
 import { cardUrl } from './cards';
 import { profStyle } from './colors';
+import { Icon, RichText } from './Icon';
 import styles from './PlayerBoard.module.css';
 
 const BUILDING_ROWS: BuildingId[] = ['crypt', 'abbey', 'shop'];
@@ -97,13 +98,16 @@ export function PlayerBoard({
       <div className={styles.columns}>
         <div className={styles.stats}>
           <div className={styles.vp}>
-            {score?.vp ?? 0} ПО <span className={styles.muted}>· престиж {p.prestige}</span>
+            {score?.vp ?? 0} <Icon name="vp" size={22} />{' '}
+            <span className={styles.prestige}>
+              {p.prestige} <Icon name="prestige" size={20} />
+            </span>
           </div>
           <div className={styles.resources}>
             {(Object.keys(RES_LABEL) as (keyof typeof RES_LABEL)[]).map((r) => (
               <div key={r} className={`${styles.res} ${styles[r]}`}>
                 <b>{p.resources[r]}</b>
-                <span>{RES_LABEL[r]}</span>
+                <Icon name={r} size={22} />
               </div>
             ))}
           </div>
@@ -113,7 +117,9 @@ export function PlayerBoard({
               className={styles.track}
               title={`Отметки ПО: ${TRACKS[r].vpMarks.join(', ')}`}
             >
-              <span className={styles.trackName}>{regionName(r)}</span>
+              <span className={styles.trackName}>
+                <Icon name="influence" size={14} /> {regionName(r)}
+              </span>
               {Array.from({ length: TRACKS[r].max }, (_, i) => i + 1).map((n) => (
                 <span
                   key={n}
@@ -142,7 +148,9 @@ export function PlayerBoard({
               <div key={type} className={styles.buildingRow}>
                 <div className={styles.buildingName}>
                   <b>{BUILDINGS[type].name}</b>
-                  <span className={styles.muted}>{costText(type)}</span>
+                  <span className={styles.muted}>
+                    <RichText text={costText(type)} />
+                  </span>
                 </div>
                 {BUILDINGS[type].prestige.map((pr, i) => (
                   <span
@@ -153,7 +161,8 @@ export function PlayerBoard({
                       i < count ? 'Построено' : `${i + 1}-е здание этого типа: +${pr} престижа`
                     }
                   >
-                    {pr}★
+                    {pr}
+                    <Icon name="prestige" size={16} />
                   </span>
                 ))}
               </div>
@@ -161,8 +170,12 @@ export function PlayerBoard({
           })}
           <div className={styles.buildingRow}>
             <div className={styles.buildingName}>
-              <b>Цитадель</b>
-              <span className={styles.muted}>{costText('citadel')}</span>
+              <b>
+                <Icon name="citadel" size={16} /> Цитадель
+              </b>
+              <span className={styles.muted}>
+                <RichText text={costText('citadel')} />
+              </span>
             </div>
             <span
               className={`${styles.hex} ${citadel ? styles.hexBuilt : ''}`}
@@ -171,7 +184,8 @@ export function PlayerBoard({
                 citadel ? `Построена: ${regionName(citadel.region)}` : '+10 престижа при постройке'
               }
             >
-              {BUILDINGS.citadel.prestige[0]}★
+              {BUILDINGS.citadel.prestige[0]}
+              <Icon name="prestige" size={16} />
             </span>
             {citadel && <span className={styles.muted}>{regionName(citadel.region)}</span>}
           </div>

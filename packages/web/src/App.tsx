@@ -3,6 +3,7 @@ import { cityEntryCost, getLegalActions, getObservation, type Action } from '@va
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { Board, PLAYER_COLORS } from './Board';
+import { Icon, RichText } from './Icon';
 import { Draft } from './Draft';
 import { PlayerBoard } from './PlayerBoard';
 import { actionLabel, decisionTitle, locName, playerName } from './labels';
@@ -76,7 +77,7 @@ function Actions({ legal }: { legal: Action[] }) {
           {group && <div className={styles.groupTitle}>{group}</div>}
           {actions.map((a, i) => (
             <button key={i} onClick={() => act(a)}>
-              {actionLabel(state, a)}
+              <RichText text={actionLabel(state, a)} />
             </button>
           ))}
         </div>
@@ -117,7 +118,9 @@ function Game() {
         <b>
           Раунд {state.round} / {state.config.rounds}
         </b>
-        <span>Вход в Город: {cityEntryCost(state)} зол</span>
+        <span>
+          <Icon name="cityEntry" /> {cityEntryCost(state)} <Icon name="gold" />
+        </span>
         <span>Колода: {obs.deckSize}</span>
         <span className={styles.spacer} />
         <label>
@@ -146,7 +149,9 @@ function Game() {
         </div>
         <aside className={styles.side}>
           <div className={styles.turn}>
-            <h3>{decisionTitle(state)}</h3>
+            <h3>
+              <RichText text={decisionTitle(state)} />
+            </h3>
             {botTurn && <div className={styles.muted}>Ходит бот…</div>}
             {error && <div className={styles.warn}>{error}</div>}
             {!botTurn && pending?.kind === 'placement' && (
@@ -162,7 +167,9 @@ function Game() {
           <details className={styles.log}>
             <summary>Журнал</summary>
             {log.map((l) => (
-              <div key={l.id}>{l.text}</div>
+              <div key={l.id}>
+                <RichText text={l.text} />
+              </div>
             ))}
             <div ref={logEnd} />
           </details>
