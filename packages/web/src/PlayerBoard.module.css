@@ -1,7 +1,8 @@
 .board {
   border-top: 4px solid;
   background: #1b1720;
-  padding: 6px 12px 10px;
+  border-radius: 8px;
+  padding: 6px 10px 10px;
 }
 
 .tabs {
@@ -21,10 +22,9 @@
 }
 
 .columns {
-  display: grid;
-  grid-template-columns: 280px 330px 1fr;
-  gap: 16px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .muted {
@@ -102,9 +102,9 @@
 }
 
 .buildings {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
 }
 
 .buildingRow {
@@ -114,15 +114,16 @@
 }
 
 .buildingName {
-  width: 110px;
+  width: 96px;
   display: flex;
   flex-direction: column;
   line-height: 1.2;
 }
 
 .hex {
-  width: 52px;
-  height: 34px;
+  width: 40px;
+  height: 28px;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,23 +139,24 @@
 
 .workers {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .worker {
   display: flex;
-  gap: 6px;
-  width: 210px;
-  min-height: 110px;
+  flex-direction: column;
+  gap: 4px;
+  width: 160px;
+  min-height: 120px;
   border: 1px dashed #3a3244;
   border-radius: 8px;
   padding: 4px;
 }
 
 .card {
-  width: 76px;
-  height: 106px;
+  width: 150px;
+  height: 210px;
   object-fit: cover;
   border-radius: 5px;
   background: #2d2735;

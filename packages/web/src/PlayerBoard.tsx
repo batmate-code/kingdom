@@ -9,23 +9,12 @@ import {
   REGION_ORDER,
   TRACKS,
   type BuildingId,
-  type CharacterId,
 } from '@vampire/data';
 import { useState } from 'react';
 import { PLAYER_COLORS } from './Board';
 import { locName, playerName, regionName } from './labels';
+import { cardUrl } from './cards';
 import styles from './PlayerBoard.module.css';
-
-/** Картинки карт персонажей из docs/images/cards (по id персонажа). */
-const CARD_URLS = import.meta.glob('../../../docs/images/cards/*.jpg', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-
-function cardUrl(id: CharacterId | '_back'): string | undefined {
-  return Object.entries(CARD_URLS).find(([path]) => path.endsWith(`/${id}.jpg`))?.[1];
-}
 
 const BUILDING_ROWS: BuildingId[] = ['crypt', 'abbey', 'shop'];
 const RES_LABEL = { gold: 'Золото', blood: 'Кровь', ore: 'Руда', compromat: 'Компромат' } as const;

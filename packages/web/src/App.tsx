@@ -1,9 +1,9 @@
 import { BOT_FACTORIES } from '@vampire/bots';
 import { cityEntryCost, getLegalActions, getObservation, type Action } from '@vampire/core';
-import { CHARACTERS, PROFESSIONS } from '@vampire/data';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { Board, PLAYER_COLORS } from './Board';
+import { Draft } from './Draft';
 import { PlayerBoard } from './PlayerBoard';
 import { actionLabel, decisionTitle, locName, playerName } from './labels';
 import { useGame, type Seat } from './store';
@@ -119,16 +119,6 @@ function Game() {
         </b>
         <span>Вход в Город: {cityEntryCost(state)} зол</span>
         <span>Колода: {obs.deckSize}</span>
-        {obs.offer.characters.length + obs.offer.professions.length > 0 && (
-          <span>
-            Выложено / Таверна:{' '}
-            {obs.offer.characters
-              .map((c) => `${CHARACTERS[c].name} (${CHARACTERS[c].upkeep})`)
-              .join(', ')}
-            {obs.offer.professions.length ? ' · ' : ''}
-            {obs.offer.professions.map((p) => PROFESSIONS[p].name).join(', ')}
-          </span>
-        )}
         <span className={styles.spacer} />
         <label>
           Скорость ботов{' '}
@@ -159,17 +149,21 @@ function Game() {
                 Выберите рабочего внизу поля и кликните по подсвеченному слоту.
               </div>
             )}
-            {!botTurn && <Actions legal={legal.filter((a) => a.type !== 'place')} />}
+            {!botTurn && (
+              <Actions legal={legal.filter((a) => a.type !== 'place' && a.type !== 'draftPick')} />
+            )}
           </div>
-          <div className={styles.log}>
+          <Draft obs={obs} legal={legal} onPick={act} />
+          <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} />
+          <details className={styles.log}>
+            <summary>Журнал</summary>
             {log.map((l) => (
               <div key={l.id}>{l.text}</div>
             ))}
             <div ref={logEnd} />
-          </div>
+          </details>
         </aside>
       </main>
-      <PlayerBoard obs={obs} state={state} defaultPlayer={viewer} />
     </div>
   );
 }
