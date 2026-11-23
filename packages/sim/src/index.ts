@@ -161,6 +161,8 @@ export interface SimulationOptions {
   bots: string[];
   baseSeed: number;
   rules?: GameConfigInput['rules'];
+  /** Колода персонажей (прогоны баланса); по умолчанию — все. */
+  characterPool?: GameConfigInput['characterPool'];
   /** Проверка инвариантов после каждого хода (медленно). */
   checkEveryAction?: boolean;
   /** Проверка инвариантов каждые N ходов (по умолчанию только в конце партии). */
@@ -191,6 +193,7 @@ export function runSimulation(opts: SimulationOptions): {
     playerCount: opts.bots.length,
     checkInvariants: opts.checkEveryAction ?? false,
     ...(opts.rules ? { rules: opts.rules } : {}),
+    ...(opts.characterPool ? { characterPool: opts.characterPool } : {}),
   };
   const results: GameResult[] = [];
   const stats = opts.collectStats ? emptyAggregate() : null;

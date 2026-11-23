@@ -263,11 +263,27 @@
 }
 
 .tokenChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: clamp(11px, 0.7vw, 14px);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 0 6px;
+  padding: 1px 6px;
   color: #cfc4b3;
+}
+
+.tokenChip img {
+  height: 16px;
+  width: 18px;
+  object-fit: contain;
+}
+
+/* Потраченный жетон (в сбросе до возврата). */
+.spent {
+  opacity: 0.4;
+  text-decoration: line-through;
+  border-style: dashed;
 }
 
 /* Справка по зданиям. */

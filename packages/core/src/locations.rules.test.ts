@@ -64,25 +64,24 @@ describe('Локации Леса', () => {
 });
 
 describe('Локации Долины', () => {
-  it('Месса, первый слот: одно направление до 2 раз, 1 → 3', () => {
-    let s = place(start({ gold: 2, blood: 1 }), 'mass', 1);
+  it('Месса, первый слот (автор 23.11): один обмен 2 → 5 в любую сторону', () => {
+    let s = place(start({ gold: 2, blood: 2 }), 'mass', 1);
     expect(locationOptions(s)).toEqual([
       { kind: 'mass', from: 'gold', times: 1 },
-      { kind: 'mass', from: 'gold', times: 2 },
       { kind: 'mass', from: 'blood', times: 1 },
       { kind: 'skip' },
     ]);
-    s = choose(s, { kind: 'mass', from: 'gold', times: 2 });
+    s = choose(s, { kind: 'mass', from: 'gold', times: 1 });
     expect(res(s, 0)).toMatchObject({ gold: 0, blood: 7 });
   });
 
-  it('Месса, второй слот: 1 → 2', () => {
+  it('Месса, второй слот (автор 23.11): один обмен 1 → 1', () => {
     let s = place(start({ gold: 0, blood: 2 }), 'mass', 2);
-    s = choose(s, { kind: 'mass', from: 'blood', times: 2 });
-    expect(res(s, 0)).toMatchObject({ gold: 4, blood: 0 });
+    s = choose(s, { kind: 'mass', from: 'blood', times: 1 });
+    expect(res(s, 0)).toMatchObject({ gold: 1, blood: 1 });
   });
 
-  it('Рынок, первый слот: 2 золота/крови → 1 руда (в любой комбинации)', () => {
+  it('Рынок, первый слот (автор 23.11): 2 золота/крови в любой комбинации → 2 руды', () => {
     let s = place(start({ gold: 1, blood: 1 }), 'market', 1);
     expect(locationOptions(s)).toContainEqual({ kind: 'marketBuy', pay: { gold: 1, blood: 1 } });
     expect(locationOptions(s)).not.toContainEqual({
@@ -90,30 +89,19 @@ describe('Локации Долины', () => {
       pay: { gold: 2, blood: 0 },
     });
     s = choose(s, { kind: 'marketBuy', pay: { gold: 1, blood: 1 } });
-    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 0, ore: 1 });
+    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 0, ore: 2 });
   });
 
-  it('Рынок, первый слот: 1 руда → 4 золота/крови', () => {
-    let s = place(start({ gold: 0, ore: 1 }), 'market', 1);
-    s = choose(s, { kind: 'marketSell', receive: { gold: 1, blood: 3 } });
-    expect(res(s, 0)).toMatchObject({ gold: 1, blood: 3, ore: 0 });
+  it('Рынок, второй слот (автор 23.11): 3 золота/крови → 2 руды', () => {
+    let s = place(start({ gold: 1, blood: 2 }), 'market', 2);
+    expect(locationOptions(s)).toContainEqual({ kind: 'marketBuy', pay: { gold: 1, blood: 2 } });
+    s = choose(s, { kind: 'marketBuy', pay: { gold: 1, blood: 2 } });
+    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 0, ore: 2 });
   });
 
-  it('Рынок, второй слот: 3 → 1 руда или 1 руда → 3', () => {
-    let s = place(start({ gold: 3, ore: 1 }), 'market', 2);
-    expect(locationOptions(s)).toContainEqual({ kind: 'marketBuy', pay: { gold: 3, blood: 0 } });
-    expect(locationOptions(s)).toContainEqual({
-      kind: 'marketSell',
-      receive: { gold: 0, blood: 3 },
-    });
-    s = choose(s, { kind: 'marketBuy', pay: { gold: 3, blood: 0 } });
-    expect(res(s, 0)).toMatchObject({ gold: 0, ore: 2 });
-  });
-
-  it('Рынок: только один обмен за посещение', () => {
-    const s = place(start({ gold: 2, ore: 1 }), 'market', 1);
-    const s2 = choose(s, { kind: 'marketSell', receive: { gold: 4, blood: 0 } });
-    expect(s2.pending).toEqual({ kind: 'placement', player: 1 });
+  it('Рынок (автор 23.11): продажи руды нет', () => {
+    const s = place(start({ gold: 0, ore: 3 }), 'market', 1);
+    expect(locationOptions(s).some((o) => o.kind === 'marketSell')).toBe(false);
   });
 
   it('Таверна, второй слот: +1 золото, +1 кровь', () => {
@@ -129,16 +117,16 @@ describe('Локации Долины', () => {
 });
 
 describe('Локации Города', () => {
-  it('Канцелярия, первый слот: до 2 раз, можно смешивать: 1 компромат → 2 золота/крови или 1 руда', () => {
+  it('Канцелярия, первый слот (автор 23.11): до 2 раз, можно смешивать: 1 компромат → 3 золота/крови или 2 руды', () => {
     let s = place(start({ gold: 1, compromat: 2 }), 'chancery', 1);
-    // 4 вида конверсии: размер 1 — 4 варианта, размер 2 — 10; пропуск. Права стройки нет:
-    // после входа золота 0, строить не на что (OQ-29).
-    expect(locationOptions(s)).toHaveLength(4 + 10 + 1);
+    // 5 видов конверсии (3 золота/крови — 4 разбиения, руда): размер 1 — 5, размер 2 — 15; пропуск.
+    // Права стройки нет: после входа золота 0, строить не на что (OQ-29).
+    expect(locationOptions(s)).toHaveLength(5 + 15 + 1);
     s = choose(s, {
       kind: 'chancery',
-      conversions: [{ to: 'goldBlood', gold: 2, blood: 0 }, { to: 'ore' }],
+      conversions: [{ to: 'goldBlood', gold: 3, blood: 0 }, { to: 'ore' }],
     });
-    expect(res(s, 0)).toMatchObject({ gold: 0 + 2, ore: 1, compromat: 0 });
+    expect(res(s, 0)).toMatchObject({ gold: 0 + 3, ore: 2, compromat: 0 });
   });
 
   it('Канцелярия: с 1 компроматом — только одна конверсия', () => {
@@ -148,17 +136,17 @@ describe('Локации Города', () => {
     ).toBe(true);
   });
 
-  it('Комиссариат, второй слот: 2 руды → вернуть своего рабочего из госпиталя в запас; его можно выставить снова', () => {
-    let s = moveWorker(start({ ore: 2 }), 'p0w2', { kind: 'hospital' });
+  it('Комиссариат, второй слот (автор 23.11): 2 компромата → вернуть своего рабочего из госпиталя в запас; его можно выставить снова', () => {
+    let s = moveWorker(start({ compromat: 2 }), 'p0w2', { kind: 'hospital' });
     s = place(s, 'commissariat', 2, { workerId: 'p0w0' });
     expect(locationOptions(s)).toEqual([{ kind: 'revive', workerId: 'p0w2' }, { kind: 'skip' }]);
     s = choose(s, { kind: 'revive', workerId: 'p0w2' });
-    expect(res(s, 0).ore).toBe(0);
+    expect(res(s, 0).compromat).toBe(0);
     expect(s.workers.find((w) => w.id === 'p0w2')?.position).toEqual({ kind: 'reserve' });
   });
 
-  it('Комиссариат, второй слот: нет руды или нет рабочих в госпитале — действие пропускается', () => {
-    const s = place(start({ ore: 2 }), 'commissariat', 2);
+  it('Комиссариат, второй слот: нет компромата или нет рабочих в госпитале — действие пропускается', () => {
+    const s = place(start({ compromat: 2 }), 'commissariat', 2);
     expect(s.pending).toEqual({ kind: 'placement', player: 1 });
   });
 

@@ -109,6 +109,8 @@ interface GameStore {
   act(action: Action, byHuman?: boolean): void;
   /** Отменить последний ход человека (и ходы ботов после него). */
   undo(): void;
+  /** Откатить один любой ход (выход с экрана ошибки). */
+  back(): void;
   canUndo(): boolean;
   /** Ход бота, если сейчас его очередь. Возвращает true, если ход сделан. */
   botStep(): boolean;
@@ -211,6 +213,20 @@ export const useGame = create<GameStore>((set, get) => ({
     }
   },
 
+  back() {
+    const history = [...get().history];
+    const snap = history.pop();
+    if (!snap) return;
+    set({
+      state: snap.state,
+      log: snap.log,
+      combatReports: snap.combatReports,
+      revealed: snap.revealed,
+      history,
+      error: null,
+    });
+  },
+
   canUndo() {
     return get().history.some((h) => h.byHuman);
   },
@@ -229,3 +245,45 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 }));
+
+/**
+ * Партия сохраняется в localStorage после каждого хода: после обновления страницы или ошибки
+ * она продолжается с того же места. Боты пересоздаются по имени кресла.
+ */
+const SAVE_KEY = 'vampire-game-save';
+const SAVE_HISTORY = 40;
+
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) {
+    const saved = JSON.parse(raw) as Pick<
+      GameStore,
+      'state' | 'seats' | 'log' | 'history' | 'combatReports' | 'revealed'
+    >;
+    if (saved.state) {
+      const bots = saved.seats.map((seat, i) =>
+        seat === 'human' ? null : (BOT_FACTORIES[seat]?.(saved.state!.round * 31 + i) ?? null),
+      );
+      useGame.setState({ ...saved, bots, error: null, lastMove: null });
+    }
+  }
+} catch {
+  // Испорченное сохранение — начинаем с экрана настройки.
+}
+
+useGame.subscribe((s) => {
+  try {
+    if (!s.state) {
+      localStorage.removeItem(SAVE_KEY);
+      return;
+    }
+    const { state, seats, log, combatReports, revealed } = s;
+    const history = s.history.slice(-SAVE_HISTORY);
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify({ state, seats, log, history, combatReports, revealed }),
+    );
+  } catch {
+    // Нет места или нет доступа — играем без сохранения.
+  }
+});

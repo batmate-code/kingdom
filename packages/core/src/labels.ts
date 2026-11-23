@@ -68,7 +68,8 @@ function plotName(plot: string | null, region: RegionId): string {
 }
 
 export function buildLabel(b: BuildChoice): string {
-  return `${BUILDINGS[b.building].name}: ${plotName(b.plot, b.region)}${b.alchemy ? ' (Алхимик)' : ''}`;
+  const pay = b.surcharge ? ` (доплата ${resText(b.surcharge)})` : '';
+  return `${BUILDINGS[b.building].name}: ${plotName(b.plot, b.region)}${pay}${b.alchemy ? ' (Алхимик)' : ''}`;
 }
 
 function locationChoiceLabel(c: LocationChoice): string {
@@ -159,7 +160,9 @@ export function actionLabel(s: View, a: Action): string {
     case 'executioner':
       return a.target ? `Палач: вытеснить ${workerLabel(workerOf(s, a.target))}` : 'Палач: никого';
     case 'spyMove':
-      return a.region ? `Шпион → ${regionName(a.region)}` : 'Шпион остаётся';
+      return a.region
+        ? `Шпион → ${a.location ? `${locName(a.location)}, слот ${a.slot ?? 1} (${regionName(a.region)})` : regionName(a.region)}`
+        : 'Шпион остаётся';
     case 'combatToken':
       return `Жетон боя: ${COMBAT_TOKENS[a.token].name}`;
     case 'retreat':

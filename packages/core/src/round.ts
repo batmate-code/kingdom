@@ -1,5 +1,4 @@
 import {
-  COMBAT_TOKENS_REFRESH_AFTER_ROUND,
   LAIR_STASH_PER_ROUND,
   LOCATION_ORDER,
   LOCATION_PROFESSION_TOKENS,
@@ -7,7 +6,7 @@ import {
   type LocationId,
   type ProfessionId,
 } from '@vampire/data';
-import { refreshCombatTokens } from './combat';
+import { combatTokensRefreshAfter, refreshCombatTokens } from './combat';
 import type { Ctx } from './context';
 import { clearOffer, dealDraft } from './draft';
 import { canTakePlacementTurn } from './placement';
@@ -106,7 +105,7 @@ export function finishRound(c: Ctx): void {
   d.powerTokens = [];
   d.alchemy = null;
   d.commissariat = null;
-  if (d.round === COMBAT_TOKENS_REFRESH_AFTER_ROUND) refreshCombatTokens(c);
+  if (combatTokensRefreshAfter(d.config.rules, d.round)) refreshCombatTokens(c);
   clearOffer(c);
   if (!d.lair.slot2Taken) d.lair.stash += LAIR_STASH_PER_ROUND;
   d.lair.slot2Taken = false;

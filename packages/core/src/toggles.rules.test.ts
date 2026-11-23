@@ -18,12 +18,12 @@ describe('Переключатели спорных правил (вариант
 
   it('OQ-6: Подполье предлагает только те копии, которые есть чем выполнить', () => {
     let s = turnTo(newGame({ rules: { copyAllowsUselessTarget: false } }), 0);
-    s = setResources(s, 0, { gold: 2, blood: 0, ore: 0, compromat: 0 });
+    s = setResources(s, 0, { gold: 1, blood: 0, ore: 0, compromat: 0 });
     s = place(s, 'underground', 1);
     const targets = locationOptions(s).flatMap((o) =>
       o.kind === 'copy' ? [`${o.location}/${o.slot}`] : [],
     );
-    // После входа (1) и копии (1) золота 0: Месса, Рынок, Ратуша, Канцелярия и второй слот
+    // После входа (1) золота 0, копия бесплатна (автор 23.11): Месса, Рынок, Ратуша, Канцелярия и второй слот
     // Комиссариата бесполезны; жетон Комиссариата бесплатный.
     expect(targets).toEqual([
       'mine/1',

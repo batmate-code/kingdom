@@ -16,9 +16,11 @@
  *   --check-all         проверять инварианты после каждого хода (медленно)
  *   --stats file.json   собрать статистику локаций, персонажей и ресурсов (сводка в JSON)
  *   --report file.md    то же, отчёт в Markdown
+ *   --characters X      колода персонажей: имя набора (pure-combat) или id через запятую
  */
 import { writeFileSync } from 'node:fs';
 import { BOT_FACTORIES } from '@vampire/bots';
+import { CHARACTERS, type CharacterId } from '@vampire/data';
 import { DEFAULT_RULES, RULE_CHOICES, resolveConfig, type RuleToggles } from '@vampire/core';
 import { runSimulation, toCsv, type GameResult } from './index';
 import { renderReport } from './report';
@@ -35,6 +37,37 @@ interface Args {
   checkAll: boolean;
   stats: string | null;
   report: string | null;
+  characters: CharacterId[] | null;
+}
+
+/**
+ * Наборы колоды для прогонов баланса. pure-combat (автор 23.11): без персонажей, которые
+ * трогают влияние, и без ситуативных — только чистая выгода и сила в бою.
+ */
+const CHARACTER_SETS: Record<string, CharacterId[]> = {
+  'pure-combat': [
+    'bloodsucker',
+    'storekeeper',
+    'oreMiner',
+    'chronicler',
+    'treasurer',
+    'scavenger',
+    'mason',
+    'troublemaker',
+    'officer',
+    'werewolf',
+    'saboteur',
+  ],
+};
+
+function parseCharacters(raw: string): CharacterId[] {
+  const set = CHARACTER_SETS[raw];
+  if (set) return set;
+  const ids = raw.split(',');
+  for (const id of ids) {
+    if (!(id in CHARACTERS)) throw new Error(`Неизвестный персонаж: ${id}`);
+  }
+  return ids as CharacterId[];
 }
 
 function parseRule(raw: string, rules: Partial<RuleToggles>): void {
@@ -73,6 +106,7 @@ function parseArgs(argv: readonly string[]): Args {
     checkAll: false,
     stats: null,
     report: null,
+    characters: null,
   };
   let players = 3;
   let bot = 'random';
@@ -120,6 +154,9 @@ function parseArgs(argv: readonly string[]): Args {
       case '--report':
         args.report = next();
         break;
+      case '--characters':
+        args.characters = parseCharacters(next());
+        break;
       case '--check-all':
         args.checkAll = true;
         break;
@@ -153,6 +190,7 @@ const { results, summary, stats } = runSimulation({
   bots: args.bots,
   baseSeed: args.seed,
   rules: args.rules,
+  characterPool: args.characters,
   checkEveryAction: args.checkAll,
   checkEvery: args.checkEvery,
   collectStats: Boolean(args.stats || args.report),

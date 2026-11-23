@@ -1,6 +1,7 @@
 /** Переключатель effectOrder: свободный порядок эффектов при размещении (эксперимент для баланса). */
 import type { CharacterId, ProfessionId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
+import { upkeepTier } from './draft';
 import { applyAction, createGame, getLegalActions, isTerminal } from './engine';
 import { findInvariantViolations } from './invariants';
 import { nextRandom } from './rng';
@@ -83,7 +84,9 @@ describe('Свободный порядок эффектов (effectOrder = free
     });
     // Шаг персонажа остался последним и разыгрался сам — но персонаж уже другой.
     expect(s.pending).toEqual({ kind: 'placement', player: 1 });
-    expect(res(s, 0)).toMatchObject({ gold: 2, blood: 0 });
+    // Отступные за старую пару (Кладовщика) — автор 23.11.
+    const sev = upkeepTier('storekeeper').severance;
+    expect(res(s, 0)).toMatchObject({ gold: 2 + (sev.gold ?? 0), blood: sev.blood ?? 0 });
   });
 
   it('Безумец после действия локации: заменять нечего, эффект не срабатывает', () => {

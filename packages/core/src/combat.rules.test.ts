@@ -54,14 +54,14 @@ describe('Бои', () => {
     expect(s.players.map((p) => p.influence.forest)).toEqual([0, 0, 0]);
   });
 
-  it('Рабочие во вторых слотах в бою не считаются', () => {
+  it('Автор 23.11: рабочие во вторых слотах дают участие в бою, но не силу', () => {
     const { forest } = fight((s) => {
       s = moveWorker(s, 'p0w0', { kind: 'slot', location: 'mine', slot: 2 });
       s = moveWorker(s, 'p0w1', { kind: 'slot', location: 'lair', slot: 2 });
       return moveWorker(s, 'p1w0', slot1('witchCircle'));
     });
-    // Ответ автора по OQ-3: только вторые слоты — игрок в бою не участвует.
-    expect(forest?.strengths.map((x) => x.player)).toEqual([1]);
+    // Участвует, но сила только от первых слотов (у p0 — 0 без жетона боя).
+    expect(forest?.strengths.map((x) => x.player)).toEqual([0, 1]);
     expect(forest?.winner).toBe(1);
   });
 
@@ -97,12 +97,11 @@ describe('Бои', () => {
     expect(s.players[2]?.influence.valley).toBe(2);
   });
 
-  it('Ответ автора по OQ-3: если в регионе только рабочие во вторых слотах — боя и победителя нет', () => {
-    const { forest, s } = fight((s: GameState) =>
+  it('Автор 23.11 (вместо OQ-3): единственный рабочий во втором слоте — участник боя и побеждает', () => {
+    const { forest } = fight((s: GameState) =>
       moveWorker(s, 'p0w0', { kind: 'slot', location: 'mine', slot: 2 }),
     );
-    expect(forest?.strengths).toEqual([]);
-    expect(forest?.winner).toBeNull();
-    expect(s.players[0]?.influence.forest).toBe(0);
+    expect(forest?.strengths.map((x) => x.player)).toEqual([0]);
+    expect(forest?.winner).toBe(0);
   });
 });

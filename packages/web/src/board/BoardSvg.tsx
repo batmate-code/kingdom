@@ -1,8 +1,11 @@
 import { plotSurcharge, type Action, type Observation, type Worker } from '@vampire/core';
 import {
   BUILDINGS,
+  CHARACTERS,
+  PROFESSIONS,
   LOCATIONS,
   LOCATION_ORDER,
+  PLOT_SURCHARGE_CHOICES,
   PLOTS,
   PRESTIGE_TRACK,
   REGION_ORDER,
@@ -12,7 +15,7 @@ import {
   type RegionId,
   type Resources,
 } from '@vampire/data';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useState, type ReactNode } from 'react';
 import { PLAYER_COLORS, slotLines } from '../Board';
 import { profColor } from '../colors';
 import { EntryPrice } from '../EntryPrice';
@@ -215,6 +218,14 @@ function LocationCard({
       onMouseEnter={() => onHover?.({ kind: 'location', id })}
       onMouseLeave={() => onHover?.(null)}
     >
+      {id === 'tavern' && (
+        // Пул Таверны (оставшиеся после драфта карты) — подсказкой при наведении.
+        <title>
+          {`Пул Таверны:
+Персонажи: ${obs.offer.characters.map((c) => CHARACTERS[c].name).join(', ') || '—'}
+Профессии: ${obs.offer.professions.map((p) => PROFESSIONS[p].name).join(', ') || '—'}`}
+        </title>
+      )}
       <rect
         x={x}
         y={y}
@@ -467,7 +478,16 @@ function Plot({
   if (!c || !plot) return null;
   const built = obs.buildings.find((b) => b.plot === id);
   // Доплата — только значок ресурса (решение автора В2: «+1» читалось как награда).
-  const surcharge = Object.entries(plotSurcharge(obs, id)) as [keyof Resources, number][];
+  // Доплата на выбор (2 золота/крови в любом соотношении) — «2» и оба значка.
+  const surcharge: [keyof Resources, number | null][] = PLOT_SURCHARGE_CHOICES[id]
+    ? [
+        ['gold', null],
+        ['blood', null],
+      ]
+    : (Object.entries(plotSurcharge(obs, id)) as [keyof Resources, number][]);
+  const choiceTotal = PLOT_SURCHARGE_CHOICES[id]?.[0]
+    ? Object.values(PLOT_SURCHARGE_CHOICES[id][0]).reduce((a, b) => a + (b ?? 0), 0)
+    : null;
   return (
     <g onMouseEnter={() => onHover?.({ kind: 'plot', id })} onMouseLeave={() => onHover?.(null)}>
       <polygon
@@ -492,12 +512,30 @@ function Plot({
         </>
       ) : (
         surcharge.length > 0 && (
-          <Html x={c[0] - 40} y={c[1] - 24} w={80} h={48} className={styles.hexText}>
-            {surcharge.map(([k, v]) => (
-              <span key={k} className={styles.surcharge} title="Доплата за двойной участок">
-                {v > 1 && v}
-                <Icon name={k} size={34} />
-              </span>
+          <Html
+            x={c[0] - (choiceTotal !== null ? 70 : 40)}
+            y={c[1] - 24}
+            w={choiceTotal !== null ? 140 : 80}
+            h={48}
+            className={styles.hexText}
+          >
+            {choiceTotal !== null && choiceTotal}
+            {surcharge.map(([k, v], n) => (
+              <Fragment key={k}>
+                {choiceTotal !== null && n > 0 && <span className={styles.slash}>/</span>}
+                <span
+                  key={k}
+                  className={styles.surcharge}
+                  title={
+                    choiceTotal !== null
+                      ? `Доплата за двойной участок: ${choiceTotal} золота/крови в любом соотношении`
+                      : 'Доплата за двойной участок'
+                  }
+                >
+                  {v !== null && v > 1 && v}
+                  <Icon name={k} size={34} />
+                </span>
+              </Fragment>
             ))}
           </Html>
         )

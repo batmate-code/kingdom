@@ -36,6 +36,14 @@ const R = { gold: 'зол', blood: 'кр', ore: 'руд', compromat: 'комп' 
  * Действие слота как на поле: по одному обмену на строку (строки не переносятся внутри).
  * Слова ресурсов потом заменяются иконками (RichText).
  */
+/** Короткие слова ресурсов в подписях слотов (заменяются значками). */
+const RES_WORD: Record<string, string> = {
+  gold: 'зол',
+  blood: 'кр',
+  ore: 'руд',
+  compromat: 'комп',
+};
+
 export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): string[] {
   switch (a.kind) {
     case 'gain':
@@ -48,11 +56,13 @@ export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): stri
       return ['забрать копилку', `${a.bloodPerOre} кр → 1 руд`];
     case 'mass':
       return [
-        `1 зол → ${massRate(obs, a.rate, 'gold')} кр  ×${a.maxTimes}`,
-        `1 кр → ${massRate(obs, a.rate, 'blood')} зол  ×${a.maxTimes}`,
+        `${a.unit} зол → ${massRate(obs, a.rate, 'gold')} кр${a.maxTimes > 1 ? `  ×${a.maxTimes}` : ''}`,
+        `${a.unit} кр → ${massRate(obs, a.rate, 'blood')} зол${a.maxTimes > 1 ? `  ×${a.maxTimes}` : ''}`,
       ];
     case 'market':
-      return [`${a.buyCost} зол/кр → ${a.ore} руд`, `${a.ore} руд → ${a.sellGain} зол/кр`];
+      return a.sellGain === null
+        ? [`${a.buyCost} зол/кр → ${a.ore} руд`]
+        : [`${a.buyCost} зол/кр → ${a.ore} руд`, `${a.ore} руд → ${a.sellGain} зол/кр`];
     case 'chancery':
       return [
         `${a.conversionCost} комп → ${a.goldBlood} зол/кр  ×${a.maxTimes}`,
@@ -63,13 +73,16 @@ export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): stri
       return [`${a.compromatCost} комп → стройка`];
     case 'copy':
       return [
-        `${a.goldCost} зол → любое действие`,
+        a.goldCost > 0 ? `${a.goldCost} зол → любое действие` : 'любое действие',
         a.scope.length < 3 ? 'Леса или Долины' : 'на поле',
       ];
     case 'commissariatToken':
-      return ['жетон Комиссариата:', 'госпиталь бьётся за тебя'];
+      return ['жетон Комиссариата:', '2 силы за рабочего в госпитале'];
     case 'revive':
-      return [`${a.oreCost} руд → вернуть`, 'из госпиталя'];
+      return [
+        `${(Object.entries(a.cost) as [string, number][]).map(([k, v]) => `${v} ${RES_WORD[k] ?? k}`).join(' + ')} → вернуть`,
+        'из госпиталя',
+      ];
     case 'tavernSwap':
       return ['заменить пару', 'на пару из пула'];
     case 'cityHall':

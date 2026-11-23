@@ -49,8 +49,8 @@ const at = (location: Extract<Position, { kind: 'slot' }>['location'], slot: 1 |
   ({ kind: 'slot', location, slot }) as const;
 
 describe('Право стройки Канцелярии', () => {
-  it('Первый слот (Б): 2 компромата → право стройки в любом регионе на любом свободном участке', () => {
-    let s = place(start({ gold: 3, compromat: 2 }), 'chancery', 1);
+  it('Первый слот (автор 23.11): 1 компромат → право стройки в любом регионе на любом свободном участке', () => {
+    let s = place(start({ gold: 3, compromat: 1 }), 'chancery', 1);
     s = choose(s, { kind: 'buildRight' });
     expect(res(s, 0).compromat).toBe(0);
     expect(s.pending).toEqual({ kind: 'build', player: 0, source: { kind: 'chancery' } });
@@ -67,8 +67,8 @@ describe('Право стройки Канцелярии', () => {
     expect(s.players[0]?.prestige).toBe(1);
   });
 
-  it('Второй слот: 3 компромата → право стройки', () => {
-    let s = place(start({ gold: 6, compromat: 3 }), 'chancery', 2);
+  it('Второй слот (автор 23.11): 2 компромата → право стройки', () => {
+    let s = place(start({ gold: 6, compromat: 2 }), 'chancery', 2);
     expect(getLegalActions(s)).toContainEqual({
       type: 'locationAction',
       choice: { kind: 'buildRight' },
@@ -87,14 +87,14 @@ describe('Право стройки Канцелярии', () => {
   });
 
   it('OQ-29 (автор): право стройки не предлагается, если строить не на что; с переключателем — сгорает', () => {
-    const s = place(start({ gold: 1, compromat: 2 }), 'chancery', 1);
+    const s = place(start({ gold: 1, compromat: 1 }), 'chancery', 1);
     expect(getLegalActions(s)).not.toContainEqual({
       type: 'locationAction',
       choice: { kind: 'buildRight' },
     });
     let t = setResources(turnTo(newGame({ rules: { buildRightWithoutOptions: true } }), 0), 0, {
       gold: 1,
-      compromat: 2,
+      compromat: 1,
     });
     t = choose(place(t, 'chancery', 1), { kind: 'buildRight' });
     expect(t.pending?.kind).toBe('placement');

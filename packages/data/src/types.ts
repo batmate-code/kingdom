@@ -42,9 +42,11 @@ export type SlotAction =
   /** Логово, второй слот: забрать копилку руды и до maxExchanges раз bloodPerOre крови → 1 руда. */
   | { kind: 'lairStash'; bloodPerOre: number; maxExchanges: number }
   /** Месса: одно направление до maxTimes раз, unit золота → rate крови или unit крови → rate золота. */
+  /** Месса: unit золота (крови) → rate крови (золота), до maxTimes раз. */
   | { kind: 'mass'; unit: number; rate: number; maxTimes: number }
   /** Рынок: один обмен — buyCost золота/крови → ore руды или ore руды → sellGain золота/крови. */
-  | { kind: 'market'; ore: number; buyCost: number; sellGain: number }
+  /** Рынок: buyCost золота/крови в любом соотношении → ore руды; sellGain — продажа руды (null — нет). */
+  | { kind: 'market'; ore: number; buyCost: number; sellGain: number | null }
   /** Канцелярия, первый слот: (А) до maxTimes раз conversionCost компромата → goldBlood золота/крови или ore руды; (Б) buildRightCost компромата → право стройки. */
   | {
       kind: 'chancery';
@@ -60,8 +62,8 @@ export type SlotAction =
   | { kind: 'copy'; goldCost: number; scope: readonly RegionId[] }
   /** Комиссариат, первый слот: взять жетон Комиссариата и выбрать регион. */
   | { kind: 'commissariatToken' }
-  /** Комиссариат, второй слот: oreCost руды → вернуть своего рабочего из госпиталя в запас. */
-  | { kind: 'revive'; oreCost: number }
+  /** Комиссариат, второй слот: cost → вернуть своего рабочего из госпиталя в запас (автор 23.11: 2 компромата). */
+  | { kind: 'revive'; cost: Partial<Resources> }
   /** Таверна, первый слот: заменить пару «персонаж + профессия» на оставшуюся после драфта. */
   | { kind: 'tavernSwap' }
   /** Ратуша: один из обменов руды на влияние; всё влияние — в один регион. */

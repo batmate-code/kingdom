@@ -27,6 +27,10 @@ const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = [
     label: 'Двойные участки по картону: Лес и Долина +2 золота, Город +1 руда',
     rules: { plotSurcharge: 'base' },
   },
+  {
+    label: 'Жетоны боя: прежний набор (10, Приманок 5), возврат после 3-го раунда',
+    rules: { combatTokenSet: 'base' },
+  },
 ];
 
 const BOT_OPTIONS = ['human', ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal')];

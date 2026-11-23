@@ -59,7 +59,6 @@ describe('Аудит этапа 3 (Бой)', () => {
 
   it('Бой + госпиталь: игрок, у которого в регионе только рабочий в госпитале, не участвует и не кладёт жетон', () => {
     let s = moveWorker(duel(), 'p0w0', { kind: 'hospital' });
-    s = moveWorker(s, 'p0w1', at('lair', 2));
     while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
     expect(s.pending).toEqual({ kind: 'combatToken', player: 1, region: 'forest' });
     s = act(s, { type: 'combatToken', token: 'decoy' });

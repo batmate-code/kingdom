@@ -70,6 +70,8 @@ export interface BuildChoice {
   plot: string | null;
   /** Алхимик: 1 руда цены заменена на 1 золото. */
   alchemy?: true;
+  /** Доплата участка, выбранная игроком (участки из PLOT_SURCHARGE_CHOICES). */
+  surcharge?: Partial<Resources>;
 }
 
 /** Откуда право стройки: Канцелярия (любой регион), награда за бой (этот регион), Архитектор. */
@@ -249,7 +251,8 @@ export type Action =
   | { type: 'upgrade'; choice: UpgradeChoice }
   | { type: 'upkeep'; choice: 'pay' | 'discard' }
   | { type: 'executioner'; target: string | null }
-  | { type: 'spyMove'; region: RegionId | null }
+  /** Шпион перед боем: в свободный слот `slot` локации `location` региона `region` (автор 23.11) или остаться. */
+  | { type: 'spyMove'; region: RegionId | null; location?: LocationId; slot?: SlotIndex }
   | { type: 'combatToken'; token: CombatTokenId }
   | { type: 'retreat'; to: RegionId };
 

@@ -51,8 +51,9 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Месса',
     region: 'valley',
     slots: [
-      { kind: 'mass', unit: 1, rate: 3, maxTimes: 2 },
-      { kind: 'mass', unit: 1, rate: 2, maxTimes: 2 },
+      // Автор 23.11: один обмен 2 → 5 и один обмен 1 → 1, в любую сторону (золото ↔ кровь).
+      { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
+      { kind: 'mass', unit: 1, rate: 1, maxTimes: 1 },
     ],
   },
   market: {
@@ -60,8 +61,9 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Рынок',
     region: 'valley',
     slots: [
-      { kind: 'market', ore: 1, buyCost: 2, sellGain: 4 },
-      { kind: 'market', ore: 1, buyCost: 3, sellGain: 3 },
+      // Автор 23.11: 2 руды за 2 (или 3) золота/крови в любом соотношении, продажи руды нет.
+      { kind: 'market', ore: 2, buyCost: 2, sellGain: null },
+      { kind: 'market', ore: 2, buyCost: 3, sellGain: null },
     ],
   },
   tavern: {
@@ -75,8 +77,9 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Канцелярия',
     region: 'city',
     slots: [
-      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 2, ore: 1, buildRightCost: 2 },
-      { kind: 'chanceryBuild', compromatCost: 3 },
+      // Автор 23.11: 1 компромат → 3 золота/крови или 2 руды; право стройки за 1 (2-й слот — за 2).
+      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 3, ore: 2, buildRightCost: 1 },
+      { kind: 'chanceryBuild', compromatCost: 2 },
     ],
   },
   underground: {
@@ -84,15 +87,16 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Подполье',
     region: 'city',
     slots: [
-      { kind: 'copy', goldCost: 1, scope: ['forest', 'valley', 'city'] },
-      { kind: 'copy', goldCost: 1, scope: ['forest', 'valley'] },
+      // Автор 23.11: копирование бесплатно (было 1 золото).
+      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley', 'city'] },
+      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley'] },
     ],
   },
   commissariat: {
     id: 'commissariat',
     name: 'Комиссариат',
     region: 'city',
-    slots: [{ kind: 'commissariatToken' }, { kind: 'revive', oreCost: 2 }],
+    slots: [{ kind: 'commissariatToken' }, { kind: 'revive', cost: { compromat: 2 } }],
   },
   cityHall: {
     id: 'cityHall',
@@ -184,6 +188,14 @@ export const MASS_WEAK_BLOOD_TO_GOLD_PENALTY = 1;
 
 /** Правило автора (22.11, citadelCost=cheap, по умолчанию): Цитадель — 6 золота и 2 руды (было 7 и 3). */
 export const CITADEL_COST_CHEAP = { gold: 6, ore: 2 } as const;
+
+/**
+ * Правило автора (23.11): доплата за участок на выбор игрока — вместо доплаты по plotSurcharge.
+ * Участок между Таверной и Рынком: 2 ресурса золотом и кровью в любом соотношении.
+ */
+export const PLOT_SURCHARGE_CHOICES: Readonly<Record<string, readonly Partial<Resources>[]>> = {
+  'valley-market-tavern': [{ gold: 2 }, { gold: 1, blood: 1 }, { blood: 2 }],
+};
 
 /** Участки под здания: по 5 на регион. Цитадель стоит на звезде, не на участке. */
 export const PLOTS: readonly PlotDef[] = [

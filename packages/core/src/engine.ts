@@ -1,6 +1,4 @@
 import {
-  CHARACTER_ORDER,
-  COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   DRAFT_BY_PLAYERS,
   GAME,
@@ -14,8 +12,14 @@ import { produce } from 'immer';
 import { buildOptions } from './buildings';
 import { startCharacterEffect } from './characters';
 import { chooseEffect, professionEffect } from './placement';
-import { combatOutcome, revealCombat, startCombat, startSpyMoves } from './combat';
-import { resolveConfig, type GameConfigInput } from './config';
+import {
+  combatOutcome,
+  combatTokenCount,
+  revealCombat,
+  startCombat,
+  startSpyMoves,
+} from './combat';
+import { characterDeck, resolveConfig, type GameConfigInput } from './config';
 import type { Ctx } from './context';
 import { assertInvariants } from './invariants';
 import { autoResolves, legalFor, resolve } from './decisions';
@@ -147,7 +151,7 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
       passed: false,
       draftPick: { character: null, profession: null },
       combatTokens: {
-        hand: tokenRecord((t) => COMBAT_TOKENS[t].count),
+        hand: tokenRecord((t) => combatTokenCount(config.rules, t)),
         discard: tokenRecord(() => 0),
       },
     })),
@@ -173,7 +177,7 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     blocks: [],
     alchemy: null,
     placementCurrent: 0,
-    deck: [...CHARACTER_ORDER],
+    deck: characterDeck(config),
     discard: [],
     offer: { characters: [], professions: [] },
     professionPool:

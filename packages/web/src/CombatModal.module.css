@@ -262,3 +262,16 @@
     box-shadow: 0 0 0 10px rgba(201, 162, 74, 0);
   }
 }
+
+/* Число силы и подпись «силы» — по центру строки, а не по базовой линии. */
+.power {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.sideName,
+.state {
+  line-height: 1;
+}

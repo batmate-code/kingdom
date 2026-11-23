@@ -1,4 +1,5 @@
-import { CHARACTER_ORDER, COMBAT_TOKEN_ORDER, type CharacterId } from '@vampire/data';
+import { COMBAT_TOKEN_ORDER } from '@vampire/data';
+import { characterDeck } from './config';
 import { randomInt, seedToState, shuffleInPlace } from './rng';
 import type { GameState, Observation } from './types';
 
@@ -14,13 +15,17 @@ import type { GameState, Observation } from './types';
 export function determinize(obs: Observation, seed: number): GameState {
   const holder = { rng: seedToState(seed) };
 
-  const seen = new Set<CharacterId>([
+  // Колода — все карты партии минус открытые (с учётом копий в урезанной колоде прогонов).
+  const deck = characterDeck(obs.config);
+  for (const c of [
     ...obs.discard,
     ...obs.offer.characters,
     ...obs.players.flatMap((p) => (p.draftPick.character ? [p.draftPick.character] : [])),
     ...obs.workers.flatMap((w) => (w.character ? [w.character] : [])),
-  ]);
-  const deck = CHARACTER_ORDER.filter((c) => !seen.has(c));
+  ]) {
+    const i = deck.indexOf(c);
+    if (i >= 0) deck.splice(i, 1);
+  }
   shuffleInPlace(holder, deck);
 
   const combat = obs.combat && {

@@ -27,6 +27,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
         <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error.message}</pre>
         <button
           onClick={() => {
+            useGame.getState().back();
+            this.setState({ error: null });
+          }}
+        >
+          ↶ Ход назад
+        </button>{' '}
+        <button
+          onClick={() => {
             useGame.getState().reset();
             this.setState({ error: null });
           }}

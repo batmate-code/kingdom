@@ -70,10 +70,8 @@ export function dealDraft(c: Ctx): Task[] {
   const d = c.draft;
   const byPlayers = d.config.rules.draftSize === 'players';
   const size = d.players.length + DRAFT_BY_PLAYERS.extra;
-  const characters = d.deck.splice(
-    0,
-    Math.min(byPlayers ? size : GAME.draftCharacters, d.deck.length),
-  );
+  const need = byPlayers ? size : GAME.draftCharacters;
+  const characters = d.deck.splice(0, Math.min(need, d.deck.length));
   // Эксперимент автора: случайные профессии из пула (повторы возможны, но ограничены пулом).
   const professions = byPlayers
     ? drawProfessions(c, size)

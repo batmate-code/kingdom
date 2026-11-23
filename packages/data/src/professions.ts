@@ -4,16 +4,17 @@ export const PROFESSIONS: Readonly<Record<ProfessionId, ProfessionDef>> = {
   guard: {
     id: 'guard',
     name: 'Страж',
-    text: 'Нельзя вытеснить.',
+    text: 'Нельзя вытеснить. В бою сила 2.',
     color: 'green',
-    combatStrength: 1,
+    // Автор 23.11: Страж +1 к силе в бою (было 1).
+    combatStrength: 2,
     immuneToDisplacement: true,
     freeCityEntry: false,
   },
   executioner: {
     id: 'executioner',
     name: 'Палач',
-    text: 'При размещении в первый слот может вытеснить чужого рабочего из другой локации того же региона (и когда сам попал в первый слот вытеснением — тогда выбивает двоих). Владелец вытесненного получает 1 компромат.',
+    text: 'При размещении в первый слот может вытеснить чужого рабочего (из первого или второго слота) другой локации того же региона (и когда сам попал в первый слот вытеснением — тогда выбивает двоих). Владелец вытесненного и сам Палач получают по 1 компромату.',
     color: 'red',
     combatStrength: 1,
     immuneToDisplacement: false,

@@ -1,5 +1,10 @@
 /** Этап 3: полный бой — жетоны боя, Шпион, Отступление, Комиссариат, Склепы (rules.md, «Бой»). */
-import type { CombatTokenId, LocationId, RegionId } from '@vampire/data';
+import {
+  COMMISSARIAT_STRENGTH_PER_WORKER,
+  type CombatTokenId,
+  type LocationId,
+  type RegionId,
+} from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { getLegalActions, getObservation } from './engine';
 import type { RuleToggles } from './config';
@@ -43,7 +48,11 @@ function fight(s: GameState, script: Script = {}, log: GameEvent[] = []): GameSt
     } else if (p.kind === 'retreat' && script.retreat?.[`${p.player}:${p.region}`]) {
       action = { type: 'retreat', to: script.retreat[`${p.player}:${p.region}`] as RegionId };
     } else if (p.kind === 'spyMove' && script.spy?.[p.workerId]) {
-      action = { type: 'spyMove', region: script.spy[p.workerId] as RegionId };
+      // Первый свободный первый слот в нужном регионе (автор 23.11).
+      const region = script.spy[p.workerId] as RegionId;
+      action = getLegalActions(s).find(
+        (a) => a.type === 'spyMove' && a.region === region,
+      ) as Action;
     } else action = getLegalActions(s)[0] as Action;
     s = act(s, action, log);
   }
@@ -164,7 +173,7 @@ describe('Жетоны боя (Бой, порядок для каждого ре
     ]);
   });
 
-  it('Жетоны кладут только участники боя: рабочий во втором слоте не даёт права', () => {
+  it('Жетоны кладут участники боя: автор 23.11 — рабочий во втором слоте тоже даёт право', () => {
     let s = moveWorker(duel(), 'p2w0', at('lair', 2));
     const asked: number[] = [];
     while (s.pending && s.pending.kind !== 'upkeep') {
@@ -176,7 +185,7 @@ describe('Жетоны боя (Бой, порядок для каждого ре
         s.pending.kind === 'placement' ? { type: 'pass' } : (getLegalActions(s)[0] as Action),
       );
     }
-    expect(asked.sort()).toEqual([0, 1]);
+    expect(asked.sort()).toEqual([0, 1, 2]);
   });
 
   it('OQ-23: единственный участник тоже кладёт жетон; с переключателем — нет', () => {
@@ -192,8 +201,8 @@ describe('Жетоны боя (Бой, порядок для каждого ре
     }
   });
 
-  it('Сыгранные жетоны возвращаются в руку в конце 3-го раунда, не раньше', () => {
-    let s = fight(duel(), { tokens: { '0:forest': 'massacre' } });
+  it('Сыгранные жетоны возвращаются в руку в конце 3-го раунда, не раньше (combatTokenSet=base)', () => {
+    let s = fight(duel({ combatTokenSet: 'base' }), { tokens: { '0:forest': 'massacre' } });
     const log: GameEvent[] = [];
     const massacre = () => {
       const t = s.players[0]?.combatTokens;
@@ -314,7 +323,7 @@ describe('Крайние случаи боя', () => {
 });
 
 describe('Шпион перед боями (Бой, «Перед боями»)', () => {
-  it('Может перейти в другой регион бесплатно: освобождает слот, встаёт у места Цитадели', () => {
+  it('Автор 23.11: переходит бесплатно в выбранный свободный слот другого региона и освобождает свой', () => {
     let s = setWorker(duel(), 'p0w0', { profession: 'spy' });
     s = setResources(s, 0, { gold: 0 });
     const log: GameEvent[] = [];
@@ -325,15 +334,21 @@ describe('Шпион перед боями (Бой, «Перед боями»)',
     expect(combatIn(log, 'city')?.strengths).toEqual([{ player: 0, strength: 2, workers: 1 }]);
   });
 
-  it('Варианты: остаться или любой другой регион', () => {
+  it('Автор 23.11: варианты — остаться или любой свободный слот (локация и слот) другого региона', () => {
     let s = setWorker(duel(), 'p0w0', { profession: 'spy' });
     while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
     expect(s.pending).toEqual({ kind: 'spyMove', player: 0, workerId: 'p0w0' });
-    expect(getLegalActions(s)).toEqual([
-      { type: 'spyMove', region: null },
-      { type: 'spyMove', region: 'valley' },
-      { type: 'spyMove', region: 'city' },
-    ]);
+    const moves = getLegalActions(s).flatMap((a) => (a.type === 'spyMove' ? [a] : []));
+    expect(moves[0]).toEqual({ type: 'spyMove', region: null });
+    // Только другие регионы; выбираются локация и слот (оба слота свободны).
+    expect(moves.slice(1).every((a) => a.region !== 'forest' && a.location && a.slot)).toBe(true);
+    expect(moves).toContainEqual({
+      type: 'spyMove',
+      region: 'valley',
+      location: 'market',
+      slot: 2,
+    });
+    expect(new Set(moves.slice(1).map((a) => a.region))).toEqual(new Set(['valley', 'city']));
   });
 
   it('Шпионы решают по очереди с первого игрока; Шпион из второго слота тоже может уйти', () => {
@@ -345,8 +360,22 @@ describe('Шпион перед боями (Бой, «Перед боями»)',
     s = moveWorker(s, 'p1w1', at('lair', 2));
     while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
     expect(s.pending).toEqual({ kind: 'spyMove', player: 1, workerId: 'p1w1' });
-    s = act(s, { type: 'spyMove', region: 'valley' });
+    s = act(s, { type: 'spyMove', region: 'valley', location: 'market', slot: 1 });
     expect(s.pending).toEqual({ kind: 'spyMove', player: 0, workerId: 'p0w0' });
+  });
+
+  it('Автор 23.11: занятые слоты недоступны; все слоты региона заняты — перейти туда нельзя', () => {
+    let s = setWorker(duel(), 'p0w0', { profession: 'spy' });
+    s = moveWorker(s, 'p0w1', at('market'));
+    s = moveWorker(s, 'p0w2', at('market', 2));
+    s = moveWorker(s, 'p1w1', at('mass'));
+    s = moveWorker(s, 'p1w2', at('mass', 2));
+    s = moveWorker(s, 'p2w0', at('tavern'));
+    s = moveWorker(s, 'p2w1', at('tavern', 2));
+    while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
+    const regions = getLegalActions(s).flatMap((a) => (a.type === 'spyMove' ? [a.region] : []));
+    expect(regions).not.toContain('valley');
+    expect(regions).toContain('city');
   });
 
   it('OQ-26: два Шпиона одного игрока решают подряд', () => {
@@ -388,7 +417,7 @@ describe('Комиссариат (Локации, Комиссариат)', () =
     expect(s.commissariat).toEqual({ owner: 0, region: 'forest' });
   });
 
-  it('В бою выбранного региона сила всех рабочих госпиталя (Шпион — 2) идёт владельцу', () => {
+  it('Автор 23.11: в бою выбранного региона владелец получает 2 силы за каждого рабочего в госпитале', () => {
     let s = duel();
     s = moveWorker(s, 'p1w1', { kind: 'hospital' });
     s = setWorker(s, 'p2w0', { profession: 'spy' });
@@ -399,7 +428,8 @@ describe('Комиссариат (Локации, Комиссариат)', () =
     const log: GameEvent[] = [];
     fight(s, {}, log);
     expect(combatIn(log, 'forest')?.strengths).toEqual([
-      { player: 0, strength: 1 + 3, workers: 1 },
+      // Два рабочих в госпитале (профессия не важна) × COMMISSARIAT_STRENGTH_PER_WORKER.
+      { player: 0, strength: 1 + 2 * COMMISSARIAT_STRENGTH_PER_WORKER, workers: 1 },
       { player: 1, strength: 1, workers: 1 },
     ]);
   });
@@ -425,7 +455,7 @@ describe('Комиссариат (Локации, Комиссариат)', () =
     expect(s.commissariat).toBeNull();
   });
 
-  it('OQ-24: без своих рабочих в регионе владелец жетона в бою не участвует; с переключателем — участвует', () => {
+  it('Автор 23.11 (вместо OQ-24): жетон — присутствие в регионе; с переключателем «нет» — не участвует', () => {
     for (const rule of [false, true]) {
       let s = duel({ commissariatWithoutWorkers: rule });
       s = moveWorker(s, 'p0w1', { kind: 'hospital' });
@@ -435,7 +465,9 @@ describe('Комиссариат (Локации, Комиссариат)', () =
       const log: GameEvent[] = [];
       fight(s, {}, log);
       const p2 = combatIn(log, 'forest')?.strengths.find((x) => x.player === 2);
-      expect(p2).toEqual(rule ? { player: 2, strength: 1, workers: 0 } : undefined);
+      expect(p2).toEqual(
+        rule ? { player: 2, strength: COMMISSARIAT_STRENGTH_PER_WORKER, workers: 0 } : undefined,
+      );
     }
   });
 });

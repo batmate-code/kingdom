@@ -26,7 +26,7 @@ describe('Правила автора 23.11: старт, вход в Город,
     const s = createGame({}, 1);
     expect(s.config.rules.cityEntryResource).toBe('mixed');
     expect(s.config.rules.plotSurcharge).toBe('ore');
-    expect(s.config.rules.massBloodToGold).toBe('weak');
+    expect(s.config.rules.massBloodToGold).toBe('base');
     expect(s.config.rules.citadelCost).toBe('cheap');
     expect(s.config.rules.trackBoosts).toBe(true);
     expect(res(s, 0)).toMatchObject({ gold: 2, blood: 0 });
@@ -79,27 +79,21 @@ describe('Правила автора 23.11: старт, вход в Город,
     expect(inCity).toEqual([]);
   });
 
-  it('massBloodToGold=weak: кровь → золото 1 → 2 и 1 → 1, золото → кровь без изменений', () => {
+  it('massBloodToGold=weak (прежний эксперимент): кровь → золото на 1 хуже, золото → кровь без изменений', () => {
     const weak = (r: { gold: number; blood: number }) =>
       setResources(turnTo(newGame({ rules: { massBloodToGold: 'weak' } }), 0), 0, r);
     let s = choose(place(weak({ gold: 0, blood: 2 }), 'mass', 1), {
       kind: 'mass',
       from: 'blood',
-      times: 2,
+      times: 1,
     });
     expect(res(s, 0)).toMatchObject({ gold: 4, blood: 0 });
-    s = choose(place(weak({ gold: 0, blood: 2 }), 'mass', 2), {
-      kind: 'mass',
-      from: 'blood',
-      times: 2,
-    });
-    expect(res(s, 0)).toMatchObject({ gold: 2, blood: 0 });
     s = choose(place(weak({ gold: 2, blood: 0 }), 'mass', 1), {
       kind: 'mass',
       from: 'gold',
-      times: 2,
+      times: 1,
     });
-    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 6 });
+    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 5 });
   });
 
   it('citadelCost=cheap: Цитадель стоит 6 золота и 2 руды вместо 7 и 3', () => {

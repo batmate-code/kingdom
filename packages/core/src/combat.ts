@@ -4,13 +4,23 @@ import {
   COMBAT_REWARD,
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
+  COMBAT_TOKENS_REFRESH_AFTER_ROUND,
+  LOCATION_ORDER,
+  LOCATIONS,
+  COMBAT_TOKENS_SIX_COUNT,
+  COMBAT_TOKENS_SIX_REFRESH_EVERY,
+  COMMISSARIAT_STRENGTH_PER_WORKER,
+  DEFENSE_COUNTER_BONUS,
   PLOTS,
   PROFESSIONS,
   REGION_ORDER,
   type CombatTokenId,
+  type LocationId,
   type RegionId,
+  type SlotIndex,
 } from '@vampire/data';
 import { countsInCombat, regionOfWorker } from './board';
+import type { RuleToggles } from './config';
 import type { Ctx } from './context';
 import { turnOrder } from './draft';
 import { changeInfluence } from './economy';
@@ -41,8 +51,11 @@ export function tokenEffects(plays: readonly CombatPlay[]): Map<PlayerId, TokenE
   const out = new Map<PlayerId, TokenEffect>();
   for (const { player, token } of plays) {
     const massacreCancelled = token === 'massacre' && byOpponent(player, 'defense');
+    // Автор 23.11: Защита даёт силу, только если отменила Резню соперника.
+    const counter =
+      token === 'defense' && byOpponent(player, 'massacre') ? DEFENSE_COUNTER_BONUS : 0;
     out.set(player, {
-      bonus: massacreCancelled ? 0 : COMBAT_TOKENS[token].strength,
+      bonus: massacreCancelled ? 0 : COMBAT_TOKENS[token].strength + counter,
       retreats: token === 'retreat' && !byOpponent(player, 'domination'),
       domination: token === 'domination',
     });
@@ -50,11 +63,12 @@ export function tokenEffects(plays: readonly CombatPlay[]): Map<PlayerId, TokenE
   return out;
 }
 
-/** Сила всех рабочих в общем госпитале (для жетона Комиссариата; Шпион — 2). */
+/** Сила жетона Комиссариата (автор 23.11): по COMMISSARIAT_STRENGTH_PER_WORKER за каждого рабочего в госпитале. */
 export function hospitalStrength(state: GameState): number {
-  return state.workers
-    .filter((w) => w.position.kind === 'hospital')
-    .reduce((s, w) => s + workerStrength(w), 0);
+  return (
+    state.workers.filter((w) => w.position.kind === 'hospital').length *
+    COMMISSARIAT_STRENGTH_PER_WORKER
+  );
 }
 
 /**
@@ -88,7 +102,8 @@ export function cryptStrength(state: GameState, player: PlayerId, region: Region
 export function combatParticipants(state: GameState, region: RegionId): PlayerId[] {
   const out: PlayerId[] = [];
   for (let player = 0; player < state.players.length; player++) {
-    const hasWorker = state.workers.some((w) => w.owner === player && countsInCombat(w, region));
+    // Автор 23.11: участвует любой свой рабочий региона (и во втором слоте); сила — по первым слотам.
+    const hasWorker = state.workers.some((w) => w.owner === player && regionOfWorker(w) === region);
     const viaCommissariat =
       state.config.rules.commissariatWithoutWorkers &&
       state.commissariat?.owner === player &&
@@ -167,11 +182,34 @@ export function startSpyMoves(c: Ctx): void {
   d.tasks.unshift(...tasks);
 }
 
-export function spyDestinations(state: GameState, workerId: string): RegionId[] {
+/**
+ * Куда может перейти Шпион (автор 23.11): игрок выбирает регион, локацию и слот, как при
+ * выставлении, — любой свободный слот другого региона (второй — если не закрыт замком);
+ * свободных слотов нет — в этот регион перейти нельзя.
+ */
+export function spyDestinations(
+  state: GameState,
+  workerId: string,
+): { region: RegionId; location: LocationId; slot: SlotIndex }[] {
   const w = state.workers.find((x) => x.id === workerId);
   const here = w ? regionOfWorker(w) : null;
   if (!w || here === null || w.position.kind !== 'slot') return [];
-  return REGION_ORDER.filter((r) => r !== here);
+  const out: { region: RegionId; location: LocationId; slot: SlotIndex }[] = [];
+  for (const location of LOCATION_ORDER) {
+    const region = LOCATIONS[location].region;
+    if (region === here) continue;
+    for (const slot of [1, 2] as const) {
+      if (slot === 2 && state.locations[location].slot2Locked) continue;
+      const taken = state.workers.some(
+        (x) =>
+          x.position.kind === 'slot' &&
+          x.position.location === location &&
+          x.position.slot === slot,
+      );
+      if (!taken) out.push({ region, location, slot });
+    }
+  }
+  return out;
 }
 
 function moveToCitadelSpot(c: Ctx, w: Worker, to: RegionId, method: 'spy' | 'retreat'): void {
@@ -179,14 +217,24 @@ function moveToCitadelSpot(c: Ctx, w: Worker, to: RegionId, method: 'spy' | 'ret
   c.events.push({ type: 'workerMoved', player: w.owner, workerId: w.id, to, method });
 }
 
-/** Шпион уходит к месту Цитадели другого региона бесплатно и освобождает свой слот. */
-export function applySpyMove(c: Ctx, workerId: string, to: RegionId | null): void {
+/** Шпион бесплатно встаёт в свободный первый слот локации другого региона и освобождает свой. */
+export function applySpyMove(
+  c: Ctx,
+  workerId: string,
+  to: RegionId | null,
+  location: LocationId | undefined,
+  slot: SlotIndex | undefined,
+): void {
   if (to === null) return;
   const w = c.draft.workers.find((x) => x.id === workerId);
-  if (!w || !spyDestinations(c.draft, workerId).includes(to)) {
-    throw new Error(`Шпион ${workerId} не может перейти в ${to}`);
+  const ok = spyDestinations(c.draft, workerId).some(
+    (d) => d.region === to && d.location === location && d.slot === slot,
+  );
+  if (!w || !ok || location === undefined || slot === undefined) {
+    throw new Error(`Шпион ${workerId} не может перейти в ${location ?? to}`);
   }
-  moveToCitadelSpot(c, w, to, 'spy');
+  w.position = { kind: 'slot', location, slot };
+  c.events.push({ type: 'workerMoved', player: w.owner, workerId: w.id, to, method: 'spy' });
 }
 
 /**
@@ -297,7 +345,19 @@ export function applyCombatReward(
   } else c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'reward', region } });
 }
 
-/** Конец 3-го раунда: весь набор жетонов боя возвращается в руку. */
+/** Сколько жетонов вида `t` в наборе игрока (переключатель `combatTokenSet`). */
+export function combatTokenCount(rules: RuleToggles, t: CombatTokenId): number {
+  return rules.combatTokenSet === 'six' ? COMBAT_TOKENS_SIX_COUNT : COMBAT_TOKENS[t].count;
+}
+
+/** Возвращается ли сброс жетонов боя в руку в конце раунда `round`. */
+export function combatTokensRefreshAfter(rules: RuleToggles, round: number): boolean {
+  return rules.combatTokenSet === 'six'
+    ? round % COMBAT_TOKENS_SIX_REFRESH_EVERY === 0
+    : round === COMBAT_TOKENS_REFRESH_AFTER_ROUND;
+}
+
+/** Конец 3-го раунда (или каждого 2-го при `combatTokenSet=six`): весь набор возвращается в руку. */
 export function refreshCombatTokens(c: Ctx): void {
   for (const p of c.draft.players) {
     for (const t of COMBAT_TOKEN_ORDER) {

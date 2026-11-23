@@ -32,6 +32,8 @@ export const DISPLACEMENT = {
   compensation: 1,
   /** Компромат владельцу рабочего, вытесненного Палачом. */
   executionerCompensation: 1,
+  /** Автор 23.11: компромат самому Палачу за каждое вытеснение. */
+  executionerReward: 1,
 } as const;
 
 export const HOSPITAL = {

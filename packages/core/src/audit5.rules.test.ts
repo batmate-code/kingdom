@@ -1,5 +1,10 @@
 /** Аудит этапа 5: сценарии по пунктам правил, не закрытые characters.rules.test.ts. */
-import type { CharacterId, LocationId, ProfessionId } from '@vampire/data';
+import {
+  CHARACTER_PARAMS,
+  type CharacterId,
+  type LocationId,
+  type ProfessionId,
+} from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { getLegalActions } from './engine';
 import type { Action, BuildChoice, CharacterChoice, GameState } from './types';
@@ -117,7 +122,7 @@ describe('Аудит этапа 5: эффекты персонажей и эко
     expect(res(s, 1).gold).toBe(2);
   });
 
-  it('Рудный барон: Шпион ушёл в другой регион до боёв — барон не остался в регионе, руда в банк', () => {
+  it('Рудный барон (автор 23.11): Шпион ушёл в другой регион и выиграл там бой — руда его', () => {
     let s = give(start({ blood: 5 }), 'p0w0', 'oreBaron', 'spy');
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     let guard = 0;
@@ -125,9 +130,9 @@ describe('Аудит этапа 5: эффекты персонажей и эко
       s = act(s, s.pending.kind === 'placement' ? { type: 'pass' } : firstAction(s));
     }
     expect(s.pending?.kind).toBe('spyMove');
-    s = act(s, { type: 'spyMove', region: 'valley' });
+    s = act(s, { type: 'spyMove', region: 'valley', location: 'market', slot: 1 });
     s = passAll(s);
-    expect(res(s, 0).ore).toBe(0);
+    expect(res(s, 0).ore).toBe(CHARACTER_PARAMS.oreBaron.ore);
   });
 
   it('Могильщик: отправленный в госпиталь Доносчик не приносит владельцу компромат (не вытеснение)', () => {

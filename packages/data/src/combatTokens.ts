@@ -21,8 +21,9 @@ export const COMBAT_TOKENS: Readonly<Record<CombatTokenId, CombatTokenDef>> = {
     id: 'defense',
     name: 'Защита',
     count: 1,
-    strength: 1,
-    text: '+1 к силе; отменяет Резню соперника',
+    // Автор 23.11: +1 к силе только если отменила Резню соперника (DEFENSE_COUNTER_BONUS).
+    strength: 0,
+    text: 'Отменяет Резню соперника и тогда даёт +1 к силе',
   },
   decoy: { id: 'decoy', name: 'Приманка', count: 5, strength: 0, text: 'Без эффекта — блеф' },
 };
@@ -40,8 +41,18 @@ export const COMBAT_TOKEN_ORDER: readonly CombatTokenId[] = [
   'retreat',
 ];
 
+/** Автор 23.11: сила Защиты, если она отменила Резню хотя бы одного соперника. */
+export const DEFENSE_COUNTER_BONUS = 1;
+
 /** Сыгранные жетоны возвращаются в руку в конце этого раунда. */
 export const COMBAT_TOKENS_REFRESH_AFTER_ROUND = 3;
+
+/**
+ * Эксперимент автора 23.11 (`combatTokenSet=six`): по одному жетону каждого вида (6 в наборе),
+ * сыгранные возвращаются в руку в конце каждого COMBAT_TOKENS_SIX_REFRESH_EVERY-го раунда.
+ */
+export const COMBAT_TOKENS_SIX_COUNT = 1;
+export const COMBAT_TOKENS_SIX_REFRESH_EVERY = 2;
 
 /** Награда победителю боя: базовое влияние и дополнительное влияние, если не выбрана стройка. */
 export const COMBAT_REWARD = { influence: 1, bonusInfluence: 1, dominationInfluence: 1 } as const;

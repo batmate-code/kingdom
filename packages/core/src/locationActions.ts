@@ -9,6 +9,7 @@ import {
 import { distinctWorkers, getWorker } from './board';
 import { buildOptions } from './buildings';
 import type { Ctx } from './context';
+import { upkeepTier } from './draft';
 import { changeInfluence, changeResources, pay, payMaybeAlchemy, paymentVariants } from './economy';
 import type {
   ChanceryConversion,
@@ -158,8 +159,10 @@ const HANDLERS: HandlerRegistry = {
       for (const pay of goldBloodSplits(action.buyCost)) {
         if (r.gold >= pay.gold && r.blood >= pay.blood) out.push({ kind: 'marketBuy', pay });
       }
+      const sellGain = action.sellGain;
+      if (sellGain === null) return out;
       for (const v of paymentVariants(state, player, { ore: action.ore })) {
-        for (const receive of goldBloodSplits(action.sellGain)) {
+        for (const receive of goldBloodSplits(sellGain)) {
           out.push(
             v.alchemy
               ? { kind: 'marketSell', receive, alchemy: true }
@@ -328,7 +331,7 @@ const HANDLERS: HandlerRegistry = {
       const inHospital = state.workers.filter(
         (w) => w.owner === player && w.position.kind === 'hospital',
       );
-      return paymentVariants(state, player, { ore: action.oreCost }).flatMap((v) =>
+      return paymentVariants(state, player, action.cost).flatMap((v) =>
         distinctWorkers(inHospital).map((w): LocationChoice =>
           v.alchemy
             ? { kind: 'revive', workerId: w.id, alchemy: true }
@@ -338,7 +341,7 @@ const HANDLERS: HandlerRegistry = {
     },
     apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'revive') mismatch(choice);
-      const cost = { ore: action.oreCost };
+      const cost = action.cost;
       payMaybeAlchemy(c, player, cost, choice.alchemy, 'revive');
       const w = c.draft.workers.find((x) => x.id === choice.workerId);
       if (!w || w.owner !== player || w.position.kind !== 'hospital') {
@@ -349,7 +352,7 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
-  // Замена пары на оставшуюся после драфта, без отступных; старая пара возвращается в пул.
+  // Замена пары на оставшуюся после драфта; старая пара возвращается в пул, за неё — отступные.
   // Рабочий без улучшения бесплатно берёт пару из пула (ответ автора, 22.11).
   // Новый персонаж в этом размещении не срабатывает: эффект персонажа уже прошёл.
   tavernSwap: {
@@ -374,6 +377,8 @@ const HANDLERS: HandlerRegistry = {
       if (worker.character !== null && worker.profession !== null) {
         offer.characters.splice(ci, 1, worker.character);
         offer.professions.splice(pi, 1, worker.profession);
+        // Автор 23.11: за старую пару — отступные по её содержанию (пара уходит в пул Таверны).
+        changeResources(c, player, upkeepTier(worker.character).severance, 'severance');
       } else {
         offer.characters.splice(ci, 1);
         offer.professions.splice(pi, 1);

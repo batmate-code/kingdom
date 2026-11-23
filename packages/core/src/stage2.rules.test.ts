@@ -1,4 +1,6 @@
+import { DISPLACEMENT } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
+import { upkeepTier } from './draft';
 import { getLegalActions } from './engine';
 import type { GameEvent, GameState } from './types';
 import {
@@ -33,7 +35,7 @@ describe('Таверна, первый слот', () => {
     expect(locationOptions(s)).toHaveLength(2 * 2 + 1);
   });
 
-  it('Замена без отступных; старая пара возвращается в пул', () => {
+  it('Автор 23.11: за старую пару — отступные; старая пара возвращается в пул', () => {
     const before = start();
     let s = place(before, 'tavern', 1, { workerId: 'p0w0' });
     s = choose(s, { kind: 'tavernSwap', character: 'diplomat', profession: 'spy' });
@@ -43,7 +45,15 @@ describe('Таверна, первый слот', () => {
     });
     expect(s.offer.characters).toEqual(expect.arrayContaining(['oreMiner', 'officer']));
     expect(s.offer.professions).toEqual(expect.arrayContaining(['aristocrat', 'guard']));
-    expect(res(s, 0)).toEqual(res(before, 0));
+    const old = before.workers.find((w) => w.id === 'p0w0')!.character!;
+    const severance = upkeepTier(old).severance;
+    const was = res(before, 0);
+    expect(res(s, 0)).toEqual({
+      gold: was.gold + (severance.gold ?? 0),
+      blood: was.blood + (severance.blood ?? 0),
+      ore: was.ore + (severance.ore ?? 0),
+      compromat: was.compromat + (severance.compromat ?? 0),
+    });
   });
 
   it('Рабочий без улучшения бесплатно берёт пару из пула (ответ автора, 22.11)', () => {
@@ -94,9 +104,9 @@ describe('Палач', () => {
     const log: GameEvent[] = [];
     s = act(s, { type: 'executioner', target: 'p1w0' }, log);
     expect(s.workers.find((w) => w.id === 'p1w0')?.position).toEqual({ kind: 'hospital' });
-    // Владелец вытесненного — 2 компромата, Палач — ничего; замка нет.
-    expect(res(s, 1).compromat).toBe(1); // автор, 23.11: было 2
-    expect(res(s, 0).compromat).toBe(0);
+    // Автор 23.11: владелец вытесненного и сам Палач — по 1 компромату; замка нет.
+    expect(res(s, 1).compromat).toBe(DISPLACEMENT.executionerCompensation);
+    expect(res(s, 0).compromat).toBe(DISPLACEMENT.executionerReward);
     expect(s.locations.witchCircle.slot2Locked).toBe(false);
     expect(log).toContainEqual(
       expect.objectContaining({ type: 'workerDisplaced', method: 'executioner' }),

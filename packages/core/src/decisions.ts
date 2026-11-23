@@ -143,9 +143,17 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
     autoResolve: true,
     legal: (state, d) => [
       { type: 'spyMove', region: null },
-      ...spyDestinations(state, d.workerId).map((region): Action => ({ type: 'spyMove', region })),
+      ...spyDestinations(state, d.workerId).map(({ region, location, slot }): Action => ({
+        type: 'spyMove',
+        region,
+        location,
+        slot,
+      })),
     ],
-    apply: (c, d, action) => applySpyMove(c, d.workerId, expectAction(action, 'spyMove').region),
+    apply: (c, d, action) => {
+      const a = expectAction(action, 'spyMove');
+      applySpyMove(c, d.workerId, a.region, a.location, a.slot);
+    },
   },
   combatToken: {
     autoResolve: true,

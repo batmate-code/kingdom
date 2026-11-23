@@ -19,6 +19,9 @@ export const CITADELS_PER_REGION = 1;
 /** Цитадель: одна на игрока (ответ автора, OQ-32); каждая даёт построившему +10 престижа. */
 export const CITADELS_PER_PLAYER = 1;
 
+/** Автор 23.11: сила жетона Комиссариата за каждого рабочего в госпитале (любого игрока). */
+export const COMMISSARIAT_STRENGTH_PER_WORKER = 2;
+
 export const BUILDING_EFFECTS = {
   /** Склеп: +1 к силе за каждый свой Склеп рядом с локацией, где стоит твой рабочий. */
   cryptStrength: 1,

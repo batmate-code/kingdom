@@ -83,17 +83,17 @@ describe('Вход в Город', () => {
 });
 
 describe('Подполье', () => {
-  it('1 золото за копирование сверх входа в Город', () => {
+  it('Автор 23.11: копирование бесплатно — платится только вход в Город', () => {
     let s = place(start(), 'underground', 1);
     s = choose(s, { kind: 'copy', location: 'mine', slot: 1 });
-    expect(res(s, 0).gold).toBe(2 - 1 - 1 + 3);
+    expect(res(s, 0).gold).toBe(2 - 1 + 3);
   });
 
   it('Можно скопировать занятый первый слот', () => {
     let s = place(start(), 'mine', 1);
     s = place(s, 'underground', 1);
     s = choose(s, { kind: 'copy', location: 'mine', slot: 1 });
-    expect(res(s, 1).gold).toBe(2 - 1 - 1 + 3);
+    expect(res(s, 1).gold).toBe(2 - 1 + 3);
   });
 
   it('Копирование не считается посещением: копилка Логова всё равно растёт', () => {
@@ -118,10 +118,9 @@ describe('Подполье', () => {
     expect(targets.some((t) => CITY.includes(t))).toBe(false);
   });
 
-  it('Без золота на копирование остаётся только пропуск', () => {
+  it('Автор 23.11: копировать можно и без золота после входа', () => {
     const s = place(setResources(start(), 0, { gold: 1 }), 'underground', 1);
-    // Вход съел последнее золото — копировать нечем, действие пропускается автоматически.
-    expect(s.pending).toEqual({ kind: 'placement', player: 1 });
+    expect(s.pending?.kind).toBe('locationAction');
     expect(res(s, 0).gold).toBe(0);
   });
 });

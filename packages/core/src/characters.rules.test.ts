@@ -1,6 +1,7 @@
 /** Этап 5: эффекты персонажей — каждый со своим тестом (rules.md, «Персонажи»; ответы автора). */
 import type { CharacterId, LocationId, ProfessionId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
+import { upkeepTier } from './draft';
 import { getLegalActions } from './engine';
 import type { Action, CharacterChoice, GameEvent, GameState } from './types';
 import {
@@ -123,18 +124,15 @@ describe('Персонажи, содержание 1', () => {
     expect(s.powerTokens).toEqual([{ owner: 0, region: 'valley', count: 1 }]);
   });
 
-  it('Алхимик: в этом действии 1 руду можно заменить 1 золотом (Рынок: 1 золото → 4)', () => {
-    let s = give(start({ gold: 1, ore: 0 }), 'p0w0', 'alchemist');
-    s = place(s, 'market', 1, { workerId: 'p0w0' });
-    expect(getLegalActions(s)).toContainEqual({
-      type: 'locationAction',
-      choice: { kind: 'marketSell', receive: { gold: 4, blood: 0 }, alchemy: true },
-    });
-    s = act(s, {
-      type: 'locationAction',
-      choice: { kind: 'marketSell', receive: { gold: 4, blood: 0 }, alchemy: true },
-    });
-    expect(res(s, 0)).toMatchObject({ gold: 4, ore: 0 });
+  it('Алхимик: в этом действии 1 руду можно заменить 1 золотом (Ратуша: 1 золото → 1 влияние)', () => {
+    let s = give(start({ gold: 3, blood: 1, ore: 0 }), 'p0w0', 'alchemist');
+    s = place(s, 'cityHall', 1, { workerId: 'p0w0' });
+    const choice = { kind: 'cityHall', offer: 0, region: 'forest', alchemy: true } as const;
+    expect(getLegalActions(s)).toContainEqual({ type: 'locationAction', choice });
+    const gold = res(s, 0).gold;
+    s = act(s, { type: 'locationAction', choice });
+    expect(res(s, 0)).toMatchObject({ gold: gold - 1, ore: 0 });
+    expect(s.players[0]?.influence.forest).toBe(1);
     // Действует только в своём размещении.
     expect(s.alchemy).toBeNull();
   });
@@ -168,7 +166,8 @@ describe('Персонажи, содержание 1', () => {
     s = edit(s, (d) => {
       d.powerTokens.push({ owner: 1, region: 'forest', count: 1 });
     });
-    s = give(s, 'p0w0', 'werewolf');
+    // Не Страж: у Стража сила 2 (автор 23.11).
+    s = give(s, 'p0w0', 'werewolf', 'aristocrat');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
     // У p1 сила 3, у p0 — 1.
     expect(s.powerTokens).toContainEqual({ owner: 0, region: 'forest', count: 2 });
@@ -579,7 +578,9 @@ describe('Общие правила эффектов', () => {
       choice: { kind: 'tavernSwap', character: 'bloodsucker', profession: 'spy' },
     });
     expect(worker(s, 'p0w0')?.character).toBe('bloodsucker');
-    expect(res(s, 0)).toMatchObject({ gold: 4, blood: 0 });
+    // Отступные за старую пару (Кладовщика) — автор 23.11.
+    const sev = upkeepTier('storekeeper').severance;
+    expect(res(s, 0)).toMatchObject({ gold: 4 + (sev.gold ?? 0), blood: sev.blood ?? 0 });
   });
 
   it('Копирование через Подполье не вызывает эффект персонажа повторно', () => {
@@ -587,7 +588,7 @@ describe('Общие правила эффектов', () => {
     s = place(s, 'underground', 1, { workerId: 'p0w0' });
     expect(res(s, 0).gold).toBe(5 - 1 + 2);
     s = act(s, { type: 'locationAction', choice: { kind: 'copy', location: 'mine', slot: 1 } });
-    expect(res(s, 0).gold).toBe(5 - 1 + 2 - 1 + 3);
+    expect(res(s, 0).gold).toBe(5 - 1 + 2 + 3);
   });
 });
 
@@ -711,20 +712,17 @@ describe('Найдено симулятором', () => {
 
 describe('Найдено в игре', () => {
   it('Алхимик: замена руды на золото — один раз за размещение (ответ автора, 22.11)', () => {
-    // Алхимик-Архитектор на Рынке: продать «руду» за 1 золото, потом стройка — уже без замены.
-    let s = give(start({ gold: 2, ore: 0 }), 'p0w0', 'alchemist', 'architect');
-    s = place(s, 'market', 1, { workerId: 'p0w0' });
+    // Алхимик-Архитектор в Ратуше: влияние за «руду» (1 золото), потом стройка — уже без замены.
+    let s = give(start({ gold: 6, blood: 1, ore: 0 }), 'p0w0', 'alchemist', 'architect');
+    s = place(s, 'cityHall', 1, { workerId: 'p0w0' });
     s = act(s, {
       type: 'locationAction',
-      choice: { kind: 'marketSell', receive: { gold: 4, blood: 0 }, alchemy: true },
+      choice: { kind: 'cityHall', offer: 0, region: 'forest', alchemy: true },
     });
-    expect(res(s, 0)).toMatchObject({ gold: 5, ore: 0 });
-    // Лавка (3 золота + 1 руда) без руды больше недоступна; Склеп и Аббатство — да.
     const builds = getLegalActions(s).flatMap((a) =>
       a.type === 'build' && a.choice ? [a.choice] : [],
     );
     expect(builds.some((b) => b.alchemy)).toBe(false);
     expect(builds.some((b) => b.building === 'shop')).toBe(false);
-    expect(builds.some((b) => b.building === 'abbey')).toBe(true);
   });
 });

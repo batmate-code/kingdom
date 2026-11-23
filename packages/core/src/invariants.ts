@@ -1,6 +1,7 @@
+import { combatTokenCount } from './combat';
+import { characterDeck } from './config';
 import {
   BUILDING_ORDER,
-  CHARACTERS,
   CITADELS_PER_PLAYER,
   CITADELS_PER_REGION,
   MAX_BUILDINGS_PER_TYPE,
@@ -8,7 +9,6 @@ import {
   PRESTIGE_TRACK,
   PROFESSION_ORDER,
   SLOT_CAPACITY,
-  COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   DRAFT_BY_PLAYERS,
   GAME,
@@ -40,7 +40,11 @@ export function findInvariantViolations(state: GameState): string[] {
     // Жетоны боя: каждый из набора либо в руке, либо в сбросе.
     for (const t of COMBAT_TOKEN_ORDER) {
       const { hand, discard } = p.combatTokens;
-      if (hand[t] < 0 || discard[t] < 0 || hand[t] + discard[t] !== COMBAT_TOKENS[t].count) {
+      if (
+        hand[t] < 0 ||
+        discard[t] < 0 ||
+        hand[t] + discard[t] !== combatTokenCount(state.config.rules, t)
+      ) {
         errors.push(`игрок ${i}: жетонов боя ${t} в руке ${hand[t]}, в сбросе ${discard[t]}`);
       }
     }
@@ -107,11 +111,10 @@ export function findInvariantViolations(state: GameState): string[] {
     ...state.players.flatMap((p) => (p.draftPick.character ? [p.draftPick.character] : [])),
     ...state.workers.flatMap((w) => (w.character ? [w.character] : [])),
   ];
-  const all = Object.keys(CHARACTERS);
-  if (cards.length !== all.length || new Set(cards).size !== all.length) {
-    errors.push(
-      `карт персонажей ${cards.length} (уникальных ${new Set(cards).size}), должно быть ${all.length}`,
-    );
+  // Урезанная колода прогонов содержит копии карт — сравниваем составы целиком.
+  const all = characterDeck(state.config);
+  if ([...cards].sort().join() !== [...all].sort().join()) {
+    errors.push(`карт персонажей ${cards.length}, должно быть ${all.length} (состав не совпадает)`);
   }
   // Драфт по числу игроков: каждый жетон профессии — в пуле, на драфте/в Таверне, у игрока или рабочего.
   if (state.config.rules.draftSize === 'players') {

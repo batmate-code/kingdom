@@ -7,6 +7,7 @@ import {
   MAX_BUILDINGS_PER_TYPE,
   PLOTS,
   CITADEL_COST_CHEAP,
+  PLOT_SURCHARGE_CHOICES,
   PLOT_SURCHARGE_VARIANTS,
   REGION_ORDER,
   TRACKS,
@@ -49,7 +50,7 @@ export function buildCost(
   choice: BuildChoice,
 ): Partial<Resources> {
   const cost: Partial<Resources> = { ...buildingCost(state, choice.building) };
-  for (const [r, v] of Object.entries(plotSurcharge(state, choice.plot)) as [
+  for (const [r, v] of Object.entries(choice.surcharge ?? plotSurcharge(state, choice.plot)) as [
     keyof Resources,
     number,
   ][]) {
@@ -107,7 +108,11 @@ export function buildOptions(
                 plot.region === region &&
                 !taken.has(plot.id) &&
                 (nearLocation === null || plot.adjacent.includes(nearLocation)),
-            ).map((plot) => ({ building, region, plot: plot.id }));
+            ).flatMap((plot): BuildChoice[] => {
+              const base = { building, region, plot: plot.id };
+              const choices = PLOT_SURCHARGE_CHOICES[plot.id];
+              return choices ? choices.map((surcharge) => ({ ...base, surcharge })) : [base];
+            });
       for (const choice of candidates) {
         for (const v of paymentVariants(state, player, buildCost(state, choice))) {
           out.push(v.alchemy ? { ...choice, alchemy: true } : choice);

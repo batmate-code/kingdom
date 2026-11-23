@@ -25,6 +25,7 @@ import citadelImg from './assets/buildings/citadel.png';
 import cryptImg from './assets/buildings/crypt.png';
 import shopImg from './assets/buildings/shop.png';
 import { cardUrl } from './cards';
+import { TOKEN_IMG } from './CombatModal';
 import styles from './SidePanel.module.css';
 
 /**
@@ -348,12 +349,25 @@ function PlayerCard({
       <Planshet obs={obs} player={player} />
 
       <div className={styles.tokens}>
-        {COMBAT_TOKEN_ORDER.filter((t) => p.combatTokens.hand[t] > 0).map((t) => (
-          <span key={t} className={styles.tokenChip} title={`Жетон боя: ${COMBAT_TOKENS[t].name}`}>
-            {COMBAT_TOKENS[t].name}
-            {p.combatTokens.hand[t] > 1 ? ` ×${p.combatTokens.hand[t]}` : ''}
-          </span>
-        ))}
+        {/* Жетоны боя: в руке — ярко, потраченные (в сбросе) — тускло и зачёркнуто. */}
+        {COMBAT_TOKEN_ORDER.flatMap((t) => {
+          const { hand, discard } = p.combatTokens;
+          const chip = (n: number, spent: boolean) => (
+            <span
+              key={`${t}-${spent}`}
+              className={`${styles.tokenChip} ${spent ? styles.spent : ''}`}
+              title={`${COMBAT_TOKENS[t].name}${spent ? ' — потрачен' : ''}: ${COMBAT_TOKENS[t].text}`}
+            >
+              <img src={TOKEN_IMG[t]} alt="" />
+              {COMBAT_TOKENS[t].name}
+              {n > 1 ? ` ×${n}` : ''}
+            </span>
+          );
+          return [
+            ...(hand[t] > 0 ? [chip(hand[t], false)] : []),
+            ...(discard[t] > 0 ? [chip(discard[t], true)] : []),
+          ];
+        })}
       </div>
     </section>
   );

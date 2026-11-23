@@ -484,14 +484,16 @@ export function onCharacterDisplaced(c: Ctx, by: Worker, victim: Worker): void {
 
 /**
  * Конец раунда (до возврата рабочих): Рудный барон приносит руду, если остался в своём регионе
- * и владелец выиграл там бой; остальное с карт уходит в банк.
+ * (Шпион — в регионе, куда перешёл) и владелец выиграл там бой; остальное с карт уходит в банк.
  */
 export function settleCardStash(c: Ctx): void {
   const d = c.draft;
   for (const s of d.cardStash) {
     if (s.character !== 'oreBaron') continue;
+    // Автор 23.11: Рудный барон-Шпион, перешедший в другой регион, получает руду за победу там.
     const w = getWorker(d, s.workerId);
-    if (regionOfWorker(w) === s.region && d.combatWinners[s.region] === s.owner) {
+    const region = w.profession === 'spy' ? regionOfWorker(w) : s.region;
+    if (region !== null && regionOfWorker(w) === region && d.combatWinners[region] === s.owner) {
       changeResources(c, s.owner, { ore: s.amount }, 'oreBaron');
     }
   }

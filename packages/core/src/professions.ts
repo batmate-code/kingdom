@@ -1,6 +1,7 @@
-import { LOCATIONS, PROFESSIONS } from '@vampire/data';
+import { DISPLACEMENT, LOCATIONS, PROFESSIONS } from '@vampire/data';
 import { busyWorkerIds, getWorker, workersAt } from './board';
 import type { Ctx } from './context';
+import { changeResources } from './economy';
 import { displaceWorker } from './placement';
 import type { GameState, PlayerId, Worker } from './types';
 
@@ -51,7 +52,14 @@ export function applyExecutioner(
   const by = getWorker(c.draft, workerId);
   if (by.owner !== player) throw new Error(`Палач ${workerId} не принадлежит игроку ${player}`);
   // Пара с Лазутчиком вылетает вместе, но Страж защищает только себя (OQ-34, автор).
+  let displaced = false;
   for (const w of workersAt(c.draft, location, slot)) {
-    if (!isGuard(w)) displaceWorker(c, by, w, location, 'executioner');
+    if (isGuard(w)) continue;
+    displaceWorker(c, by, w, location, 'executioner');
+    displaced = true;
+  }
+  // Автор 23.11: Палач сам получает компромат за вытеснение.
+  if (displaced) {
+    changeResources(c, player, { compromat: DISPLACEMENT.executionerReward }, 'executioner');
   }
 }

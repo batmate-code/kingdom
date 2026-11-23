@@ -54,23 +54,23 @@ describe('Данные: числа таблиц против rules.md и изо�
       { kind: 'lairStash', bloodPerOre: 4, maxExchanges: 1 },
     ]);
     expect(slots('mass')).toEqual([
-      { kind: 'mass', unit: 1, rate: 3, maxTimes: 2 },
-      { kind: 'mass', unit: 1, rate: 2, maxTimes: 2 },
+      { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
+      { kind: 'mass', unit: 1, rate: 1, maxTimes: 1 },
     ]);
     expect(slots('market')).toEqual([
-      { kind: 'market', ore: 1, buyCost: 2, sellGain: 4 },
-      { kind: 'market', ore: 1, buyCost: 3, sellGain: 3 },
+      { kind: 'market', ore: 2, buyCost: 2, sellGain: null },
+      { kind: 'market', ore: 2, buyCost: 3, sellGain: null },
     ]);
     expect(slots('tavern')[1]).toEqual({ kind: 'gain', gain: { gold: 1, blood: 1 } });
     expect(slots('chancery')).toEqual([
-      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 2, ore: 1, buildRightCost: 2 },
-      { kind: 'chanceryBuild', compromatCost: 3 },
+      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 3, ore: 2, buildRightCost: 1 },
+      { kind: 'chanceryBuild', compromatCost: 2 },
     ]);
     expect(slots('underground')).toEqual([
-      { kind: 'copy', goldCost: 1, scope: ['forest', 'valley', 'city'] },
-      { kind: 'copy', goldCost: 1, scope: ['forest', 'valley'] },
+      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley', 'city'] },
+      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley'] },
     ]);
-    expect(slots('commissariat')[1]).toEqual({ kind: 'revive', oreCost: 2 });
+    expect(slots('commissariat')[1]).toEqual({ kind: 'revive', cost: { compromat: 2 } });
     expect(slots('cityHall')).toEqual([
       {
         kind: 'cityHall',
@@ -141,7 +141,8 @@ describe('Данные: числа таблиц против rules.md и изо�
     expect(BUILDINGS.shop).toMatchObject({ cost: { gold: 3, ore: 1 }, prestige: [5, 2, 5] });
     expect(BUILDINGS.citadel).toMatchObject({ cost: { gold: 7, ore: 3 }, prestige: [10] });
     const strength = (id: keyof typeof COMBAT_TOKENS) => COMBAT_TOKENS[id].strength;
-    expect([strength('attack'), strength('massacre'), strength('defense')]).toEqual([1, 2, 1]);
+    // Защита: +1 только при отмене Резни (автор 23.11) — DEFENSE_COUNTER_BONUS.
+    expect([strength('attack'), strength('massacre'), strength('defense')]).toEqual([1, 2, 0]);
     expect(COMBAT_TOKENS.decoy.count).toBe(5);
     expect(UPKEEP_TIERS.map((t) => [t.upkeep, t.endPrestige])).toEqual([
       [0, 1],
@@ -310,8 +311,8 @@ describe('Конец раунда и раунды', () => {
 });
 
 describe('Локации: граничные случаи', () => {
-  it('Месса: одно направление и не больше, чем есть ресурса (1 золото — только 1 раз)', () => {
-    let s = setResources(turnTo(newGame(), 0), 0, { gold: 1, blood: 0 });
+  it('Месса: не больше, чем есть ресурса (2 золота на обмен 2 → 5 — есть, 2 крови — нет)', () => {
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 2, blood: 1 });
     s = place(s, 'mass', 1);
     expect(locationOptions(s).filter((o) => o.kind === 'mass')).toEqual([
       { kind: 'mass', from: 'gold', times: 1 },
@@ -326,14 +327,14 @@ describe('Локации: граничные случаи', () => {
     expect(res(s, 0)).toMatchObject({ gold: 1, blood: 0, ore: 0 });
   });
 
-  it('Подполье копирует второй слот Комиссариата: рабочий возвращается из госпиталя за 2 руды', () => {
-    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, ore: 2 });
+  it('Подполье копирует второй слот Комиссариата: рабочий возвращается из госпиталя за 2 компромата', () => {
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 2 });
     s = moveWorker(s, 'p0w1', { kind: 'hospital' });
     s = place(s, 'underground', 1, { workerId: 'p0w0' });
     s = choose(s, { kind: 'copy', location: 'commissariat', slot: 2 });
     expect(locationOptions(s)).toContainEqual({ kind: 'revive', workerId: 'p0w1' });
     s = choose(s, { kind: 'revive', workerId: 'p0w1' });
-    expect(res(s, 0)).toMatchObject({ gold: 1, ore: 0 });
+    expect(res(s, 0)).toMatchObject({ gold: 2, compromat: 0 });
     expect(s.workers.find((w) => w.id === 'p0w1')?.position).toEqual({ kind: 'reserve' });
   });
 
@@ -347,13 +348,13 @@ describe('Локации: граничные случаи', () => {
   });
 
   it('OQ-6: Подполье позволяет скопировать действие, которое после оплаты копирования невыполнимо', () => {
-    let s = turnTo(newGame(), 0);
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 1, blood: 0 });
     s = place(s, 'underground', 1);
-    // Остался 1 золото и 0 крови: копию Мессы можно оплатить, но выполнить уже нечем.
-    expect(res(s, 0).gold).toBe(1);
+    // После входа 0 золота и 0 крови: копия бесплатна (автор 23.11), но выполнить Мессу нечем.
+    expect(res(s, 0).gold).toBe(0);
     expect(locationOptions(s)).toContainEqual({ kind: 'copy', location: 'mass', slot: 1 });
     s = choose(s, { kind: 'copy', location: 'mass', slot: 1 });
-    // Выполнить нечем: пропуск принят автоматически, золото потрачено зря.
+    // Выполнить нечем: пропуск принят автоматически.
     expect(s.pending?.kind).toBe('placement');
     expect(res(s, 0).gold).toBe(0);
   });
