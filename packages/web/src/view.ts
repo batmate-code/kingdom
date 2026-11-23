@@ -48,17 +48,34 @@ export interface ScreenView {
   human: boolean;
 }
 
+/**
+ * Экран гостя онлайн-партии: зритель фиксирован (своё кресло), состояние — determinize от его
+ * наблюдения, допустимые ходы присылает хост (он же их проверяет).
+ */
+export interface RemoteSeat {
+  viewer: number;
+  legal: Action[];
+}
+
 export function screenView(
   state: GameState,
   seats: readonly string[],
   selected: string | null,
   focus: Action[] | null,
+  remote: RemoteSeat | null = null,
 ): ScreenView {
   const pending = state.pending;
-  const botTurn = pending !== null && seats[pending.player] !== 'human';
-  const viewer = pending && !botTurn ? pending.player : Math.max(0, seats.indexOf('human'));
+  // Гость: ходит только когда очередь его кресла; остальные кресла для него — «чужой ход».
+  const botTurn = remote
+    ? pending !== null && pending.player !== remote.viewer
+    : pending !== null && seats[pending.player] !== 'human';
+  const viewer = remote
+    ? remote.viewer
+    : pending && !botTurn
+      ? pending.player
+      : Math.max(0, seats.indexOf('human'));
   const obs = getObservation(state, viewer);
-  const legal = pending && !botTurn ? getLegalActions(state) : [];
+  const legal = pending && !botTurn ? (remote ? remote.legal : getLegalActions(state)) : [];
 
   // Размещение — выбранным рабочим (или любым), стройка — на участках и местах Цитаделей.
   const placements = legal.filter((a): a is PlaceAction => a.type === 'place');
@@ -105,7 +122,7 @@ export function screenView(
     barLegal,
     strengths,
     drafting: obs.phase === 'draft' || obs.phase === 'upgrade',
-    human: seats[viewer] === 'human',
+    human: remote !== null || seats[viewer] === 'human',
   };
 }
 

@@ -31,3 +31,5 @@ export {
   workerLabel,
 } from './labels';
 export type * from './types';
+export { eventsFor, eventVisibility } from './visibility';
+export type { Visibility } from './visibility';

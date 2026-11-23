@@ -4,24 +4,17 @@ import {
   createGame,
   getScores,
   isTerminal,
-  type Action,
   type CombatPlay,
   type GameEvent,
-  type GameState,
   type PlayerScore,
 } from '@vampire/core';
 import { writeFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ActionBar } from './ActionBar';
-import { BoardSvg, type BoardLastMove } from './board/BoardSvg';
-import { CombatModal } from './CombatModal';
+import type { BoardLastMove } from './board/BoardSvg';
 import { CombatResultModal } from './CombatResultModal';
-import { DraftModal } from './DraftModal';
-import { RoundModal } from './RoundModal';
-import { HandPanel, PlayersPanel } from './SidePanel';
-import { TurnToast } from './TurnToast';
-import { screenView, targetHint } from './view';
+import { checkGuestView, renderScreen, SEATS } from './screenCheck';
+import { screenView } from './view';
 
 /**
  * Прогон интерфейса случайными ботами: после каждого хода весь экран партии рисуется теми же
@@ -37,7 +30,6 @@ const COUNT = Number(process.env.UI_STRESS ?? 0);
 const SEED = Number(process.env.UI_STRESS_SEED ?? 1);
 const BOT = process.env.UI_STRESS_BOT ?? 'random';
 const OUT = process.env.UI_STRESS_OUT ?? 'ui-stress-report.json';
-const SEATS = ['human', 'human', 'human'] as const;
 
 interface Failure {
   seed: number;
@@ -48,8 +40,6 @@ interface Failure {
   error: string;
 }
 
-const key = (a: Action) => JSON.stringify(a);
-
 function marks(events: readonly GameEvent[]): { slots: string[]; plots: string[] } {
   const slots: string[] = [];
   const plots: string[] = [];
@@ -58,98 +48,6 @@ function marks(events: readonly GameEvent[]): { slots: string[]; plots: string[]
     if (e.type === 'buildingBuilt') plots.push(e.plot ?? `citadel:${e.region}`);
   }
   return { slots, plots };
-}
-
-/** Весь экран для состояния (как в Game), без браузера. */
-function renderScreen(
-  state: GameState,
-  selected: string | null,
-  focus: Action[] | null,
-  lastMove: BoardLastMove | null,
-  previous: PlayerScore[] | null,
-): void {
-  const view = screenView(state, SEATS, selected, focus);
-  const { viewer, obs, legal, slots, plots, barLegal, strengths, drafting } = view;
-  const noop = () => undefined;
-  const targets =
-    Object.keys(slots).length + Object.keys(plots).length > 0
-      ? { slots, plots, hint: (a: Action[]) => targetHint(state, viewer, a), onPick: noop }
-      : undefined;
-  renderToStaticMarkup(
-    <div>
-      <BoardSvg obs={obs} landscape targets={targets} lastMove={lastMove} strengths={strengths} />
-      <TurnToast player={state.pending?.player ?? null} phase={state.phase} human />
-      <CombatModal
-        state={state}
-        obs={obs}
-        legal={legal}
-        strengths={strengths}
-        viewer={viewer}
-        onPick={noop}
-      />
-      {drafting && (
-        <DraftModal
-          state={state}
-          obs={obs}
-          legal={legal}
-          onPick={noop}
-          viewer={viewer}
-          pendingPlayer={state.pending?.player ?? null}
-        />
-      )}
-      <RoundModal
-        state={state}
-        scores={getScores(state)}
-        previous={previous}
-        seats={SEATS}
-        viewer={viewer}
-        onClose={noop}
-      />
-      <HandPanel obs={obs} player={viewer} active selected={selected} onSelect={noop} />
-      <PlayersPanel obs={obs} state={state} viewer={viewer} seats={SEATS} />
-      <ActionBar
-        state={state}
-        legal={barLegal}
-        botTurn={false}
-        hint={null}
-        error={null}
-        onAct={noop}
-        onCancel={focus ? noop : undefined}
-      />
-    </div>,
-  );
-
-  // Каждый допустимый ход достижим из интерфейса.
-  if (!focus && !selected) {
-    const reachable = new Set<string>();
-    for (const list of [...Object.values(slots), ...Object.values(plots), barLegal]) {
-      for (const a of list) reachable.add(key(a));
-    }
-    for (const a of legal) {
-      if (a.type === 'draftPick') {
-        const ok =
-          a.pick.kind === 'character'
-            ? obs.offer.characters.includes(a.pick.character)
-            : obs.offer.professions.includes(a.pick.profession);
-        if (!ok) throw new Error(`карта драфта не показана: ${key(a)}`);
-        continue;
-      }
-      // Жетоны боя выбираются в окне боя: кнопка есть у каждого жетона из руки.
-      if (a.type === 'combatToken') {
-        if (
-          state.pending?.kind !== 'combatToken' ||
-          !(obs.players[viewer]?.combatTokens.hand[a.token] ?? 0)
-        )
-          throw new Error(`жетон боя не показан: ${key(a)}`);
-        continue;
-      }
-      if (!reachable.has(key(a))) throw new Error(`ход недоступен из интерфейса: ${key(a)}`);
-    }
-    for (const a of reachable) {
-      if (!legal.some((x) => key(x) === a))
-        throw new Error(`интерфейс предлагает недопустимый ход: ${a}`);
-    }
-  }
 }
 
 describe.skipIf(COUNT <= 0)('Прогон интерфейса случайными ботами', () => {
@@ -178,6 +76,7 @@ describe.skipIf(COUNT <= 0)('Прогон интерфейса случайны�
           renderScreen(state, null, null, lastMove, roundStart[state.round - 1] ?? null);
           if (reserve && step % 3 === 0) renderScreen(state, reserve.id, null, lastMove, null);
           if (multi) renderScreen(state, null, multi, lastMove, null);
+          for (const viewer of [0, 1, 2]) checkGuestView(state, viewer, seed * 1000 + step);
 
           const action = bots[player]!.chooseAction(view.obs, view.legal);
           const r = applyAction(state, action);
