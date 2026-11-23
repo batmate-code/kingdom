@@ -309,3 +309,11 @@
 .draftArea {
   padding: 0 12px 12px;
 }
+
+/* Онлайн: приглашения хоста и статус гостя в шапке. */
+.invites {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}

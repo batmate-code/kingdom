@@ -15,9 +15,26 @@ import {
 import type { RegionId } from '@vampire/data';
 import { create } from 'zustand';
 import { eventText } from './labels';
+import { newKey } from './online/keys';
 
-/** Кто сидит в кресле: человек или бот по имени из BOT_FACTORIES. */
-export type Seat = 'human' | string;
+/**
+ * Кто сидит в кресле: человек за этим компьютером, гость по ссылке (онлайн, ходит через хоста),
+ * remote — соперник на экране гостя (кто он, гость не знает) или бот по имени из BOT_FACTORIES.
+ */
+export type Seat = 'human' | 'guest' | 'remote' | string;
+
+/** Онлайн, хост: комната и ключи кресел гостей (для ссылок-приглашений). */
+export interface HostRoom {
+  room: string;
+  invites: { seat: number; key: string }[];
+}
+
+/** Онлайн, гость: своё кресло, номер снимка хоста и допустимые ходы из него. */
+export interface GuestSeat {
+  seat: number;
+  seq: number;
+  legal: Action[];
+}
 
 interface LogLine {
   id: number;
@@ -105,7 +122,18 @@ interface GameStore {
   combatReports: CombatReport[];
   /** Вскрытые жетоны боёв, которые ещё не разрешились. */
   revealed: Partial<Record<RegionId, CombatPlay[]>>;
+  /** Растёт с каждым ходом; события этого хода — для рассылки гостям (online/connect.ts). */
+  version: number;
+  lastEvents: GameEvent[];
+  /** Онлайн, хост: комната (null — партия только за этим компьютером). */
+  hostRoom: HostRoom | null;
+  /** Онлайн, гость: своё кресло (null — не гость). state у гостя — determinize снимка. */
+  guest: GuestSeat | null;
+  /** Онлайн, гость: отправить ход хосту (ставит online/connect.ts). */
+  sendAction: ((action: Action) => void) | null;
   start(seats: Seat[], seed: number, rules?: Partial<RuleToggles>): void;
+  /** Онлайн, гость: принять снимок хоста (уже в виде полного состояния) и его события. */
+  loadSnapshot(state: GameState, events: readonly GameEvent[], guest: GuestSeat): void;
   act(action: Action, byHuman?: boolean): void;
   /** Отменить последний ход человека (и ходы ботов после него). */
   undo(): void;
@@ -140,6 +168,11 @@ export const useGame = create<GameStore>((set, get) => ({
   lastMove: null,
   combatReports: [],
   revealed: {},
+  version: 0,
+  lastEvents: [],
+  hostRoom: null,
+  guest: null,
+  sendAction: null,
 
   start(seats, seed, rules = {}) {
     const { state, events } = createGameWithEvents({ playerCount: seats.length, rules }, seed);
@@ -148,6 +181,9 @@ export const useGame = create<GameStore>((set, get) => ({
       const factory = BOT_FACTORIES[seat];
       return factory ? factory(seed * 31 + i) : null;
     });
+    const invites = seats.flatMap((seat, i) =>
+      seat === 'guest' ? [{ seat: i, key: newKey() }] : [],
+    );
     set({
       state,
       seats,
@@ -158,12 +194,40 @@ export const useGame = create<GameStore>((set, get) => ({
       lastMove: null,
       combatReports: [],
       revealed: {},
+      version: get().version + 1,
+      lastEvents: events,
+      hostRoom: invites.length > 0 ? { room: newKey(), invites } : null,
+      guest: null,
+      sendAction: null,
+    });
+  },
+
+  loadSnapshot(state, events, guest) {
+    const { log, combatReports, revealed } = get();
+    const marks = moveMarks(events);
+    const actor = get().state?.pending?.player;
+    set({
+      state,
+      guest,
+      // Своё кресло — человек; кто в остальных (люди или боты хоста), гость не знает: remote.
+      seats: state.players.map((_, i) => (i === guest.seat ? 'human' : 'remote')),
+      log: appendLog(log, state, events),
+      ...collectCombat(combatReports, revealed, state.round, events),
+      ...(marks.slots.length + marks.plots.length > 0 && actor !== undefined && actor !== guest.seat
+        ? { lastMove: { player: actor, ...marks } }
+        : {}),
+      error: null,
     });
   },
 
   act(action, byHuman = true) {
-    const { state, log, history, combatReports, revealed } = get();
+    const { state, log, history, combatReports, revealed, sendAction } = get();
     if (!state) return;
+    // Гость: ход уходит хосту, партия обновится его снимком.
+    if (sendAction) {
+      sendAction(action);
+      return;
+    }
     try {
       const r = applyAction(state, action);
       const actor = state.pending?.player;
@@ -178,6 +242,8 @@ export const useGame = create<GameStore>((set, get) => ({
         error: null,
         ...collectCombat(combatReports, revealed, state.round, r.events),
         history: [...history, { state, log, byHuman, combatReports, revealed }].slice(-MAX_HISTORY),
+        version: get().version + 1,
+        lastEvents: r.events,
       });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
@@ -196,6 +262,8 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   undo() {
+    // Онлайн отмена хода нечестна к гостям (docs/online-plan.md).
+    if (get().hostRoom || get().guest) return;
     const history = [...get().history];
     while (history.length > 0) {
       const snap = history.pop()!;
@@ -228,6 +296,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   canUndo() {
+    if (get().hostRoom || get().guest) return false;
     return get().history.some((h) => h.byHuman);
   },
 
@@ -242,6 +311,10 @@ export const useGame = create<GameStore>((set, get) => ({
       lastMove: null,
       combatReports: [],
       revealed: {},
+      lastEvents: [],
+      hostRoom: null,
+      guest: null,
+      sendAction: null,
     });
   },
 }));
@@ -251,6 +324,11 @@ export const useGame = create<GameStore>((set, get) => ({
  * она продолжается с того же места. Боты пересоздаются по имени кресла.
  */
 const SAVE_KEY = 'vampire-game-save';
+
+/** Страница открыта по ссылке-приглашению (онлайн-гость). */
+function isGuestPage(): boolean {
+  return typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('join');
+}
 const SAVE_HISTORY = 40;
 
 try {
@@ -258,13 +336,20 @@ try {
   if (raw) {
     const saved = JSON.parse(raw) as Pick<
       GameStore,
-      'state' | 'seats' | 'log' | 'history' | 'combatReports' | 'revealed'
+      'state' | 'seats' | 'log' | 'history' | 'combatReports' | 'revealed' | 'hostRoom'
     >;
-    if (saved.state) {
+    // Гость по ссылке не подхватывает своё сохранение: его партия — у хоста.
+    if (saved.state && !isGuestPage()) {
       const bots = saved.seats.map((seat, i) =>
         seat === 'human' ? null : (BOT_FACTORIES[seat]?.(saved.state!.round * 31 + i) ?? null),
       );
-      useGame.setState({ ...saved, bots, error: null, lastMove: null });
+      useGame.setState({
+        ...saved,
+        hostRoom: saved.hostRoom ?? null,
+        bots,
+        error: null,
+        lastMove: null,
+      });
     }
   }
 } catch {
@@ -273,15 +358,26 @@ try {
 
 useGame.subscribe((s) => {
   try {
+    // Гость не сохраняет и не стирает сохранение: его партия — у хоста (и сохранение этого
+    // браузера может принадлежать вкладке хоста).
+    if (s.guest || isGuestPage()) return;
     if (!s.state) {
       localStorage.removeItem(SAVE_KEY);
       return;
     }
-    const { state, seats, log, combatReports, revealed } = s;
+    const { state, seats, log, combatReports, revealed, hostRoom } = s;
     const history = s.history.slice(-SAVE_HISTORY);
     localStorage.setItem(
       SAVE_KEY,
-      JSON.stringify({ state, seats, log, history, combatReports, revealed }),
+      JSON.stringify({
+        state,
+        seats,
+        log,
+        history,
+        combatReports,
+        revealed,
+        hostRoom: hostRoom ?? null,
+      }),
     );
   } catch {
     // Нет места или нет доступа — играем без сохранения.

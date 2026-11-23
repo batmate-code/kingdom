@@ -1,3 +1,4 @@
+import { seatLabel } from './labels';
 import type { GameState, PlayerScore } from '@vampire/core';
 import { useEffect } from 'react';
 import { PLAYER_COLORS } from './Board';
@@ -66,7 +67,7 @@ export function RoundModal({
                 <span className={styles.name}>
                   Игрок {s.player + 1}
                   <span className={styles.seat}>
-                    {s.player === viewer ? ' · вы' : seats[s.player] !== 'human' ? ' · бот' : ''}
+                    {s.player === viewer ? ' · вы' : seatLabel(seats[s.player])}
                   </span>
                 </span>
                 <span className={styles.breakdown} title="Из чего сложились очки">

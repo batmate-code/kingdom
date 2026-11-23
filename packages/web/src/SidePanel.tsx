@@ -18,7 +18,7 @@ import { PLAYER_COLORS, Token } from './Board';
 import { BuildingGlyph } from './board/BoardSvg';
 import { profStyle } from './colors';
 import { Icon, RichText } from './Icon';
-import { locName, regionName } from './labels';
+import { locName, regionName, seatLabel } from './labels';
 import { useState } from 'react';
 import abbeyImg from './assets/buildings/abbey.png';
 import citadelImg from './assets/buildings/citadel.png';
@@ -321,9 +321,7 @@ function PlayerCard({
         </span>
         <b className={styles.name}>
           Игрок {player + 1}
-          <span className={styles.seat}>
-            {isViewer ? ' · вы' : seat !== 'human' ? ' · бот' : ''}
-          </span>
+          <span className={styles.seat}>{isViewer ? ' · вы' : seatLabel(seat)}</span>
         </b>
         {obs.firstPlayer === player && (
           <span className={styles.first} title="Первый игрок в этом раунде">
@@ -431,7 +429,7 @@ export function PlayersPanel({
               className={`${styles.tab} ${i === player ? styles.tabActive : ''}`}
               style={{ borderColor: color, ...(i === player ? { background: color } : {}) }}
               onClick={() => setPicked(i === viewer ? null : i)}
-              title={`Игрок ${i + 1}${i === viewer ? ' (вы)' : seats[i] !== 'human' ? ' (бот)' : ''}${turn ? ' — сейчас ходит' : ''}`}
+              title={`Игрок ${i + 1}${i === viewer ? ' (вы)' : seats[i] === 'guest' ? ' (гость)' : seats[i] === 'human' || seats[i] === 'remote' ? '' : ' (бот)'}${turn ? ' — сейчас ходит' : ''}`}
             >
               {turn && <span className={styles.turnMark}>▶</span>}
               Игрок {i + 1}

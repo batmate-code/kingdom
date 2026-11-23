@@ -17,7 +17,8 @@ import { screenView, targetHint } from './view';
 import { TurnToast } from './TurnToast';
 import { HandPanel, PlayersPanel } from './SidePanel';
 import { playerName } from './labels';
-import { useGame, type Seat } from './store';
+import { useGame, type HostRoom, type Seat } from './store';
+import { inviteFromUrl, inviteUrl, joinAsGuest, useOnline } from './online/connect';
 
 /** Экспериментальные и прежние правила (переключатели ядра, отличные от значений по умолчанию). */
 const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = [
@@ -33,9 +34,14 @@ const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = [
   },
 ];
 
-const BOT_OPTIONS = ['human', ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal')];
+const BOT_OPTIONS = [
+  'human',
+  'guest',
+  ...Object.keys(BOT_FACTORIES).filter((b) => b !== 'first-legal'),
+];
 const SEAT_NAME: Record<string, string> = {
   human: 'Человек',
+  guest: 'Гость по ссылке',
   heuristic: 'Умный бот',
   random: 'Случайный бот',
   'random-grouped': 'Случайный бот (по ступеням)',
@@ -99,9 +105,24 @@ function Setup() {
 }
 
 function Game() {
-  const { state, seats, log, error, botStep, reset, act, undo, history, lastMove, combatReports } =
-    useGame();
-  const canUndo = history.some((h) => h.byHuman);
+  const {
+    state,
+    seats,
+    log,
+    error,
+    botStep,
+    reset,
+    act,
+    undo,
+    canUndo: undoable,
+    history,
+    lastMove,
+    combatReports,
+    hostRoom,
+    guest,
+  } = useGame();
+  // history в зависимостях: кнопка отмены пересчитывается после каждого хода.
+  const canUndo = history.length > 0 && undoable();
   const [delay, setDelay] = useState(400);
   const [paused, setPaused] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -160,6 +181,7 @@ function Game() {
     seats,
     selected,
     focus,
+    guest ? { viewer: guest.seat, legal: guest.legal } : null,
   );
   const hasTargets = Object.keys(slots).length + Object.keys(plots).length > 0;
   const targets: BoardTargets | undefined = hasTargets
@@ -185,6 +207,8 @@ function Game() {
         </span>
         <span>Колода: {obs.deckSize}</span>
         <span className={styles.spacer} />
+        {hostRoom && <InvitePanel room={hostRoom} />}
+        {guest && <GuestStatus />}
         <label>
           Скорость ботов{' '}
           <select value={delay} onChange={(e) => setDelay(Number(e.target.value))}>
@@ -201,7 +225,15 @@ function Game() {
         >
           ↶ Отменить ход
         </button>
-        <button onClick={reset}>Новая партия</button>
+        <button
+          onClick={() => {
+            reset();
+            // Гость уходит из комнаты на экран настройки.
+            if (guest) window.location.search = '';
+          }}
+        >
+          {guest ? 'Выйти' : 'Новая партия'}
+        </button>
       </header>
       <main className={styles.boardArea}>
         <BoardSvg obs={obs} landscape targets={targets} lastMove={lastMove} strengths={strengths} />
@@ -316,7 +348,14 @@ export function App() {
 
 function Play() {
   const started = useGame((s) => s.state !== null);
+  const invite = inviteFromUrl(window.location.search);
   useEffect(() => {
+    // Ссылка не меняется без перезагрузки страницы — читаем её здесь же.
+    const link = inviteFromUrl(window.location.search);
+    if (link) {
+      joinAsGuest(link.room, link.key);
+      return;
+    }
     const seed = autostartSeed();
     if (seed !== null && !useGame.getState().state) {
       // ?rule=draftSize=players — переключатели правил (можно несколько).
@@ -326,5 +365,68 @@ function Play() {
       useGame.getState().start(['human', 'heuristic', 'heuristic'], seed, rules);
     }
   }, []);
-  return <div className={styles.app}>{started ? <Game /> : <Setup />}</div>;
+  return <div className={styles.app}>{started ? <Game /> : invite ? <Joining /> : <Setup />}</div>;
+}
+
+/** Хост: ссылки-приглашения для кресел гостей и кто из них в сети. */
+function InvitePanel({ room }: { room: HostRoom }) {
+  const connected = useOnline((s) => s.connected);
+  const busy = useOnline((s) => s.hostBusy);
+  const [copied, setCopied] = useState<number | null>(null);
+  if (busy) {
+    return <span className={styles.invites}>Комнату держит другая вкладка этого браузера</span>;
+  }
+  return (
+    <span className={styles.invites}>
+      {room.invites.map(({ seat, key }) => (
+        <button
+          key={seat}
+          title="Скопировать ссылку-приглашение"
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(inviteUrl(room.room, key))
+              .then(() => setCopied(seat));
+          }}
+        >
+          <span
+            className={styles.dot}
+            style={{
+              background: PLAYER_COLORS[seat],
+              opacity: connected.includes(seat) ? 1 : 0.35,
+            }}
+          />{' '}
+          {playerName(seat)}: {connected.includes(seat) ? 'в сети' : 'не в сети'}
+          {copied === seat ? ' — ссылка скопирована' : ' — пригласить'}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/** Гость: состояние связи с хостом. */
+function GuestStatus() {
+  const { guestLink, rejectMessage } = useOnline();
+  return (
+    <span className={styles.invites}>
+      {rejectMessage ??
+        (guestLink === 'online' ? 'Онлайн: связь с хостом есть' : 'Связь с хостом потеряна')}
+    </span>
+  );
+}
+
+/** Гость открыл ссылку: ждём первый снимок от хоста. */
+function Joining() {
+  const { guestLink, rejectMessage } = useOnline();
+  return (
+    <section className={styles.setup}>
+      <h1>Вампирская игра</h1>
+      <p>
+        {rejectMessage ??
+          (guestLink === 'reconnecting'
+            ? 'Хост недоступен — переподключение…'
+            : 'Подключение к хосту… Хост должен держать партию открытой во вкладке.')}
+      </p>
+      <button onClick={() => (window.location.search = '')}>На экран настройки</button>
+    </section>
+  );
 }

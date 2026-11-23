@@ -1,6 +1,7 @@
 import { Component, StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { closeOnPageHide, watchHosting } from './online/connect';
 import { useGame } from './store';
 
 /** Ошибка интерфейса — текст на экране вместо белой страницы. */
@@ -45,6 +46,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     );
   }
 }
+
+// Онлайн: хост поднимает комнату, если в партии есть гости.
+watchHosting();
+closeOnPageHide();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Не найден элемент #root');

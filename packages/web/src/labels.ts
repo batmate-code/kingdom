@@ -10,3 +10,9 @@ export {
   resText,
   workerLabel,
 } from '@vampire/core';
+
+/** Подпись кресла соперника: бот или гость по ссылке (онлайн); у людей за этим экраном — пусто. */
+export function seatLabel(seat: string | undefined): string {
+  if (seat === undefined || seat === 'human' || seat === 'remote') return '';
+  return seat === 'guest' ? ' · гость' : ' · бот';
+}
