@@ -80,7 +80,7 @@ describe('Аудит этапа 5: размещение и вытеснение'
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     s = act(s, { type: 'executioner', target: 'p1w0' });
     expect(worker(s, 'p1w0')?.position.kind).toBe('hospital');
-    expect(res(s, 1).compromat).toBe(1 + 1); // 1 от Палача (автор, 23.11) + компромат Доносчика
+    expect(res(s, 1).compromat).toBe(1 + CHARACTER_PARAMS.snitch.compromat); // 1 от Палача (автор, 23.11) + компромат Доносчика
     expect(res(s, 0).gold).toBe(2 + 3 + 2); // Рудник + Мародёр
     expect(res(s, 2).blood).toBe(2); // Аббатство
     expect(s.locations.witchCircle.slot2Locked).toBe(false);

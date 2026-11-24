@@ -13,6 +13,8 @@ export interface PlayerScore {
   influenceVp: number;
   /** ПО за жетоны первенства. */
   firstVp: number;
+  /** Постоянные ПО Шпиля (эксперимент influenceModel=reverse). */
+  spireVp: number;
   prestige: number;
   /** Место после тай-брейка: 1 — победитель; при полной ничьей места совпадают. */
   rank: number;
@@ -41,10 +43,12 @@ export function getScores(state: GameState): PlayerScore[] {
     const firstVp = REGION_ORDER.filter((r) => state.firstToMax[r] === player).length;
     return {
       player,
-      vp: prestigeVp + influenceVp + firstVp,
+      // Постоянные ПО Шпиля (эксперимент influenceModel=reverse).
+      vp: prestigeVp + influenceVp + firstVp + p.bonusVp,
       prestigeVp,
       influenceVp,
       firstVp,
+      spireVp: p.bonusVp,
       prestige: p.prestige,
       rank: 0,
     };

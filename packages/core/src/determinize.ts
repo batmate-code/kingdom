@@ -31,8 +31,10 @@ export function determinize(obs: Observation, seed: number): GameState {
   const combat = obs.combat && {
     region: obs.combat.region,
     revealed: obs.combat.revealed,
-    plays: obs.combat.plays.map(({ player, token }) => {
-      if (token !== null) return { player, token };
+    plays: obs.combat.plays.map(({ player, token, influenceLoss }) => {
+      if (token !== null) {
+        return { player, token, ...(influenceLoss !== undefined ? { influenceLoss } : {}) };
+      }
       const hand = obs.players[player]?.combatTokens.hand;
       const pool = COMBAT_TOKEN_ORDER.flatMap((t) =>
         Array.from({ length: hand?.[t] ?? 0 }, () => t),

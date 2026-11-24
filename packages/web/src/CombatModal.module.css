@@ -275,3 +275,12 @@
 .state {
   line-height: 1;
 }
+
+/* Приманка (эксперимент): кнопки выбора потери влияния. */
+.lossRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 4px;
+}

@@ -4,6 +4,7 @@ import {
   MASS_WEAK_BLOOD_TO_GOLD_PENALTY,
   REGION_ORDER,
   TRACKS,
+  type Resources,
   type SlotAction,
 } from '@vampire/data';
 import { distinctWorkers, getWorker } from './board';
@@ -74,6 +75,38 @@ function canBuyBuildRight(state: GameState, player: PlayerId, compromat: number)
 function buyBuildRight(c: Ctx, player: PlayerId, compromat: number): void {
   changeResources(c, player, { compromat: -compromat }, 'chancery');
   c.draft.tasks.unshift({ t: 'askBuild', player, source: { kind: 'chancery' } });
+}
+
+type ChanceryAction = SlotActionOf<'chancery'>;
+
+/** Изменение ресурсов от одной конверсии Канцелярии. */
+function conversionDelta(action: ChanceryAction, conv: ChanceryConversion): Partial<Resources> {
+  return conv.to === 'ore'
+    ? { compromat: -action.conversionCost, ore: action.ore }
+    : { compromat: -action.conversionCost, gold: conv.gold, blood: conv.blood };
+}
+
+/** Право стройки после конверсий: хватает компромата и (OQ-29) есть что строить с новыми ресурсами. */
+function canAffordBuildRightAfter(
+  state: GameState,
+  player: PlayerId,
+  action: ChanceryAction,
+  conversions: readonly ChanceryConversion[],
+): boolean {
+  if (conversions.length === 0) return canBuyBuildRight(state, player, action.buildRightCost);
+  const r = { ...res(state, player) };
+  for (const conv of conversions) {
+    for (const [k, v] of Object.entries(conversionDelta(action, conv)) as [
+      keyof Resources,
+      number,
+    ][])
+      r[k] += v;
+  }
+  const after: GameState = {
+    ...state,
+    players: state.players.map((p, i) => (i === player ? { ...p, resources: r } : p)),
+  };
+  return canBuyBuildRight(after, player, action.buildRightCost);
 }
 
 /** Курс Мессы: сколько получаешь за единицу (кровь → золото ослаблена переключателем massBloodToGold). */
@@ -151,6 +184,17 @@ const HANDLERS: HandlerRegistry = {
     },
   },
 
+  powerToken: {
+    mandatory: false,
+    options: () => REGION_ORDER.map((region): LocationChoice => ({ kind: 'powerToken', region })),
+    apply(c, player, _ctx, action, choice) {
+      if (choice.kind !== 'powerToken') mismatch(choice);
+      const t = c.draft.powerTokens.find((x) => x.owner === player && x.region === choice.region);
+      if (t) t.count += action.count;
+      else c.draft.powerTokens.push({ owner: player, region: choice.region, count: action.count });
+    },
+  },
+
   market: {
     mandatory: false,
     options(state, player, _ctx, action) {
@@ -198,7 +242,8 @@ const HANDLERS: HandlerRegistry = {
 
   chancery: {
     mandatory: false,
-    // (А) конверсии компромата или (Б) компромат → право стройки.
+    // До maxActions действий (автор 23.11): обмены компромата повторяются, право стройки — один раз
+    // и последним, после обменов (OQ-47).
     options(state, player, _ctx, action) {
       const kinds: ChanceryConversion[] = [
         ...goldBloodSplits(action.goldBlood).map((s): ChanceryConversion => ({
@@ -208,20 +253,27 @@ const HANDLERS: HandlerRegistry = {
         })),
         { to: 'ore' },
       ];
-      const maxCount = Math.min(
-        action.maxTimes,
-        Math.floor(res(state, player).compromat / action.conversionCost),
-      );
+      const compromat = res(state, player).compromat;
+      const maxCount = Math.min(action.maxActions, Math.floor(compromat / action.conversionCost));
       const out: LocationChoice[] = [];
-      // Мультимножества конверсий размером 1..maxCount (индексы по неубыванию — без повторов).
+      // Мультимножества конверсий размером 0..maxCount (индексы по неубыванию — без повторов).
       const build = (start: number, acc: ChanceryConversion[]) => {
         if (acc.length > 0) out.push({ kind: 'chancery', conversions: [...acc] });
+        if (
+          acc.length < action.maxActions &&
+          canAffordBuildRightAfter(state, player, action, acc)
+        ) {
+          out.push(
+            acc.length === 0
+              ? { kind: 'buildRight' }
+              : { kind: 'chancery', conversions: [...acc], buildRight: true },
+          );
+        }
         if (acc.length === maxCount) return;
         for (let i = start; i < kinds.length; i++)
           build(i, [...acc, kinds[i] as ChanceryConversion]);
       };
       build(0, []);
-      if (canBuyBuildRight(state, player, action.buildRightCost)) out.push({ kind: 'buildRight' });
       return out;
     },
     apply(c, player, _ctx, action, choice) {
@@ -231,22 +283,9 @@ const HANDLERS: HandlerRegistry = {
       }
       if (choice.kind !== 'chancery') mismatch(choice);
       for (const conv of choice.conversions) {
-        if (conv.to === 'ore') {
-          changeResources(
-            c,
-            player,
-            { compromat: -action.conversionCost, ore: action.ore },
-            'chancery',
-          );
-        } else {
-          changeResources(
-            c,
-            player,
-            { compromat: -action.conversionCost, gold: conv.gold, blood: conv.blood },
-            'chancery',
-          );
-        }
+        changeResources(c, player, conversionDelta(action, conv), 'chancery');
       }
+      if (choice.buildRight) buyBuildRight(c, player, action.buildRightCost);
     },
   },
 
@@ -359,8 +398,9 @@ const HANDLERS: HandlerRegistry = {
     mandatory: false,
     options(state) {
       const out: LocationChoice[] = [];
-      for (const character of state.offer.characters) {
-        for (const profession of state.offer.professions) {
+      // Копии карт в пуле (колода добирается повторами) — один вариант на одинаковую пару.
+      for (const character of new Set(state.offer.characters)) {
+        for (const profession of new Set(state.offer.professions)) {
           out.push({ kind: 'tavernSwap', character, profession });
         }
       }
@@ -384,6 +424,7 @@ const HANDLERS: HandlerRegistry = {
         offer.professions.splice(pi, 1);
       }
       worker.character = choice.character;
+      delete worker.garrison;
       worker.profession = choice.profession;
       // Ресурсы с карты старого персонажа (Доносчик, Рудный барон) уходят в банк (OQ-40, автор).
       c.draft.cardStash = c.draft.cardStash.filter((s) => s.workerId !== worker.id);
@@ -405,15 +446,18 @@ const HANDLERS: HandlerRegistry = {
       const out: LocationChoice[] = [];
       action.offers.forEach((offer, index) => {
         for (const v of paymentVariants(state, player, { ore: offer.ore })) {
-          for (const region of REGION_ORDER) {
+          const open = REGION_ORDER.filter(
             // OQ-5: обмен в регионе с полным треком.
-            const full = p.influence[region] >= TRACKS[region].max;
-            if (full && !state.config.rules.cityHallAllowsFullTrack) continue;
-            out.push(
-              v.alchemy
-                ? { kind: 'cityHall', offer: index, region, alchemy: true }
-                : { kind: 'cityHall', offer: index, region },
-            );
+            (r) => state.config.rules.cityHallAllowsFullTrack || p.influence[r] < TRACKS[r].max,
+          );
+          const alchemy = v.alchemy ? ({ alchemy: true } as const) : {};
+          for (const region of open) {
+            out.push({ kind: 'cityHall', offer: index, region, ...alchemy });
+            // Автор 24.11: обмен на 2 влияния можно разделить между двумя регионами.
+            if (offer.influence < 2) continue;
+            for (const split of open.slice(open.indexOf(region) + 1)) {
+              out.push({ kind: 'cityHall', offer: index, region, split, ...alchemy });
+            }
           }
         }
       });
@@ -425,7 +469,10 @@ const HANDLERS: HandlerRegistry = {
       if (!offer) throw new Error(`Нет обмена ${choice.offer} в Ратуше`);
       const cost = { ore: offer.ore };
       payMaybeAlchemy(c, player, cost, choice.alchemy, 'cityHall');
-      changeInfluence(c, player, choice.region, offer.influence, 'cityHall');
+      if (choice.split) {
+        changeInfluence(c, player, choice.region, offer.influence - 1, 'cityHall');
+        changeInfluence(c, player, choice.split, 1, 'cityHall');
+      } else changeInfluence(c, player, choice.region, offer.influence, 'cityHall');
     },
   },
 };

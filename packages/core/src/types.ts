@@ -26,6 +26,8 @@ export interface Worker {
   profession: ProfessionId | null;
   character: CharacterId | null;
   position: Position;
+  /** Наёмник: жетоны силы на карте (копятся между раундами; уходят вместе с персонажем). */
+  garrison?: number;
 }
 
 export interface PlayerState {
@@ -42,8 +44,15 @@ export interface PlayerState {
    * остаётся в руке до вскрытия, иначе рука выдала бы его.
    */
   combatTokens: { hand: Record<CombatTokenId, number>; discard: Record<CombatTokenId, number> };
-  /** Полученные бонусы позиций треков (переключатель trackBoosts): ключи «регион-позиция». */
+  /**
+   * Полученные бонусы позиций треков (переключатель trackBoosts) и награды отметок отрицательного
+   * трека (influenceModel=reverse): ключи «регион-позиция», например `forest-2`, `forest--3`.
+   */
   trackBoostsTaken: string[];
+  /** Постоянные ПО (Шпиль, influenceModel=reverse). */
+  bonusVp: number;
+  /** Постоянная сила в боях региона — награда отметки −3 (influenceModel=reverse). */
+  undergroundStrength: Record<RegionId, number>;
 }
 
 /** Постройка. Цитадель стоит на звезде региона (plot = null), остальные — на участке. */
@@ -80,12 +89,20 @@ export type BuildSource =
   | { kind: 'reward'; region: RegionId }
   /** Ренегат: право стройки в регионе его локации. */
   | { kind: 'renegade'; region: RegionId }
-  | { kind: 'architect'; workerId: string };
+  | { kind: 'architect'; workerId: string }
+  /** Отметка −2 отрицательного трека (influenceModel=reverse): стройка в этом регионе. */
+  | { kind: 'underground'; region: RegionId }
+  /** Отметка −4 (influenceModel=reverse): право построить Обелиск в этом регионе. */
+  | { kind: 'obelisk'; region: RegionId }
+  /** Подрядчик: право стройки в регионе его локации. */
+  | { kind: 'contractor'; region: RegionId };
 
 /** Жетон боя, положенный игроком в закрытую. Игрок без жетонов в руке ничего не кладёт. */
 export interface CombatPlay {
   player: PlayerId;
   token: CombatTokenId;
+  /** Приманка (influenceModel=reverse): сколько влияния игрок теряет при вскрытии. */
+  influenceLoss?: number;
 }
 
 /** Текущий бой: кто какой жетон положил. До вскрытия жетоны соперников скрыты. */
@@ -143,7 +160,9 @@ export type Decision =
   /** Построить здание (или отказаться) по праву стройки. */
   | { kind: 'build'; player: PlayerId; source: BuildSource }
   /** Отступление: выбрать регион, где боя ещё не было. */
-  | { kind: 'retreat'; player: PlayerId; region: RegionId };
+  | { kind: 'retreat'; player: PlayerId; region: RegionId }
+  /** Наёмник: перед боем региона выложить жетоны силы с карты (или придержать). */
+  | { kind: 'garrison'; player: PlayerId; region: RegionId };
 
 /** Эффект размещения: персонаж, действие локации, профессия. */
 export type EffectStep = 'character' | 'location' | 'profession';
@@ -161,6 +180,7 @@ export type Task =
   | { t: 'askCombatToken'; player: PlayerId; region: RegionId }
   | { t: 'revealCombat'; region: RegionId }
   | { t: 'askRetreat'; player: PlayerId; region: RegionId }
+  | { t: 'askGarrison'; player: PlayerId; region: RegionId }
   | { t: 'combatOutcome'; region: RegionId }
   | { t: 'askBuild'; player: PlayerId; source: BuildSource }
   /** Эффект персонажа размещённого рабочего (до действия локации). */
@@ -204,10 +224,13 @@ export type LocationChoice =
   | { kind: 'gain' }
   | { kind: 'lairStash'; exchanges: number }
   | { kind: 'mass'; from: 'gold' | 'blood'; times: number }
+  | { kind: 'powerToken'; region: RegionId }
   | { kind: 'marketBuy'; pay: GoldBlood }
   | { kind: 'marketSell'; receive: GoldBlood; alchemy?: true }
-  | { kind: 'chancery'; conversions: ChanceryConversion[] }
-  | { kind: 'cityHall'; offer: number; region: RegionId; alchemy?: true }
+  /** Канцелярия: обмены компромата и, если buildRight, затем право стройки. */
+  | { kind: 'chancery'; conversions: ChanceryConversion[]; buildRight?: true }
+  /** Ратуша; `split` — второе влияние обмена на 2 в другой регион (автор 24.11). */
+  | { kind: 'cityHall'; offer: number; region: RegionId; split?: RegionId; alchemy?: true }
   | { kind: 'copy'; location: LocationId; slot: SlotIndex }
   | { kind: 'revive'; workerId: string; alchemy?: true }
   | { kind: 'commissariat'; region: RegionId }
@@ -232,7 +255,9 @@ export type CharacterChoice =
       displace: boolean;
     }
   | { kind: 'gravedigger'; workerIds: string[] }
-  | { kind: 'tactician'; workerId: string };
+  | { kind: 'tactician'; workerId: string }
+  /** Перевёртыш: эффект персонажа соперника (и выбор внутри него, если нужен). */
+  | { kind: 'shapeshifter'; character: CharacterId; inner?: CharacterChoice };
 
 export type DraftPick =
   { kind: 'character'; character: CharacterId } | { kind: 'profession'; profession: ProfessionId };
@@ -243,7 +268,8 @@ export type Action =
   | { type: 'place'; workerId: string; location: LocationId; slot: SlotIndex; displace: boolean }
   | { type: 'pass' }
   | { type: 'locationAction'; choice: LocationChoice }
-  | { type: 'combatReward'; choice: 'influence' | 'build' }
+  /** Награда за бой; 'vp' — постоянное ПО вместо награды (Шпиль, influenceModel=reverse). */
+  | { type: 'combatReward'; choice: 'influence' | 'build' | 'vp' }
   | { type: 'build'; choice: BuildChoice | null }
   | { type: 'character'; choice: CharacterChoice }
   | { type: 'effectOrder'; effect: EffectStep }
@@ -253,8 +279,10 @@ export type Action =
   | { type: 'executioner'; target: string | null }
   /** Шпион перед боем: в свободный слот `slot` локации `location` региона `region` (автор 23.11) или остаться. */
   | { type: 'spyMove'; region: RegionId | null; location?: LocationId; slot?: SlotIndex }
-  | { type: 'combatToken'; token: CombatTokenId }
-  | { type: 'retreat'; to: RegionId };
+  | { type: 'combatToken'; token: CombatTokenId; influenceLoss?: number }
+  | { type: 'retreat'; to: RegionId }
+  /** Наёмник: выложить жетоны с карты в бой региона. */
+  | { type: 'garrison'; deploy: boolean };
 
 /** Причина изменения ресурсов (для журнала и статистики). */
 export type ResourceReason =
@@ -279,7 +307,9 @@ export type ResourceReason =
   | 'character'
   | 'snitch'
   | 'oreBaron'
-  | 'trackBoost';
+  | 'trackBoost'
+  | 'underground'
+  | 'obelisk';
 
 /** Откуда изменение влияния (для журнала и статистики). */
 export type InfluenceReason =
@@ -291,7 +321,10 @@ export type InfluenceReason =
   | 'manipulator'
   | 'renegade'
   | 'blackmailer'
-  | 'patron';
+  | 'patron'
+  | 'decoy'
+  | 'retreat'
+  | 'obelisk';
 
 /** Откуда престиж: постройка или сохранённый персонаж в конце игры. */
 export type PrestigeReason = 'building' | 'character' | 'effect';
@@ -314,6 +347,12 @@ export type GameEvent =
     }
   | { type: 'cityEntryPaid'; player: PlayerId; price: Partial<Resources> }
   | { type: 'trackBoost'; player: PlayerId; region: RegionId; at: number }
+  /** Награда отметки отрицательного трека (influenceModel=reverse). */
+  | { type: 'undergroundMark'; player: PlayerId; region: RegionId; at: number }
+  /** Наёмник: жетоны силы с карты выложены в бой региона. */
+  | { type: 'garrisonDeployed'; player: PlayerId; region: RegionId; count: number }
+  /** Шпиль: победитель взял постоянное ПО вместо награды. */
+  | { type: 'spireVp'; player: PlayerId; region: RegionId; vp: number }
   | {
       type: 'workerDisplaced';
       by: PlayerId;
@@ -479,7 +518,7 @@ export interface Observation {
   combat: {
     region: RegionId;
     revealed: boolean;
-    plays: { player: PlayerId; token: CombatTokenId | null }[];
+    plays: { player: PlayerId; token: CombatTokenId | null; influenceLoss?: number }[];
   } | null;
   combatWinners: GameState['combatWinners'];
   cardStash: CardStash[];

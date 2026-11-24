@@ -1,19 +1,20 @@
-/** Правило автора 23.11: доплата за участок между Таверной и Рынком — 2 золота/крови на выбор. */
+/**
+ * Доплата участка на выбор игрока (PLOT_SURCHARGE_CHOICES). Выбор у Таверны–Рынка автор отменил
+ * 23.11 (п. 22), механизм остаётся для экспериментов.
+ */
 import { PLOT_SURCHARGE_CHOICES } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
-import { buildCost } from './buildings';
+import { buildCost, plotSurcharge } from './buildings';
 import { newGame } from './testing';
 
-describe('Участок Таверна–Рынок: доплата на выбор (автор, 23.11)', () => {
-  it('Здания: три варианта доплаты — 2 золота, 1+1, 2 крови', () => {
-    expect(PLOT_SURCHARGE_CHOICES['valley-market-tavern']).toEqual([
-      { gold: 2 },
-      { gold: 1, blood: 1 },
-      { blood: 2 },
-    ]);
+describe('Доплата участка на выбор', () => {
+  it('Таверна–Рынок (автор 23.11, п. 22): выбора нет, доплата — руда', () => {
+    expect(PLOT_SURCHARGE_CHOICES['valley-market-tavern']).toBeUndefined();
+    const s = newGame({ rules: { plotSurcharge: 'ore' } });
+    expect(plotSurcharge(s, 'valley-market-tavern')).toEqual({ ore: 1 });
   });
 
-  it('Здания: выбранная доплата добавляется к цене здания вместо руды', () => {
+  it('Здания: выбранная доплата добавляется к цене здания вместо доплаты по правилу', () => {
     const s = newGame();
     const base = buildCost(s, { building: 'crypt', region: 'valley', plot: null });
     const cost = buildCost(s, {

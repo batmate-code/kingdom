@@ -1,6 +1,6 @@
 import type { Phase } from '@vampire/core';
 import { useEffect, useRef, useState } from 'react';
-import { PLAYER_COLORS } from './Board';
+import { PLAYER_COLORS } from './players';
 import styles from './TurnToast.module.css';
 
 const PHASE_LABEL: Partial<Record<Phase, string>> = {

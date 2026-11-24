@@ -87,7 +87,27 @@ export function screenView(
       })?.workerId
     : undefined;
   const usable = selectedWorker ? placements.filter((a) => a.workerId === actingId) : placements;
-  const slots = groupBy(usable, (a) => (a.type === 'place' ? `${a.location}:${a.slot}` : null));
+  // Палач: цель — слот, где стоит рабочий-жертва (автор 24.11: выбор кликом по полю).
+  const victimSlot = (id: string) => {
+    const p = obs.workers.find((w) => w.id === id)?.position;
+    return p?.kind === 'slot' ? `${p.location}:${p.slot}` : null;
+  };
+  const slots = groupBy(
+    [
+      ...usable,
+      ...legal.filter((a) => a.type === 'spyMove' && a.location),
+      ...legal.filter((a) => a.type === 'executioner' && a.target),
+    ],
+    (a) =>
+      a.type === 'place'
+        ? `${a.location}:${a.slot}`
+        : // Шпион перед боем переходит кликом по слоту на поле, как при выставлении (автор 24.11).
+          a.type === 'spyMove' && a.location
+          ? `${a.location}:${a.slot ?? 1}`
+          : a.type === 'executioner' && a.target
+            ? victimSlot(a.target)
+            : null,
+  );
   const plots = groupBy(legal, (a) =>
     a.type === 'build' && a.choice ? (a.choice.plot ?? `citadel:${a.choice.region}`) : null,
   );
@@ -109,6 +129,8 @@ export function screenView(
         a.type !== 'place' &&
         a.type !== 'draftPick' &&
         a.type !== 'combatToken' &&
+        !(a.type === 'spyMove' && a.location) &&
+        !(a.type === 'executioner' && a.target) &&
         !(a.type === 'build' && a.choice),
     );
 

@@ -34,6 +34,13 @@ function agentGames(): Plugin {
   };
 }
 
+/** Метка сборки для онлайна: хост и гость должны играть одной сборкой (online/protocol.ts). */
+const BUILD_ID = Date.now().toString(36);
+
 export default defineConfig({
   plugins: [react(), agentGames()],
+  define: { 'import.meta.env.VITE_BUILD_ID': JSON.stringify(BUILD_ID) },
+  // Онлайн-проверка с другом: собранная версия (`vite preview`) через временный https-туннель
+  // Cloudflare (адрес *.trycloudflare.com). Dev-сервер наружу не открываем.
+  preview: { allowedHosts: ['.trycloudflare.com'] },
 });

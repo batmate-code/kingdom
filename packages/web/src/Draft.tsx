@@ -7,7 +7,7 @@ import {
   type CharacterId,
   type ProfessionId,
 } from '@vampire/data';
-import { cardUrl } from './cards';
+import { CharacterCard } from './CharacterCard';
 import { profStyle } from './colors';
 import styles from './Draft.module.css';
 import { playerName } from './labels';
@@ -68,7 +68,7 @@ export function Draft({
         onClick={() => action && onPick(action)}
         title={`${c.name}: ${c.text} (содержание ${c.upkeep})${takenBy !== null ? ` — взял ${playerName(takenBy)}` : ''}`}
       >
-        <img src={cardUrl(id)} alt={c.name} />
+        <CharacterCard id={id} size="lg" />
         {takenBy !== null && <span className={styles.takenBy}>{playerName(takenBy)}</span>}
       </button>
     );

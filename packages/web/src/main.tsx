@@ -1,7 +1,9 @@
 import { Component, StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { CardsPreview } from './CardsPreview';
 import { closeOnPageHide, watchHosting } from './online/connect';
+import { inviteFrom } from './online/invite';
 import { useGame } from './store';
 
 /** Ошибка интерфейса — текст на экране вместо белой страницы. */
@@ -50,6 +52,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 // Онлайн: хост поднимает комнату, если в партии есть гости.
 watchHosting();
 closeOnPageHide();
+// Ссылку-приглашение вставили во вкладку с открытой игрой: меняется только фрагмент (#), страница
+// сама не перезагружается — перезагрузим, чтобы войти гостем.
+window.addEventListener('hashchange', () => {
+  if (inviteFrom(window.location)) window.location.reload();
+});
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Не найден элемент #root');
@@ -57,7 +64,8 @@ if (!root) throw new Error('Не найден элемент #root');
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {/* ?cards — согласование вёрстки карт персонажей. */}
+      {new URLSearchParams(window.location.search).has('cards') ? <CardsPreview /> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 );

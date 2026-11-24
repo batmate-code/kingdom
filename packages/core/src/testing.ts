@@ -16,10 +16,9 @@ export function newGame(
   opts: { withDraft?: boolean } = {},
 ): GameState {
   // Сценарии писались при случайном первом игроке (seed задаёт, кто ходит первым), входе в Город
-  // за золото, без бонусов треков, с картонной доплатой участков, прежней Мессой и Цитаделью —
-  // сохраняем; новые правила
-  // проверяются отдельными тестами.
-  const s = createGame(
+  // за золото, без бонусов треков, с картонной доплатой участков, прежней Мессой и Цитаделью,
+  // со стартом без крови (до 24.11) — сохраняем; новые правила проверяются отдельными тестами.
+  const created = createGame(
     {
       ...config,
       rules: {
@@ -29,11 +28,15 @@ export function newGame(
         plotSurcharge: 'base',
         massBloodToGold: 'base',
         citadelCost: 'base',
+        disabledCharacters: false,
         ...config.rules,
       },
     },
     seed,
   );
+  const s = produce(created, (d) => {
+    for (const p of d.players) p.resources.blood = 0;
+  });
   return opts.withDraft ? s : skipDraft(s);
 }
 

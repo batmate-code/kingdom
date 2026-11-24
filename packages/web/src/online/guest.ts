@@ -1,5 +1,6 @@
 import type { Action, GameEvent, Observation } from '@vampire/core';
 import {
+  BUILD_ID,
   HEARTBEAT_MS,
   HELLO_RETRY_MS,
   LINK_TIMEOUT_MS,
@@ -7,6 +8,7 @@ import {
   PROTOCOL_VERSION,
   type GuestMessage,
   type RejectReason,
+  type UndoVote,
 } from './protocol';
 import type { Link } from './transport';
 
@@ -16,6 +18,8 @@ export interface GuestView {
   seat: number;
   observation: Observation;
   legal: Action[];
+  canUndo: boolean;
+  undoVote: UndoVote | null;
 }
 
 export interface GuestOptions {
@@ -36,6 +40,10 @@ export interface GuestSession {
   view(): GuestView | null;
   /** Отправить ход, выбранный на последнем снимке. */
   act(action: Action): void;
+  /** Попросить отменить свой последний ход. */
+  undo(): void;
+  /** Ответить на просьбу об отмене. */
+  voteUndo(id: number, accept: boolean): void;
   close(): void;
 }
 
@@ -48,8 +56,11 @@ export function createGuestSession(opts: GuestOptions): GuestSession {
   let current: GuestView | null = null;
   let lastHeard = Date.now();
   let closed = false;
+  /** Представились заново после отказа notJoined: ждём снимок с новой нумерацией. */
+  let rejoining = false;
   const send = (msg: GuestMessage) => opts.link.send(msg);
-  const hello = () => send({ type: 'hello', seatKey: opts.seatKey, protocol: PROTOCOL_VERSION });
+  const hello = () =>
+    send({ type: 'hello', seatKey: opts.seatKey, protocol: PROTOCOL_VERSION, build: BUILD_ID });
 
   const helloTimer = setInterval(() => {
     if (!current) hello();
@@ -72,16 +83,25 @@ export function createGuestSession(opts: GuestOptions): GuestSession {
     const msg = parseHostMessage(raw);
     if (!msg || msg.type === 'pong') return;
     if (msg.type === 'reject') {
+      // Хост нас не знает (он переподключился или перезагрузил страницу) — представиться заново;
+      // его нумерация снимков могла начаться сначала, поэтому следующий снимок принимаем любой.
+      if (msg.reason === 'notJoined') {
+        rejoining = true;
+        hello();
+      }
       opts.onReject?.(msg.reason, msg.message);
       return;
     }
     // Снимки одного соединения идут по порядку; повторный (после повтора hello) не откатывает.
-    if (current && msg.seq < current.seq) return;
+    if (current && !rejoining && msg.seq < current.seq) return;
+    rejoining = false;
     current = {
       seq: msg.seq,
       seat: msg.seat,
       observation: msg.observation,
       legal: msg.legal,
+      canUndo: msg.canUndo === true,
+      undoVote: msg.undoVote ?? null,
     };
     opts.onSnapshot(current, msg.events);
   });
@@ -98,6 +118,12 @@ export function createGuestSession(opts: GuestOptions): GuestSession {
     act(action) {
       if (!current) return;
       send({ type: 'act', seq: current.seq, action });
+    },
+    undo() {
+      if (current?.canUndo) send({ type: 'undo', seq: current.seq });
+    },
+    voteUndo(id, accept) {
+      send({ type: 'undoVote', id, accept });
     },
     close() {
       stop();

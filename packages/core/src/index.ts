@@ -7,8 +7,8 @@ export {
   getObservation,
   isTerminal,
 } from './engine';
-export { DEFAULT_RULES, RULE_CHOICES, resolveConfig } from './config';
-export type { GameConfig, GameConfigInput, RuleToggles } from './config';
+export { DEFAULT_RULES, RULE_CHOICES, RULE_OPTIONS, resolveConfig } from './config';
+export type { GameConfig, GameConfigInput, RuleOption, RuleToggles } from './config';
 export { cityEntryCost, cityEntryPrice } from './economy';
 export { determinize } from './determinize';
 export { combatStrengths } from './combat';
@@ -31,5 +31,5 @@ export {
   workerLabel,
 } from './labels';
 export type * from './types';
-export { eventsFor, eventVisibility } from './visibility';
+export { eventsFor, eventVisibility, previewHidesInfo } from './visibility';
 export type { Visibility } from './visibility';

@@ -12,6 +12,7 @@ import {
   CHARACTERS,
   PRESTIGE_TRACK,
   REGION_ORDER,
+  REVERSE_TRACK,
   TRACKS,
   UPKEEP_TIERS,
   type CharacterId,
@@ -90,15 +91,23 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
   }
 
   // Влияние и первенство: ПО по позициям уже в getScores, сверху — продвижение к отметкам.
-  let value = score?.firstVp ?? 0;
+  // Постоянные ПО Шпиля (эксперимент influenceModel=reverse) — как есть.
+  let value = (score?.firstVp ?? 0) + (score?.spireVp ?? 0);
+  const reverse = state.config.rules.influenceModel === 'reverse';
   const hope = Math.min(1, 0.5 + future);
   for (const region of REGION_ORDER) {
     const track = TRACKS[region];
     const inf = p.influence[region];
     value += trackValue(inf, track.vpMarks, w) * hope;
-    // Порог Цитадели, пока она в регионе не построена.
-    const citadelFree = !state.buildings.some((b) => b.type === 'citadel' && b.region === region);
+    // Порог Цитадели, пока она в регионе не построена (в эксперименте звезда одна — и для Обелиска).
+    const citadelFree = !state.buildings.some(
+      (b) => (b.type === 'citadel' || (reverse && b.type === 'obelisk')) && b.region === region,
+    );
     if (citadelFree && inf >= track.citadelAt) value += w.citadelAccess * future;
+    if (reverse && citadelFree && inf <= REVERSE_TRACK.min) value += w.citadelAccess * future;
+    // Постоянная сила отметки −3 работает в боях до конца партии.
+    if (reverse)
+      value += p.undergroundStrength[region] * w.undergroundStrengthPerRound * roundsLeft(state);
     // Гонка за жетоном первенства: ценность пути к максимуму у лидера трека.
     if (state.firstToMax[region] === undefined) {
       const best = Math.max(...state.players.map((o) => o.influence[region]));
@@ -213,6 +222,9 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
   // Здания приносят пользу до конца партии.
   for (const b of state.buildings) {
     if (b.owner === player) value += w.building[b.type] * future;
+    if (reverse && b.owner === player && b.type === 'citadel') {
+      value += w.spireVpPerRound * roundsLeft(state);
+    }
   }
   // Начатая цепочка зданий обещает престиж следующего здания того же типа.
   if (w.buildingChain > 0) {

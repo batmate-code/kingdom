@@ -1,0 +1,69 @@
+/* Стопка тостов справа внизу поля: не перехватывает клики. */
+.stack {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+  max-width: min(46%, 460px);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-left: 4px solid;
+  border-radius: 10px;
+  background: rgba(27, 22, 32, 0.92);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  color: #ece6f2;
+  font-size: clamp(12px, 0.85vw, 15px);
+  animation: life 5s ease forwards;
+}
+
+@keyframes life {
+  0% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  6% {
+    transform: none;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #140f12;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.who {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.text {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}

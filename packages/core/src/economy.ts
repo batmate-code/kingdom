@@ -9,6 +9,7 @@ import {
   type Resources,
 } from '@vampire/data';
 import type { Ctx } from './context';
+import { influenceMin, undergroundMarks } from './reverse';
 import type { GameState, InfluenceReason, PlayerId, ResourceReason } from './types';
 
 const RESOURCE_IDS: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -145,10 +146,14 @@ export function changeInfluence(
   if (!p) throw new Error(`Нет игрока ${player}`);
   const track = TRACKS[region];
   const from = p.influence[region];
-  const to = Math.max(0, Math.min(track.max, from + amount));
+  const to = Math.max(influenceMin(c.draft), Math.min(track.max, from + amount));
   if (to === from) return;
   p.influence[region] = to;
   c.events.push({ type: 'influenceChanged', player, region, from, to, reason });
+  // Эксперимент influenceModel=reverse: награды отметок снизу.
+  undergroundMarks(c, player, region, from, to, {
+    ore: (ore) => changeResources(c, player, { ore }, 'underground'),
+  });
 
   const raiseAt = track.cityEntryRaiseAt;
   if (raiseAt !== null && to >= raiseAt && !c.draft.cityEntryRaisedRegions.includes(region)) {

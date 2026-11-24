@@ -7,3 +7,4 @@ export * from './characters';
 export * from './combatTokens';
 export * from './effects';
 export * from './game';
+export * from './reverseInfluence';

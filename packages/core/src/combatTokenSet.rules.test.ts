@@ -6,7 +6,7 @@ import { DEFAULT_RULES } from './config';
 import { createGame } from './engine';
 
 describe('Жетоны боя: набор из 6 (combatTokenSet=six)', () => {
-  it('Жетоны боя: в руке по одному жетону каждого вида', () => {
+  it('Жетоны боя: по одному жетону каждого вида, Приманка одна (автор 24.11)', () => {
     const s = createGame({ playerCount: 3, rules: { combatTokenSet: 'six' } }, 1);
     for (const p of s.players) {
       expect(COMBAT_TOKEN_ORDER.map((t) => p.combatTokens.hand[t])).toEqual(

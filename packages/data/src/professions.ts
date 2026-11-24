@@ -1,20 +1,28 @@
+import { DISPLACEMENT } from './game';
 import type { ProfessionDef, ProfessionId } from './types';
+
+/** Сила рабочего без профессии. */
+export const BASE_WORKER_STRENGTH = 1;
+
+/** Сила в бою Стража и Шпиона (тексты профессий берут числа отсюда же). */
+const GUARD_STRENGTH = 2;
+const SPY_STRENGTH = 2;
 
 export const PROFESSIONS: Readonly<Record<ProfessionId, ProfessionDef>> = {
   guard: {
     id: 'guard',
     name: 'Страж',
-    text: 'Нельзя вытеснить. В бою сила 2.',
+    text: `Нельзя вытеснить. В бою сила ${GUARD_STRENGTH}.`,
     color: 'green',
     // Автор 23.11: Страж +1 к силе в бою (было 1).
-    combatStrength: 2,
+    combatStrength: GUARD_STRENGTH,
     immuneToDisplacement: true,
     freeCityEntry: false,
   },
   executioner: {
     id: 'executioner',
     name: 'Палач',
-    text: 'При размещении в первый слот может вытеснить чужого рабочего (из первого или второго слота) другой локации того же региона (и когда сам попал в первый слот вытеснением — тогда выбивает двоих). Владелец вытесненного и сам Палач получают по 1 компромату.',
+    text: `При размещении в первый слот может вытеснить чужого рабочего (из первого или второго слота) другой локации того же региона (и когда сам попал в первый слот вытеснением — тогда выбивает двоих). Владелец вытесненного получает ${DISPLACEMENT.executionerCompensation} компромат, сам Палач — ${DISPLACEMENT.executionerReward}.`,
     color: 'red',
     combatStrength: 1,
     immuneToDisplacement: false,
@@ -41,9 +49,9 @@ export const PROFESSIONS: Readonly<Record<ProfessionId, ProfessionDef>> = {
   spy: {
     id: 'spy',
     name: 'Шпион',
-    text: 'Сила 2 вместо 1. Перед боями может перейти в другой регион без действия.',
+    text: `Сила ${SPY_STRENGTH} вместо ${BASE_WORKER_STRENGTH}. Перед боями может перейти в другой слот своего или другого региона без действия.`,
     color: 'purple',
-    combatStrength: 2,
+    combatStrength: SPY_STRENGTH,
     immuneToDisplacement: false,
     freeCityEntry: false,
   },
@@ -62,6 +70,3 @@ export const LOCATION_PROFESSION_TOKENS: readonly ProfessionId[] = PROFESSION_OR
   p,
   p,
 ]);
-
-/** Сила рабочего без профессии. */
-export const BASE_WORKER_STRENGTH = 1;

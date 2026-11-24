@@ -3,7 +3,6 @@ import {
   DRAFT_BY_PLAYERS,
   GAME,
   PROFESSION_ORDER,
-  START_RESOURCE_VARIANTS,
   LOCATION_ORDER,
   type CombatTokenId,
   type LocationId,
@@ -59,6 +58,9 @@ const TASKS: { [K in Task['t']]: (c: Ctx, task: Extract<Task, { t: K }>) => void
   revealCombat: (c, task) => revealCombat(c, task.region),
   askRetreat: (c, task) => {
     c.draft.pending = { kind: 'retreat', player: task.player, region: task.region };
+  },
+  askGarrison: (c, task) => {
+    c.draft.pending = { kind: 'garrison', player: task.player, region: task.region };
   },
   combatOutcome: (c, task) => combatOutcome(c, task.region),
   characterEffect: (c, task) => startCharacterEffect(c, task.player, task.workerId),
@@ -141,11 +143,11 @@ export function createGameWithEvents(input: GameConfigInput, seed: number): Appl
     phase: 'draft',
     players: Array.from({ length: n }, () => ({
       resources: {
-        ...(config.rules.startResources === 'base'
-          ? GAME.startResources
-          : START_RESOURCE_VARIANTS[config.rules.startResources]),
+        ...GAME.startResources,
       },
       trackBoostsTaken: [],
+      bonusVp: 0,
+      undergroundStrength: { forest: 0, valley: 0, city: 0 },
       influence: { forest: 0, valley: 0, city: 0 },
       prestige: 0,
       passed: false,
@@ -269,10 +271,12 @@ export function getObservation(state: GameState, player: PlayerId): Observation 
     combat: state.combat && {
       region: state.combat.region,
       revealed: state.combat.revealed,
-      plays: state.combat.plays.map(({ player: p, token }) => ({
-        player: p,
-        token: state.combat?.revealed || p === player ? token : null,
-      })),
+      // Закрытый жетон соперника скрыт вместе с выбранной потерей влияния (Приманка).
+      plays: state.combat.plays.map(({ player: p, token, influenceLoss }) =>
+        state.combat?.revealed || p === player
+          ? { player: p, token, ...(influenceLoss !== undefined ? { influenceLoss } : {}) }
+          : { player: p, token: null },
+      ),
     },
     combatWinners: state.combatWinners,
     cardStash: state.cardStash,

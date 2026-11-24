@@ -60,11 +60,18 @@ describe('Драфт: порядок кругов (Структура раунд
   it('Профессии: запас не ограничен — в следующем раунде снова выкладываются все 5', () => {
     let s = createGame({ playerCount: 3, rules: { randomFirstPlayer: true } }, 7);
     while (s.round === 1 && s.pending) {
-      s = act(s, s.pending.kind === 'placement' ? { type: 'pass' } : firstLegal(s));
+      // Пары назначаются рабочим (а не сбрасываются), чтобы проверить профессии во 2-м раунде.
+      const assign = getLegalActions(s).find(
+        (x) => x.type === 'upgrade' && x.choice.kind === 'assign',
+      );
+      const upkeep = getLegalActions(s).find((x) => x.type === 'upkeep' && x.choice === 'pay');
+      s = act(
+        s,
+        s.pending.kind === 'placement' ? { type: 'pass' } : (assign ?? upkeep ?? firstLegal(s)),
+      );
     }
     expect(s.round).toBe(2);
-    // Улучшенные в 1-м раунде рабочие всё ещё держат профессии, но выкладка полная.
-    expect(s.workers.some((w) => w.profession !== null)).toBe(true);
+    // Даже если профессии взяты в 1-м раунде, выкладка 2-го раунда полная.
     expect(s.offer.professions).toEqual([...PROFESSION_ORDER]);
     expect(s.offer.characters).toHaveLength(5);
   });

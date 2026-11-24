@@ -9,19 +9,50 @@ import {
   PLOTS,
   PRESTIGE_TRACK,
   REGION_ORDER,
+  REVERSE_TRACK,
   TRACKS,
   TRACK_BOOSTS,
   type LocationId,
   type RegionId,
   type Resources,
 } from '@vampire/data';
-import { createContext, Fragment, useContext, useState, type ReactNode } from 'react';
-import { PLAYER_COLORS, slotLines } from '../Board';
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { PLAYER_COLORS } from '../players';
+import { slotLines } from '../slotLines';
 import { profColor } from '../colors';
 import { EntryPrice } from '../EntryPrice';
 import { Icon, RichText } from '../Icon';
 import { locName, regionName } from '../labels';
+import { useHoveredWorker } from '../hover';
+import { forgetWorkers, markSeeded, useTokenMotion } from './tokenMotion';
 import styles from './BoardSvg.module.css';
+import {
+  buildingName,
+  isReverseView,
+  OBELISK_TEXT,
+  SPIRE_TEXT,
+  undergroundRewardText,
+} from '../reverseView';
+
+/** Эксперимент: клетки трека ниже, чтобы поместились отрицательные отметки. */
+const REVERSE_CELL_SCALE = 0.75;
+/** Треки влияния крупнее остального поля (автор 24.11). */
+const TRACK_SCALE = 1.13;
+/** Трек влияния: правый край колонки чисел и начало значков отметок (автор 24.11: отступ). */
+const TRACK_NUM_RIGHT = 44;
+/** Подпись ПО Шпиля: на столько ниже центра звезды. */
+const SPIRE_VP_DY = 70;
+const TRACK_MARKS_X = 58;
+/** Строка силы в бою под треком влияния региона. */
+const STATUS_H = 76;
 import { CityWall, Ground, HospitalGarden, LandscapeDefs, Scenery, smooth } from './Landscape';
 import {
   CARD,
@@ -89,6 +120,8 @@ interface BoardCtx {
   targets?: BoardTargets | undefined;
   lastMove?: BoardLastMove | null | undefined;
   strengths?: BoardStrengths | undefined;
+  /** Рабочий, за которым сейчас решение (Шпион перед боем), — подсвечен на поле. */
+  activeWorker?: string | null;
 }
 
 const Ctx = createContext<BoardCtx>({});
@@ -140,8 +173,26 @@ export function Html({
  */
 export function Token({ w, cx, cy, r = 30 }: { w: Worker; cx: number; cy: number; r?: number }) {
   const num = Number(w.id.split('w')[1] ?? 0) + 1;
+  // Наведение на карту рабочего на планшете подсвечивает его фишку на поле.
+  // Решение сейчас за этим рабочим (Шпион перед боем) — тоже подсветка (автор 24.11).
+  const { activeWorker } = useContext(Ctx);
+  const hovered = useHoveredWorker((s) => s.id === w.id) || activeWorker === w.id;
+  // Движение фишки с прежнего места (из запаса, между слотами, в госпиталь).
+  const ref = useRef<SVGGElement>(null);
+  useTokenMotion(ref, w);
   return (
-    <g filter="url(#tokenShadow)">
+    <g ref={ref} filter="url(#tokenShadow)">
+      {hovered && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r + 14}
+          fill="none"
+          stroke="#ffe9a8"
+          strokeWidth={6}
+          className={styles.tokenHover}
+        />
+      )}
       <circle
         cx={cx}
         cy={cy}
@@ -356,17 +407,30 @@ function SocketMarks({ id, sockets }: { id: LocationId; sockets: [number, number
   );
 }
 
-/** Сила игроков перед боем, жетоны силы и жетон Комиссариата — плашкой над местом Цитадели. */
-function RegionStatus({ region, obs }: { region: RegionId; obs: Observation }) {
+/**
+ * Сила игроков перед боем, жетоны силы и жетон Комиссариата — строкой внизу колонки трека
+ * влияния региона (автор 24.11: над звездой плашка налезала на локации).
+ */
+function RegionStatus({
+  region,
+  obs,
+  x,
+  y,
+  w,
+}: {
+  region: RegionId;
+  obs: Observation;
+  x: number;
+  y: number;
+  w: number;
+}) {
   const { strengths } = useContext(Ctx);
-  const [cx, cy] = STARS[region];
   const rows = strengths?.[region] ?? [];
   const power = obs.powerTokens.filter((t) => t.region === region && t.count > 0);
   const commissar = obs.commissariat?.region === region ? obs.commissariat.owner : null;
   if (rows.length === 0 && power.length === 0 && commissar === null) return null;
-  const w = 250;
   return (
-    <Html x={cx - w / 2} y={cy - 150} w={w} h={66} className={styles.statusWrap}>
+    <Html x={x} y={y} w={w} h={STATUS_H} className={styles.statusWrap}>
       <div className={styles.status}>
         {rows.map((r) => (
           <span
@@ -394,7 +458,7 @@ function RegionStatus({ region, obs }: { region: RegionId; obs: Observation }) {
             style={{ borderColor: PLAYER_COLORS[commissar] }}
             title={`Жетон Комиссариата у Игрока ${commissar + 1}: госпиталь бьётся здесь`}
           >
-            Комиссариат
+            Комис.
           </span>
         )}
       </div>
@@ -435,9 +499,20 @@ function PlotMarks({ id, c, r }: { id: string; c: readonly [number, number]; r: 
 }
 
 /** Силуэты зданий для построенных участков (В3). */
-export function BuildingGlyph({ type, cx, cy }: { type: string; cx: number; cy: number }) {
-  const ink = '#1b1418';
-  const light = 'rgba(255,255,255,.55)';
+export function BuildingGlyph({
+  type,
+  cx,
+  cy,
+  ink = '#1b1418',
+  detail: light = 'rgba(255,255,255,.55)',
+}: {
+  type: string;
+  cx: number;
+  cy: number;
+  /** Цвет силуэта и деталей (на планшете — светлый силуэт, автор 24.11). */
+  ink?: string;
+  detail?: string;
+}) {
   if (type === 'crypt')
     return (
       <g transform={`translate(${cx} ${cy})`} fill={ink}>
@@ -547,17 +622,31 @@ function Plot({
 
 function Star({ region, obs }: { region: RegionId; obs: Observation }) {
   const c = STARS[region];
-  const citadel = obs.buildings.find((b) => b.type === 'citadel' && b.region === region);
+  const reverse = isReverseView(obs);
+  // Здание на звезде: Цитадель (в эксперименте — Шпиль) или Обелиск (только в эксперименте).
+  const citadel = obs.buildings.find(
+    (b) => (b.type === 'citadel' || b.type === 'obelisk') && b.region === region,
+  );
   const visitors = obs.workers.filter(
     (w) => w.position.kind === 'citadelSpot' && w.position.region === region,
   );
-  // Б1: яркое место — только если смотрящему игроку хватает влияния на Цитадель здесь.
-  const ready =
-    !citadel && (obs.players[obs.viewer]?.influence[region] ?? 0) >= TRACKS[region].citadelAt;
+  // Б1: яркое место — только если смотрящему игроку хватает влияния на Цитадель здесь
+  // (в эксперименте — или он на нижней отметке и может строить Обелиск).
+  const inf = obs.players[obs.viewer]?.influence[region] ?? 0;
+  const obeliskReady = reverse && !citadel && inf <= REVERSE_TRACK.min;
+  const ready = (!citadel && inf >= TRACKS[region].citadelAt) || obeliskReady;
   const lit = ready || citadel !== undefined;
+  const spireVp =
+    reverse && citadel?.type === 'citadel' ? (obs.players[citadel.owner]?.bonusVp ?? 0) : 0;
+  const hint = !reverse
+    ? null
+    : citadel
+      ? `${buildingName(obs, citadel.type)} игрока ${citadel.owner + 1}: ${citadel.type === 'citadel' ? SPIRE_TEXT : OBELISK_TEXT}`
+      : `Место для Шпиля (влияние +${TRACKS[region].citadelAt}) или Обелиска (влияние ${REVERSE_TRACK.min}) — кто построит первым`;
   const key = `citadel:${region}`;
   return (
     <g>
+      {hint && <title>{hint}</title>}
       <polygon
         points={hexPoints(c, 76)}
         fill={citadel ? PLAYER_COLORS[citadel.owner] : ready ? 'url(#goldFill)' : '#2e2618'}
@@ -580,28 +669,63 @@ function Star({ region, obs }: { region: RegionId; obs: Observation }) {
         h={96}
         className={lit ? styles.starIcon : `${styles.starIcon} ${styles.dim}`}
       >
-        <Icon name={citadel ? 'citadel' : 'citadelOpen'} size={78} />
+        <Icon
+          name={
+            citadel?.type === 'obelisk'
+              ? 'obelisk'
+              : !citadel && obeliskReady
+                ? 'obeliskOpen'
+                : citadel
+                  ? reverse
+                    ? 'spire'
+                    : 'citadel'
+                  : reverse
+                    ? 'spireOpen'
+                    : 'citadelOpen'
+          }
+          size={78}
+        />
       </Html>
+      {/* ПО, которые принёс Шпиль за партию, — по центру под звездой. */}
+      {spireVp > 0 && (
+        <Html x={c[0] - 50} y={c[1] + SPIRE_VP_DY} w={100} h={36} className={styles.spireVp}>
+          +{spireVp}
+          <Icon name="vp" size={22} />
+        </Html>
+      )}
       <PlotMarks id={key} c={c} r={76} />
       {visitors.map((w, i) => (
-        <Token key={w.id} w={w} cx={c[0] - 40 + i * 40} cy={c[1] + 100} r={24} />
+        <Token
+          key={w.id}
+          w={w}
+          cx={c[0] - 40 + i * 40}
+          cy={c[1] + (spireVp > 0 ? 130 : 100)}
+          r={24}
+        />
       ))}
     </g>
   );
 }
 
 function InfluenceTrack({ region, obs }: { region: RegionId; obs: Observation }) {
-  const box = TRACK_BOXES[region];
+  const base = TRACK_BOXES[region];
   const track = TRACKS[region];
-  const values = Array.from({ length: track.max + 1 }, (_, i) => track.max - i);
+  // Эксперимент: трек уходит в минус, клетки ниже, чтобы колонка поместилась на поле.
+  const reverse = isReverseView(obs);
+  const min = reverse ? REVERSE_TRACK.min : 0;
+  const box = reverse ? { ...base, cell: Math.round(base.cell * REVERSE_CELL_SCALE) } : base;
+  const values = Array.from({ length: track.max - min + 1 }, (_, i) => track.max - i);
   const boosts = TRACK_BOOSTS[region];
+  // Автор 24.11: треки крупнее (TRACK_SCALE) — масштаб от левого верхнего угла колонки.
   return (
-    <g>
+    <g
+      transform={`translate(${box.x} ${box.y}) scale(${TRACK_SCALE}) translate(${-box.x} ${-box.y})`}
+    >
       <rect
         x={box.x}
         y={box.y}
         width={box.w}
-        height={box.cell * values.length + 44}
+        height={box.cell * values.length + 44 + STATUS_H}
         rx={10}
         fill={`url(#track-${region})`}
         stroke={GOLD}
@@ -633,9 +757,41 @@ function InfluenceTrack({ region, obs }: { region: RegionId; obs: Observation })
             </span>,
           );
         }
-        if (v === track.citadelAt) marks.push(<Icon key="c" name="citadelOpen" size={28} />);
+        if (v === track.citadelAt) {
+          marks.push(<Icon key="c" name={reverse ? 'spireOpen' : 'citadelOpen'} size={28} />);
+        }
         if (v === track.cityEntryRaiseAt)
           marks.push(<Icon key="e" name="cityEntryRaise" size={28} />);
+        // Отметки снизу (эксперимент): награда и точки игроков, которые её уже взяли.
+        const mark = reverse ? REVERSE_TRACK.marks.find((m) => m.at === v) : undefined;
+        if (mark) {
+          const r = mark.reward;
+          marks.push(
+            <span key="u" className={styles.boost} title={undergroundRewardText(v)}>
+              {r.kind === 'ore' && <RichText text={`+${r.ore} руд`} />}
+              {r.kind === 'buildRight' && <Icon name="build" size={24} />}
+              {r.kind === 'strength' && (
+                <>
+                  +{r.strength}
+                  <Icon name="strengthToken" size={22} />
+                </>
+              )}
+              {r.kind === 'obelisk' && <Icon name="obeliskOpen" size={28} />}
+            </span>,
+          );
+          obs.players.forEach((p, pi) => {
+            if (p.trackBoostsTaken.includes(`${region}-${v}`)) {
+              marks.push(
+                <span
+                  key={`t${pi}`}
+                  className={styles.takenDot}
+                  style={{ background: PLAYER_COLORS[pi] }}
+                  title={`Игрок ${pi + 1} уже получил эту награду`}
+                />,
+              );
+            }
+          });
+        }
         for (const b of boosts.filter((x) => x.at === v)) {
           const [k, n] = Object.entries(b.gain)[0]!;
           marks.push(
@@ -647,21 +803,39 @@ function InfluenceTrack({ region, obs }: { region: RegionId; obs: Observation })
         const here = obs.players.flatMap((p, pi) => (p.influence[region] === v ? [pi] : []));
         return (
           <g key={v}>
+            {v < 0 && (
+              <rect
+                x={box.x + 4}
+                y={y}
+                width={box.w - 8}
+                height={box.cell}
+                fill="#2a1638"
+                fillOpacity={0.75}
+              />
+            )}
             <line
               x1={box.x + 8}
               x2={box.x + box.w - 8}
               y1={y}
               y2={y}
               stroke={GOLD}
-              strokeOpacity={0.2}
+              // Автор 24.11: деления ярче, чтобы трек не сливался в одну полосу.
+              strokeOpacity={0.5}
+              strokeWidth={1.5}
             />
-            <text x={box.x + 18} y={y + 36} className={styles.trackNum}>
-              {v}
+            {/* Число — в своей колонке (выравнено вправо), значки отметки — после отступа. */}
+            <text
+              x={box.x + TRACK_NUM_RIGHT}
+              y={y + box.cell / 2 + 9}
+              textAnchor="end"
+              className={styles.trackNum}
+            >
+              {v < 0 ? `−${-v}` : v}
             </text>
             <Html
-              x={box.x + 40}
+              x={box.x + TRACK_MARKS_X}
               y={y + 4}
-              w={box.w - 40 - 26 * Math.max(1, here.length)}
+              w={box.w - TRACK_MARKS_X - 26 * Math.max(1, here.length)}
               h={box.cell - 8}
               className={styles.marks}
             >
@@ -678,6 +852,31 @@ function InfluenceTrack({ region, obs }: { region: RegionId; obs: Observation })
           </g>
         );
       })}
+      {/* Строка силы в бою: тёмный блок, отделённый от трека линией (автор 24.11). */}
+      <rect
+        x={box.x + 4}
+        y={box.y + 44 + box.cell * values.length}
+        width={box.w - 8}
+        height={STATUS_H - 6}
+        rx={6}
+        fill="#0e0a10"
+        fillOpacity={0.9}
+      />
+      <line
+        x1={box.x + 4}
+        x2={box.x + box.w - 4}
+        y1={box.y + 44 + box.cell * values.length}
+        y2={box.y + 44 + box.cell * values.length}
+        stroke={GOLD}
+        strokeWidth={2.5}
+      />
+      <RegionStatus
+        region={region}
+        obs={obs}
+        x={box.x + 4}
+        y={box.y + 44 + box.cell * values.length}
+        w={box.w - 8}
+      />
     </g>
   );
 }
@@ -772,6 +971,7 @@ function Magnified({ hovered, obs }: { hovered: Hovered; obs: Observation }) {
   const y = Math.min(Math.max(cy, halfH), VIEW.height - halfH);
   return (
     <g
+      data-no-motion
       pointerEvents="none"
       transform={`translate(${x} ${y}) scale(${k}) translate(${-cx} ${-cy})`}
       filter="url(#cardShadow)"
@@ -803,13 +1003,28 @@ export function BoardSvg({
   strengths?: BoardStrengths | undefined;
 }) {
   const hospital = obs.workers.filter((w) => w.position.kind === 'hospital');
+  // Фишки в запасе с поля пропадают: следующее появление — выход из запаса (правый край поля).
+  forgetWorkers(obs.workers.filter((w) => w.position.kind === 'reserve').map((w) => w.id));
+  useEffect(() => markSeeded(), []);
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const hc = landscape
     ? ([1000 * SX, 1515 + CITY_DY] as const)
     : ([995 * SX, 1470 + CITY_DY] as const);
   return (
-    <Ctx.Provider value={{ targets, lastMove, strengths }}>
+    <Ctx.Provider
+      value={{
+        targets,
+        lastMove,
+        strengths,
+        // Решение за этим рабочим: Шпион перед боем, Палач при размещении.
+        activeWorker:
+          obs.pending?.kind === 'spyMove' || obs.pending?.kind === 'executioner'
+            ? obs.pending.workerId
+            : null,
+      }}
+    >
       <svg
+        data-board
         className={styles.svg}
         viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
         preserveAspectRatio="xMidYMid meet"
@@ -1063,9 +1278,6 @@ export function BoardSvg({
           ))}
 
           <PrestigeTrack obs={obs} />
-          {REGION_ORDER.map((r) => (
-            <RegionStatus key={`st-${r}`} region={r} obs={obs} />
-          ))}
           {hovered && <Magnified hovered={hovered} obs={obs} />}
           <rect
             width={VIEW.width}

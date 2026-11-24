@@ -1,3 +1,4 @@
+import { PRESTIGE_TRACK } from '@vampire/data';
 /** Аудит этапа 4: сценарии по правилам «Здания и участки», «Влияние и престиж», «Конец игры». */
 import type { BuildingId, RegionId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
@@ -52,8 +53,8 @@ describe('Аудит этапа 4: здания и престиж', () => {
     expect(buildChoices(s).some((c) => c.building === 'citadel')).toBe(false);
   });
 
-  it('Торговая лавка на двойном участке Города: 3 золота + 1 руда + доплата 1 руда', () => {
-    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, ore: 2 });
+  it('Торговая лавка на двойном участке Города (автор 23.11): 3 золота + 1 руда, без доплаты', () => {
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, ore: 1 });
     s = chanceryRight(s);
     expect(buildChoices(s)).toContainEqual({
       building: 'shop',
@@ -68,19 +69,20 @@ describe('Аудит этапа 4: здания и престиж', () => {
     expect(s.players[0]?.prestige).toBe(5);
   });
 
-  it('Двойной участок Города не предлагается без руды на доплату', () => {
+  it('Двойной участок Леса не предлагается без золота на доплату (по картону)', () => {
     const s = chanceryRight(setResources(turnTo(newGame(), 0), 0, { gold: 3, ore: 1 }));
     const plots = buildChoices(s)
       .filter((c) => c.building === 'shop')
       .map((c) => c.plot);
-    expect(plots).toContain('city-chancery');
-    expect(plots).not.toContain('city-commissariat-cityHall');
+    expect(plots).toContain('forest-mine');
+    expect(plots).toContain('city-commissariat-cityHall');
+    expect(plots).not.toContain('forest-mine-lair');
   });
 
   it('Престиж ограничен треком 40', () => {
     let s = setResources(turnTo(newGame(), 0), 0, { gold: 2 });
     s = edit(s, (d) => {
-      d.players[0]!.prestige = 39;
+      d.players[0]!.prestige = PRESTIGE_TRACK.max - 1;
       d.buildings.push(
         { type: 'crypt', owner: 0, region: 'forest', plot: 'forest-lair' },
         { type: 'crypt', owner: 0, region: 'forest', plot: 'forest-mine' },
@@ -90,7 +92,7 @@ describe('Аудит этапа 4: здания и престиж', () => {
       type: 'build',
       choice: { building: 'crypt', region: 'valley', plot: 'valley-mass' },
     });
-    expect(s.players[0]?.prestige).toBe(40);
+    expect(s.players[0]?.prestige).toBe(PRESTIGE_TRACK.max);
   });
 
   it('Награда за бой: Цитадель только в регионе боя', () => {

@@ -75,10 +75,10 @@ describe('Локации Долины', () => {
     expect(res(s, 0)).toMatchObject({ gold: 0, blood: 7 });
   });
 
-  it('Месса, второй слот (автор 23.11): один обмен 1 → 1', () => {
-    let s = place(start({ gold: 0, blood: 2 }), 'mass', 2);
-    s = choose(s, { kind: 'mass', from: 'blood', times: 1 });
-    expect(res(s, 0)).toMatchObject({ gold: 1, blood: 1 });
+  it('Месса, второй слот (автор 24.11): 1 жетон силы в любой регион', () => {
+    let s = place(start(), 'mass', 2);
+    s = choose(s, { kind: 'powerToken', region: 'city' });
+    expect(s.powerTokens).toContainEqual({ owner: 0, region: 'city', count: 1 });
   });
 
   it('Рынок, первый слот (автор 23.11): 2 золота/крови в любой комбинации → 2 руды', () => {
@@ -92,11 +92,9 @@ describe('Локации Долины', () => {
     expect(res(s, 0)).toMatchObject({ gold: 0, blood: 0, ore: 2 });
   });
 
-  it('Рынок, второй слот (автор 23.11): 3 золота/крови → 2 руды', () => {
-    let s = place(start({ gold: 1, blood: 2 }), 'market', 2);
-    expect(locationOptions(s)).toContainEqual({ kind: 'marketBuy', pay: { gold: 1, blood: 2 } });
-    s = choose(s, { kind: 'marketBuy', pay: { gold: 1, blood: 2 } });
-    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 0, ore: 2 });
+  it('Рынок, второй слот (автор 24.11): +1 компромат и +1 золото', () => {
+    const s = place(start({ gold: 0, compromat: 0 }), 'market', 2);
+    expect(res(s, 0)).toMatchObject({ gold: 1, compromat: 1 });
   });
 
   it('Рынок (автор 23.11): продажи руды нет', () => {
@@ -117,16 +115,43 @@ describe('Локации Долины', () => {
 });
 
 describe('Локации Города', () => {
-  it('Канцелярия, первый слот (автор 23.11): до 2 раз, можно смешивать: 1 компромат → 3 золота/крови или 2 руды', () => {
+  it('Канцелярия, первый слот (автор 23.11): до 2 действий, можно смешивать: 1 компромат → 3 золота/крови или 2 руды', () => {
     let s = place(start({ gold: 1, compromat: 2 }), 'chancery', 1);
     // 5 видов конверсии (3 золота/крови — 4 разбиения, руда): размер 1 — 5, размер 2 — 15; пропуск.
-    // Права стройки нет: после входа золота 0, строить не на что (OQ-29).
-    expect(locationOptions(s)).toHaveLength(5 + 15 + 1);
+    // Право стройки одно не предлагается: после входа золота 0, строить не на что (OQ-29).
+    // После обмена на 3 или 2 золота можно поставить Склеп — ещё 2 сочетания «обмен + право».
+    expect(locationOptions(s)).toHaveLength(5 + 15 + 2 + 1);
     s = choose(s, {
       kind: 'chancery',
       conversions: [{ to: 'goldBlood', gold: 3, blood: 0 }, { to: 'ore' }],
     });
     expect(res(s, 0)).toMatchObject({ gold: 0 + 3, ore: 2, compromat: 0 });
+  });
+
+  it('Канцелярия (автор 23.11, OQ-47): обмен, затем право стройки на полученное золото', () => {
+    let s = place(start({ gold: 1, compromat: 2 }), 'chancery', 1);
+    s = choose(s, {
+      kind: 'chancery',
+      conversions: [{ to: 'goldBlood', gold: 3, blood: 0 }],
+      buildRight: true,
+    });
+    expect(res(s, 0)).toMatchObject({ gold: 3, compromat: 0 });
+    expect(s.pending).toEqual({ kind: 'build', player: 0, source: { kind: 'chancery' } });
+  });
+
+  it('Канцелярия (OQ-47): право стройки не больше одного и не сверх двух действий', () => {
+    const s = place(start({ gold: 20, compromat: 3 }), 'chancery', 1);
+    const opts = locationOptions(s);
+    expect(opts).toContainEqual({ kind: 'buildRight' });
+    expect(opts).toContainEqual({
+      kind: 'chancery',
+      conversions: [{ to: 'ore' }],
+      buildRight: true,
+    });
+    for (const o of opts) {
+      if (o.kind === 'chancery')
+        expect(o.conversions.length + (o.buildRight ? 1 : 0)).toBeLessThanOrEqual(2);
+    }
   });
 
   it('Канцелярия: с 1 компроматом — только одна конверсия', () => {
@@ -136,8 +161,8 @@ describe('Локации Города', () => {
     ).toBe(true);
   });
 
-  it('Комиссариат, второй слот (автор 23.11): 2 компромата → вернуть своего рабочего из госпиталя в запас; его можно выставить снова', () => {
-    let s = moveWorker(start({ compromat: 2 }), 'p0w2', { kind: 'hospital' });
+  it('Комиссариат, второй слот (автор 24.11): 1 компромат → вернуть своего рабочего из госпиталя в запас; его можно выставить снова', () => {
+    let s = moveWorker(start({ compromat: 1 }), 'p0w2', { kind: 'hospital' });
     s = place(s, 'commissariat', 2, { workerId: 'p0w0' });
     expect(locationOptions(s)).toEqual([{ kind: 'revive', workerId: 'p0w2' }, { kind: 'skip' }]);
     s = choose(s, { kind: 'revive', workerId: 'p0w2' });
@@ -150,9 +175,16 @@ describe('Локации Города', () => {
     expect(s.pending).toEqual({ kind: 'placement', player: 1 });
   });
 
-  it('Ратуша, первый слот: 1 руда → 1 влияние в любом регионе или 3 руды → 2 в одном', () => {
+  it('Ратуша, первый слот: 1 руда → 1 влияние или 3 руды → 2 в одном или в двух регионах (автор 24.11)', () => {
     let s = place(start({ ore: 3 }), 'cityHall', 1);
-    expect(locationOptions(s)).toHaveLength(3 + 3 + 1);
+    // 3 региона за 1 руду, 3 «оба в одном» и 3 пары регионов за 3 руды, пропуск.
+    expect(locationOptions(s)).toHaveLength(3 + 3 + 3 + 1);
+    expect(locationOptions(s)).toContainEqual({
+      kind: 'cityHall',
+      offer: 1,
+      region: 'forest',
+      split: 'city',
+    });
     s = choose(s, { kind: 'cityHall', offer: 1, region: 'valley' });
     expect(s.players[0]?.influence.valley).toBe(2);
     expect(res(s, 0).ore).toBe(0);

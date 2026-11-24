@@ -4,11 +4,15 @@ import {
   applyRetreat,
   applySpyMove,
   combatTokenOptions,
+  decoyLosses,
+  lossMax,
+  deployGarrison,
   laterRegions,
   spyDestinations,
 } from './combat';
 import { applyBuild, buildOptions } from './buildings';
 import { applyCharacterChoice, characterOptions } from './characters';
+import { isReverse, ownsSpire } from './reverse';
 import type { Ctx } from './context';
 import { applyDraftPick, applyUpgrade, draftOptions, upgradeOptions } from './draft';
 import { applyLocationChoice, locationChoices } from './locationActions';
@@ -67,6 +71,10 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
       { type: 'combatReward', choice: 'influence' },
       ...(buildOptions(state, d.player, { kind: 'reward', region: d.region }).length > 0
         ? [{ type: 'combatReward', choice: 'build' } as const]
+        : []),
+      // Эксперимент influenceModel=reverse: владелец Шпиля может взять ПО вместо награды.
+      ...(ownsSpire(state, d.player, d.region)
+        ? [{ type: 'combatReward', choice: 'vp' } as const]
         : []),
     ],
     apply: (c, d, action) =>
@@ -158,9 +166,29 @@ const DECISIONS: { [K in Decision['kind']]: DecisionHandler<DecisionOf<K>> } = {
   combatToken: {
     autoResolve: true,
     legal: (state, d) =>
-      combatTokenOptions(state, d.player).map((token): Action => ({ type: 'combatToken', token })),
-    apply: (c, d, action) =>
-      applyCombatToken(c, d.player, expectAction(action, 'combatToken').token),
+      combatTokenOptions(state, d.player).flatMap((token): Action[] =>
+        lossMax(token) !== null && isReverse(state)
+          ? decoyLosses(state, d.player, d.region, token).map((influenceLoss) => ({
+              type: 'combatToken',
+              token,
+              influenceLoss,
+            }))
+          : [{ type: 'combatToken', token }],
+      ),
+    apply: (c, d, action) => {
+      const a = expectAction(action, 'combatToken');
+      applyCombatToken(c, d.player, a.token, a.influenceLoss);
+    },
+  },
+  garrison: {
+    autoResolve: true,
+    legal: () => [
+      { type: 'garrison', deploy: true },
+      { type: 'garrison', deploy: false },
+    ],
+    apply: (c, d, action) => {
+      if (expectAction(action, 'garrison').deploy) deployGarrison(c, d.player, d.region);
+    },
   },
   retreat: {
     autoResolve: true,

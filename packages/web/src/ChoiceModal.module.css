@@ -1,0 +1,73 @@
+/* Окно выбора над полем (как окна драфта и жетонов боя). */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 7, 12, 0.55);
+}
+
+.dialog {
+  min-width: 320px;
+  max-width: min(720px, 90%);
+  max-height: 85%;
+  overflow: auto;
+  padding: 18px 20px;
+  border: 1px solid #c9a45c;
+  border-radius: 12px;
+  background: #1d1722;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  color: #ece6f2;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-family: 'Trajan Sans Pro', 'Cormorant SC', Georgia, serif;
+  font-size: 22px;
+  color: #f3d88f;
+}
+
+.path {
+  margin-bottom: 10px;
+  color: #cfc4b3;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px !important;
+  border: 1px solid #4a3d55 !important;
+  border-radius: 8px !important;
+  background: #2a2232 !important;
+  color: #ece6f2 !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  border-color: #c9a45c !important;
+}
+
+.done {
+  border-color: #6ab869 !important;
+}
+
+.label {
+  font-weight: 700;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}

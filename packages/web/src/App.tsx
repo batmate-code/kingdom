@@ -1,16 +1,26 @@
 import { BOT_FACTORIES } from '@vampire/bots';
-import { getScores, type Action, type PlayerScore, type RuleToggles } from '@vampire/core';
+import {
+  getScores,
+  RULE_OPTIONS,
+  type Action,
+  type PlayerScore,
+  type RuleOption,
+  type RuleToggles,
+} from '@vampire/core';
 import { useEffect, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { ActionBar } from './ActionBar';
-import { BoardMock } from './board/BoardMock';
 import { EntryPrice } from './EntryPrice';
 import { Watch } from './Watch';
-import { PLAYER_COLORS } from './Board';
+import { PLAYER_COLORS } from './players';
 import { BoardSvg, type BoardTargets } from './board/BoardSvg';
 import { Icon, RichText } from './Icon';
 import { CombatModal } from './CombatModal';
 import { CombatResultModal } from './CombatResultModal';
+import { UndoVoteModal } from './UndoVoteModal';
+import { ResourceToasts } from './ResourceToasts';
+import { useMotionBusy } from './board/tokenMotion';
+import { ChoiceModal } from './ChoiceModal';
 import { DraftModal } from './DraftModal';
 import { RoundModal } from './RoundModal';
 import { screenView, targetHint } from './view';
@@ -18,21 +28,15 @@ import { TurnToast } from './TurnToast';
 import { HandPanel, PlayersPanel } from './SidePanel';
 import { playerName } from './labels';
 import { useGame, type HostRoom, type Seat } from './store';
-import { inviteFromUrl, inviteUrl, joinAsGuest, useOnline } from './online/connect';
+import { inviteUrl, joinAsGuest, useOnline } from './online/connect';
+import { inviteFrom } from './online/invite';
 
-/** Экспериментальные и прежние правила (переключатели ядра, отличные от значений по умолчанию). */
-const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = [
-  { label: 'Драфт: игроков + 1 персонажей и случайных профессий', rules: { draftSize: 'players' } },
-  { label: '+2 крови на старте', rules: { startResources: 'blood2' } },
-  {
-    label: 'Двойные участки по картону: Лес и Долина +2 золота, Город +1 руда',
-    rules: { plotSurcharge: 'base' },
-  },
-  {
-    label: 'Жетоны боя: прежний набор (10, Приманок 5), возврат после 3-го раунда',
-    rules: { combatTokenSet: 'base' },
-  },
-];
+/** Экспериментальные и прежние правила — чекбоксы из ядра (RULE_OPTIONS). */
+const EXPERIMENTS: { label: string; rules: Partial<RuleToggles> }[] = (
+  Object.entries(RULE_OPTIONS) as [keyof RuleToggles, readonly RuleOption[]][]
+).flatMap(([key, options]) =>
+  options.map((o) => ({ label: o.label, rules: { [key]: o.value } as Partial<RuleToggles> })),
+);
 
 const BOT_OPTIONS = [
   'human',
@@ -115,14 +119,15 @@ function Game() {
     act,
     undo,
     canUndo: undoable,
-    history,
     lastMove,
     combatReports,
     hostRoom,
     guest,
+    undoVote,
   } = useGame();
-  // history в зависимостях: кнопка отмены пересчитывается после каждого хода.
-  const canUndo = history.length > 0 && undoable();
+  // Компонент подписан на весь store — кнопка пересчитывается после каждого хода. У гостя
+  // своей истории нет: можно ли просить отмену, говорит снимок хоста.
+  const canUndo = undoable();
   const [delay, setDelay] = useState(400);
   const [paused, setPaused] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -163,11 +168,14 @@ function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo]);
 
+  const motionBusy = useMotionBusy();
   useEffect(() => {
-    if (!botTurn || paused || roundOpen || combatResult) return;
+    // Боты ждут, пока открыты окна и пока игроки решают, отменять ли ход.
+    // …и пока фишка едет по полю и стоит полсекунды на месте (автор 24.11).
+    if (!botTurn || paused || roundOpen || combatResult || undoVote || motionBusy) return;
     const t = setTimeout(() => botStep(), delay);
     return () => clearTimeout(t);
-  }, [state, botTurn, paused, roundOpen, combatResult, delay, botStep]);
+  }, [state, botTurn, paused, roundOpen, combatResult, undoVote, motionBusy, delay, botStep]);
 
   // Тело в фигурных скобках: в новых Chrome scrollIntoView возвращает Promise, а эффект может
   // вернуть только функцию очистки.
@@ -184,6 +192,22 @@ function Game() {
     guest ? { viewer: guest.seat, legal: guest.legal } : null,
   );
   const hasTargets = Object.keys(slots).length + Object.keys(plots).length > 0;
+  // Окно выбора: варианты одной цели на поле или решение без целей на поле, если вариантов ≥ 2.
+  const modalChoice =
+    focus ??
+    (!hasTargets &&
+    !botTurn &&
+    pending !== null &&
+    pending.kind !== 'placement' &&
+    pending.kind !== 'build' &&
+    // Драфт и улучшение решаются в своём окне драфта.
+    pending.kind !== 'draftPick' &&
+    pending.kind !== 'upgrade' &&
+    // Жетоны боя — в окне жетонов.
+    pending.kind !== 'combatToken' &&
+    barLegal.length >= 2
+      ? barLegal
+      : null);
   const targets: BoardTargets | undefined = hasTargets
     ? {
         slots,
@@ -221,7 +245,11 @@ function Game() {
         <button
           onClick={undo}
           disabled={!canUndo}
-          title="Отменить ваш последний ход и ходы ботов после него (Ctrl+Z)"
+          title={
+            hostRoom || guest
+              ? 'Попросить отменить ваш последний ход — нужно согласие всех игроков'
+              : 'Отменить ваш последний ход и ходы ботов после него (Ctrl+Z)'
+          }
         >
           ↶ Отменить ход
         </button>
@@ -229,13 +257,15 @@ function Game() {
           onClick={() => {
             reset();
             // Гость уходит из комнаты на экран настройки.
-            if (guest) window.location.search = '';
+            if (guest) leavePage();
           }}
         >
           {guest ? 'Выйти' : 'Новая партия'}
         </button>
       </header>
       <main className={styles.boardArea}>
+        <UndoVoteModal />
+        <ResourceToasts />
         <BoardSvg obs={obs} landscape targets={targets} lastMove={lastMove} strengths={strengths} />
         <TurnToast
           player={pending?.player ?? null}
@@ -262,7 +292,7 @@ function Game() {
             onClose={() => setRoundShown(state.round)}
           />
         )}
-        {!roundOpen && !combatResult && (
+        {!roundOpen && !combatResult && !motionBusy && (
           <CombatModal
             state={state}
             obs={obs}
@@ -270,6 +300,16 @@ function Game() {
             strengths={strengths}
             viewer={viewer}
             onPick={act}
+          />
+        )}
+        {/* Выборы игры — в окне над полем (автор 24.11); на поле остаются клики по целям. */}
+        {modalChoice && !motionBusy && (
+          <ChoiceModal
+            state={state}
+            actions={modalChoice}
+            viewer={viewer}
+            onPick={act}
+            onCancel={focus ? () => setFocus(null) : undefined}
           />
         )}
         {drafting && (
@@ -293,7 +333,17 @@ function Game() {
             onSelect={setSelected}
           />
         )}
-        <PlayersPanel obs={obs} state={state} viewer={viewer} seats={seats} />
+        <PlayersPanel
+          obs={obs}
+          state={state}
+          viewer={viewer}
+          seats={seats}
+          pick={
+            pending?.kind === 'placement' && !botTurn
+              ? { selected, onPick: (id) => setSelected(selected === id ? null : id) }
+              : undefined
+          }
+        />
         <details className={styles.log}>
           <summary>Журнал</summary>
           {log.map((l) => (
@@ -307,7 +357,7 @@ function Game() {
       <div className={styles.barArea}>
         <ActionBar
           state={state}
-          legal={barLegal}
+          legal={modalChoice ? [] : barLegal}
           botTurn={botTurn}
           hint={
             focus
@@ -316,11 +366,15 @@ function Game() {
                 ? 'Выберите рабочего справа и кликните подсвеченное гнездо'
                 : pending?.kind === 'build'
                   ? 'Кликните подсвеченный участок или место Цитадели'
-                  : pending?.kind === 'draftPick'
-                    ? 'Выберите карту в окне драфта'
-                    : pending?.kind === 'combatToken'
-                      ? 'Выберите жетон боя в окне над полем'
-                      : null
+                  : pending?.kind === 'executioner'
+                    ? 'Палач: кликните рабочего, которого вытеснить, или откажитесь'
+                    : pending?.kind === 'spyMove'
+                      ? 'Шпион: кликните подсвеченный слот, куда перейти, или оставьте его на месте'
+                      : pending?.kind === 'draftPick'
+                        ? 'Выберите карту в окне драфта'
+                        : pending?.kind === 'combatToken'
+                          ? 'Выберите жетон боя в окне над полем'
+                          : null
           }
           error={error}
           onAct={act}
@@ -339,8 +393,6 @@ function autostartSeed(): number | null {
 
 export function App() {
   const params = new URLSearchParams(window.location.search);
-  if (['board', 'map', 'mix', 'layout', 'panel'].includes(params.get('mock') ?? ''))
-    return <BoardMock />;
   const watch = params.get('watch');
   if (watch) return <Watch file={watch} />;
   return <Play />;
@@ -348,10 +400,10 @@ export function App() {
 
 function Play() {
   const started = useGame((s) => s.state !== null);
-  const invite = inviteFromUrl(window.location.search);
+  const invite = inviteFrom(window.location);
   useEffect(() => {
     // Ссылка не меняется без перезагрузки страницы — читаем её здесь же.
-    const link = inviteFromUrl(window.location.search);
+    const link = inviteFrom(window.location);
     if (link) {
       joinAsGuest(link.room, link.key);
       return;
@@ -403,15 +455,20 @@ function InvitePanel({ room }: { room: HostRoom }) {
   );
 }
 
+/** Тексты состояния связи гостя. */
+const GUEST_LINK_TEXT = {
+  connecting: 'Подключение к хосту… Хост должен держать партию открытой во вкладке.',
+  slow:
+    'Хост не отвечает. Проверьте, что партия у хоста открыта. Если открыта — ваши сети не пропускают ' +
+    'прямое соединение (так бывает с мобильным интернетом и рабочими сетями): попробуйте другую сеть.',
+  online: 'Онлайн: связь с хостом есть',
+  reconnecting: 'Связь с хостом потеряна — переподключение…',
+} as const;
+
 /** Гость: состояние связи с хостом. */
 function GuestStatus() {
   const { guestLink, rejectMessage } = useOnline();
-  return (
-    <span className={styles.invites}>
-      {rejectMessage ??
-        (guestLink === 'online' ? 'Онлайн: связь с хостом есть' : 'Связь с хостом потеряна')}
-    </span>
-  );
+  return <span className={styles.invites}>{rejectMessage ?? GUEST_LINK_TEXT[guestLink]}</span>;
 }
 
 /** Гость открыл ссылку: ждём первый снимок от хоста. */
@@ -420,13 +477,13 @@ function Joining() {
   return (
     <section className={styles.setup}>
       <h1>Вампирская игра</h1>
-      <p>
-        {rejectMessage ??
-          (guestLink === 'reconnecting'
-            ? 'Хост недоступен — переподключение…'
-            : 'Подключение к хосту… Хост должен держать партию открытой во вкладке.')}
-      </p>
-      <button onClick={() => (window.location.search = '')}>На экран настройки</button>
+      <p>{rejectMessage ?? GUEST_LINK_TEXT[guestLink]}</p>
+      <button onClick={leavePage}>На экран настройки</button>
     </section>
   );
+}
+
+/** Гость уходит из комнаты: тот же адрес без приглашения. */
+function leavePage(): void {
+  window.location.href = window.location.pathname;
 }

@@ -2,9 +2,9 @@ import {
   actionLabel,
   applyAction,
   decisionTitle,
+  previewHidesInfo,
   regionName,
   type Action,
-  type Decision,
   type GameEvent,
   type GameState,
   type PlayerId,
@@ -13,9 +13,6 @@ import type { RegionId, Resources } from '@vampire/data';
 import { useEffect, useMemo } from 'react';
 import styles from './ActionBar.module.css';
 import { Icon, RichText, type IconName } from './Icon';
-
-/** Решения, где примерка хода раскрыла бы скрытое (жетоны боя соперников). */
-const HIDDEN: ReadonlySet<Decision['kind']> = new Set(['combatToken', 'retreat', 'spyMove']);
 
 /** События, после которых ход уже закончился (конец раунда, вскрытие жетонов). */
 const STOP: ReadonlySet<GameEvent['type']> = new Set([
@@ -34,7 +31,8 @@ export interface Effect {
 
 /** Что ход даст игроку сразу: ресурсы, влияние, престиж (примерка на копии партии). */
 export function previewEffect(state: GameState, action: Action, player: PlayerId): Effect | null {
-  if (state.pending && HIDDEN.has(state.pending.kind)) return null;
+  // Решения, где примерка раскрыла бы скрытое, решает ядро (visibility.ts).
+  if (state.pending && previewHidesInfo(state.pending.kind)) return null;
   let events: GameEvent[];
   try {
     events = applyAction(state, action).events;

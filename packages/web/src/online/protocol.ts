@@ -8,6 +8,12 @@ import type { Action, GameEvent, Observation } from '@vampire/core';
 /** Версия протокола: при расхождении гость видит «обновите страницу». */
 export const PROTOCOL_VERSION = 1;
 
+/**
+ * Метка сборки (vite.config.ts: define). Хост и гость должны играть одной сборкой — иначе правила
+ * у них разные. В тестах и без метки — 'dev'.
+ */
+export const BUILD_ID: string = import.meta.env.VITE_BUILD_ID ?? 'dev';
+
 /** Проверка связи: обе стороны шлют сообщение не реже, чем раз в HEARTBEAT_MS. */
 export const HEARTBEAT_MS = 2000;
 /** Тишина дольше LINK_TIMEOUT_MS — связь считается оборванной и закрывается. */
@@ -18,14 +24,30 @@ export const HELLO_RETRY_MS = 1000;
 /** Длина ключа кресла (newKey: 16 байт в hex); длиннее — заведомо не наш. */
 const MAX_KEY_LENGTH = 64;
 
+/**
+ * Просьба отменить ход (решение автора 23.11 — отмену подтверждают все игроки): кто просит,
+ * что откатится (строки журнала), кто должен согласиться и кто уже согласился.
+ */
+export interface UndoVote {
+  id: number;
+  requester: number;
+  lines: string[];
+  need: number[];
+  approved: number[];
+}
+
 /** Гость → хост. */
 export type GuestMessage =
   /** Представиться: ключ кресла из ссылки-приглашения и версия протокола. */
-  | { type: 'hello'; seatKey: string; protocol: number }
+  | { type: 'hello'; seatKey: string; protocol: number; build: string }
   /** Сделать ход; seq — номер снимка, на котором гость выбирал ход. */
   | { type: 'act'; seq: number; action: Action }
   /** Проверка связи. */
-  | { type: 'ping' };
+  | { type: 'ping' }
+  /** Попросить отменить свой последний ход (seq — снимок, на котором гость нажал «отменить»). */
+  | { type: 'undo'; seq: number }
+  /** Ответ на просьбу об отмене id: согласен или нет. */
+  | { type: 'undoVote'; id: number; accept: boolean };
 
 /** Хост → гость. */
 export type HostMessage =
@@ -40,6 +62,10 @@ export type HostMessage =
       observation: Observation;
       legal: Action[];
       events: GameEvent[];
+      /** Можно ли гостю попросить отмену своего последнего хода. */
+      canUndo: boolean;
+      /** Идущая просьба об отмене (null — нет). */
+      undoVote: UndoVote | null;
     }
   /** Отказ: неверный ключ, чужая версия, устаревший или недопустимый ход. */
   | { type: 'reject'; reason: RejectReason; message: string }
@@ -54,7 +80,8 @@ export type RejectReason =
   | 'illegal'
   | 'notJoined'
   | 'alreadyJoined'
-  | 'failed';
+  | 'failed'
+  | 'cannotUndo';
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
@@ -67,13 +94,19 @@ export function parseGuestMessage(raw: unknown): GuestMessage | null {
     raw.seatKey.length <= MAX_KEY_LENGTH &&
     Number.isInteger(raw.protocol)
   ) {
-    return { type: 'hello', seatKey: raw.seatKey, protocol: Number(raw.protocol) };
+    const build = typeof raw.build === 'string' ? raw.build.slice(0, MAX_KEY_LENGTH) : '';
+    return { type: 'hello', seatKey: raw.seatKey, protocol: Number(raw.protocol), build };
   }
   if (raw.type === 'act' && Number.isInteger(raw.seq) && isObject(raw.action)) {
     // Форму самого хода проверяет хост: применяется только совпавший ход из допустимых.
     return { type: 'act', seq: Number(raw.seq), action: raw.action as Action };
   }
   if (raw.type === 'ping') return { type: 'ping' };
+  if (raw.type === 'undo' && Number.isInteger(raw.seq))
+    return { type: 'undo', seq: Number(raw.seq) };
+  if (raw.type === 'undoVote' && Number.isInteger(raw.id) && typeof raw.accept === 'boolean') {
+    return { type: 'undoVote', id: Number(raw.id), accept: raw.accept };
+  }
   return null;
 }
 

@@ -1,4 +1,4 @@
-import type { GameEvent, PlayerId } from './types';
+import type { Decision, GameEvent, PlayerId } from './types';
 
 /**
  * Видимость событий для зрителя (онлайн-режим: хост шлёт гостю только то, что тот вправе знать).
@@ -19,6 +19,8 @@ const EVENT_VISIBILITY: VisibilityTable = {
   workerPlaced: 'public',
   cityEntryPaid: 'public',
   trackBoost: 'public',
+  undergroundMark: 'public',
+  spireVp: 'public',
   workerDisplaced: 'public',
   passed: 'public',
   locationActionResolved: 'public',
@@ -27,6 +29,7 @@ const EVENT_VISIBILITY: VisibilityTable = {
   cityEntryRaised: 'public',
   workerRevived: 'public',
   workerMoved: 'public',
+  garrisonDeployed: 'public',
   buildingBuilt: 'public',
   prestigeChanged: 'public',
   characterTriggered: 'public',
@@ -75,4 +78,32 @@ export function filterEvents(
 /** События, которые зритель вправе увидеть (в том же порядке). */
 export function eventsFor(events: readonly GameEvent[], viewer: PlayerId): GameEvent[] {
   return filterEvents(events, viewer, EVENT_VISIBILITY);
+}
+
+/**
+ * Решения, где примерка хода (предпросмотр итога в интерфейсе) раскрыла бы скрытое: исход
+ * зависит от жетонов боя соперников. Таблица исчерпывающая — новое решение не скомпилируется,
+ * пока не решено, можно ли показывать его итог заранее.
+ */
+const PREVIEW_HIDES_INFO: Record<Decision['kind'], boolean> = {
+  draftPick: false,
+  upgrade: false,
+  placement: false,
+  effectOrder: false,
+  character: false,
+  locationAction: false,
+  executioner: false,
+  build: false,
+  upkeep: false,
+  combatReward: false,
+  combatToken: true,
+  retreat: true,
+  spyMove: true,
+  // Решение принимается до вскрытия жетонов боя: итог зависит от скрытого.
+  garrison: true,
+};
+
+/** Можно ли показывать итог хода в этом решении заранее (false — раскрыло бы скрытое). */
+export function previewHidesInfo(kind: Decision['kind']): boolean {
+  return PREVIEW_HIDES_INFO[kind];
 }

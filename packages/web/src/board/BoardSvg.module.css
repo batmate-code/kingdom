@@ -272,27 +272,28 @@
 /* Сила в регионе, жетоны силы, Комиссариат (Ж6, Ж7). */
 .statusWrap {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   height: 100%;
 }
 
+/* Строка под треком влияния: сила игроков, ниже — жетоны силы и Комиссариат. */
 .status {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   justify-content: center;
 }
 
 .statusPill {
   font-family: system-ui, sans-serif;
   font-weight: 800;
-  font-size: 22px;
+  font-size: 18px;
   color: #140f12;
   background: #e9dfcf;
   border: 3px solid transparent;
-  border-radius: 14px;
-  padding: 1px 10px;
+  border-radius: 12px;
+  padding: 0 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
 }
 
@@ -302,4 +303,40 @@
   font-weight: 800;
   color: #e9c87c;
   margin: 0 2px;
+}
+
+/* Эксперимент «обратные треки»: ПО, которые принёс Шпиль, и отметки взятых наград. */
+.spireVp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-weight: 800;
+  font-size: 22px;
+  color: #ffe9a8;
+  text-shadow: 0 1px 3px #000;
+}
+
+.takenDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid #000;
+  margin-left: 2px;
+}
+
+/* Фишка рабочего, на карту которого навели курсор на планшете. */
+.tokenHover {
+  filter: drop-shadow(0 0 8px #ffe9a8);
+  animation: tokenPulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes tokenPulse {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
 }

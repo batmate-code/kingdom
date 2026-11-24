@@ -94,11 +94,12 @@ export function dealDraft(c: Ctx): Task[] {
 export function draftOptions(state: GameState, player: PlayerId, circle: 1 | 2): DraftPick[] {
   const pick = state.players[player]?.draftPick;
   if (!pick) throw new Error(`Нет игрока ${player}`);
-  const chars: DraftPick[] = state.offer.characters.map((character) => ({
+  // Копии карт (урезанная колода, случайные профессии) — один выбор на одинаковые карты.
+  const chars: DraftPick[] = [...new Set(state.offer.characters)].map((character) => ({
     kind: 'character',
     character,
   }));
-  const profs: DraftPick[] = state.offer.professions.map((profession) => ({
+  const profs: DraftPick[] = [...new Set(state.offer.professions)].map((profession) => ({
     kind: 'profession',
     profession,
   }));
@@ -152,6 +153,8 @@ export function applyUpgrade(c: Ctx, player: PlayerId, choice: UpgradeChoice): v
     discardPair(c, player, worker.character, worker.profession, 'replaced');
   }
   worker.character = character;
+  // Жетоны Наёмника уходят вместе с прежним персонажем.
+  delete worker.garrison;
   worker.profession = profession;
   c.events.push({ type: 'workerUpgraded', player, workerId: worker.id, character, profession });
 }

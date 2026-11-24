@@ -34,14 +34,15 @@ describe('данные правил согласованы', () => {
     }
   });
 
-  it('участков по 5 на регион, соседние локации — из того же региона', () => {
+  it('участков по 6 на регион (автор 23.11), соседние локации — из того же региона', () => {
     for (const r of REGION_ORDER) {
       const plots = PLOTS.filter((p) => p.region === r);
-      expect(plots).toHaveLength(5);
+      expect(plots).toHaveLength(6);
       for (const plot of plots) {
         for (const loc of plot.adjacent) expect(LOCATIONS[loc].region).toBe(r);
-        // Доплата только у двойных участков.
-        expect(Object.keys(plot.surcharge).length > 0).toBe(plot.adjacent.length === 2);
+        // Доплата только у двойных участков Леса и Долины; в Городе участки бесплатны.
+        const paid = plot.adjacent.length === 2 && r !== 'city';
+        expect(Object.keys(plot.surcharge).length > 0).toBe(paid);
       }
     }
   });
@@ -51,14 +52,14 @@ describe('данные правил согласованы', () => {
     expect(TRACKS.valley.max).toBe(6);
     expect(TRACKS.city.max).toBe(8);
     expect(TRACKS.city.vpMarks).toEqual([3, 5, 8]);
-    expect(PRESTIGE_TRACK.vpMarks).toHaveLength(8);
+    expect(PRESTIGE_TRACK.vpMarks).toHaveLength(11); // автор 24.11: трек до 58
   });
 
-  it('в колоде 30 персонажей: содержание 0/1/2/3 — 5/10/9/6 карт', () => {
+  it('в колоде 34 персонажа (автор 24.11: новые карты и пересмотр содержания): 0/1/2/3 — 9/15/5/5', () => {
     const all = Object.values(CHARACTERS);
-    expect(all).toHaveLength(30);
+    expect(all).toHaveLength(34);
     const counts = [0, 1, 2, 3].map((u) => all.filter((c) => c.upkeep === u).length);
-    expect(counts).toEqual([5, 10, 9, 6]);
+    expect(counts).toEqual([9, 15, 5, 5]);
     for (const c of all) expect(UPKEEP_TIERS.some((t) => t.upkeep === c.upkeep)).toBe(true);
   });
 

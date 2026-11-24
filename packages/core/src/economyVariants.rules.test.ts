@@ -29,25 +29,22 @@ describe('Правила автора 23.11: старт, вход в Город,
     expect(s.config.rules.massBloodToGold).toBe('base');
     expect(s.config.rules.citadelCost).toBe('cheap');
     expect(s.config.rules.trackBoosts).toBe(true);
-    expect(res(s, 0)).toMatchObject({ gold: 2, blood: 0 });
+    expect(res(s, 0)).toMatchObject({ gold: 2, blood: 1 });
   });
 
-  it('startResources=blood2: на старте +2 крови, база — без крови', () => {
-    expect(res(newGame(), 0).blood).toBe(0);
-    expect(res(newGame({ rules: { startResources: 'blood2' } }), 0)).toMatchObject({
-      gold: 2,
-      blood: 2,
-    });
+  it('Старт (автор 24.11): 2 золота и 1 кровь у каждого игрока', () => {
+    const s = createGame({}, 1);
+    for (const p of s.players) expect(p.resources).toMatchObject({ gold: 2, blood: 1 });
   });
 
   it('cityEntryResource=blood: вход в Город платится кровью', () => {
     const s = turnTo(
-      newGame({ rules: { startResources: 'blood2', cityEntryResource: 'blood' } }),
+      setResources(newGame({ rules: { cityEntryResource: 'blood' } }), 0, { gold: 2, blood: 1 }),
       0,
     );
     const log: GameEvent[] = [];
     const after = place(s, 'chancery', 1, { log });
-    expect(res(after, 0)).toMatchObject({ gold: 2, blood: 1 });
+    expect(res(after, 0)).toMatchObject({ gold: 2, blood: 0 });
     expect(log).toContainEqual({ type: 'cityEntryPaid', player: 0, price: { blood: 1 } });
   });
 
@@ -119,10 +116,11 @@ describe('Правила автора 23.11: старт, вход в Город,
     expect(res(b.state, 0).gold).toBe(gold + 2);
   });
 
-  it('trackBoosts: Город — руда на 2 и 4, прыжок через обе позиции даёт обе', () => {
+  it('trackBoosts: Город — компромат на 2, 4 и 7 (автор 24.11), прыжок через позиции даёт все', () => {
     const s = newGame({ rules: { trackBoosts: true } });
-    const ore = res(s, 1).ore;
-    expect(res(influence(s, 1, 'city', 4).state, 1).ore).toBe(ore + 2);
+    const comp = res(s, 1).compromat;
+    expect(res(influence(s, 1, 'city', 4).state, 1).compromat).toBe(comp + 2);
+    expect(res(influence(s, 1, 'city', 7).state, 1).compromat).toBe(comp + 3);
     expect(res(influence(s, 1, 'valley', 2).state, 1).blood).toBe(res(s, 1).blood + 2);
   });
 

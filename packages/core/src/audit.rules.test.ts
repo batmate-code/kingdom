@@ -12,6 +12,7 @@ import {
 } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { cityEntryCost } from './economy';
+import { createGame } from './engine';
 import type { GameEvent, GameState, Position } from './types';
 import {
   choose,
@@ -55,22 +56,29 @@ describe('Данные: числа таблиц против rules.md и изо�
     ]);
     expect(slots('mass')).toEqual([
       { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
-      { kind: 'mass', unit: 1, rate: 1, maxTimes: 1 },
+      { kind: 'powerToken', count: 1 },
     ]);
     expect(slots('market')).toEqual([
       { kind: 'market', ore: 2, buyCost: 2, sellGain: null },
-      { kind: 'market', ore: 2, buyCost: 3, sellGain: null },
+      { kind: 'gain', gain: { compromat: 1, gold: 1 } },
     ]);
     expect(slots('tavern')[1]).toEqual({ kind: 'gain', gain: { gold: 1, blood: 1 } });
     expect(slots('chancery')).toEqual([
-      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 3, ore: 2, buildRightCost: 1 },
+      {
+        kind: 'chancery',
+        maxActions: 2,
+        conversionCost: 1,
+        goldBlood: 3,
+        ore: 2,
+        buildRightCost: 1,
+      },
       { kind: 'chanceryBuild', compromatCost: 2 },
     ]);
     expect(slots('underground')).toEqual([
       { kind: 'copy', goldCost: 0, scope: ['forest', 'valley', 'city'] },
       { kind: 'copy', goldCost: 0, scope: ['forest', 'valley'] },
     ]);
-    expect(slots('commissariat')[1]).toEqual({ kind: 'revive', cost: { compromat: 2 } });
+    expect(slots('commissariat')[1]).toEqual({ kind: 'revive', cost: { compromat: 1 } });
     expect(slots('cityHall')).toEqual([
       {
         kind: 'cityHall',
@@ -109,11 +117,11 @@ describe('Данные: числа таблиц против rules.md и изо�
       cityEntryRaiseAt: null,
     });
     expect(CITY_ENTRY).toEqual({ base: 1, raiseStep: 1, max: 3 });
-    expect(PRESTIGE_TRACK.max).toBe(40);
-    expect(PRESTIGE_TRACK.vpMarks).toEqual([3, 6, 10, 15, 20, 26, 33, 40]);
+    expect(PRESTIGE_TRACK.max).toBe(58);
+    expect(PRESTIGE_TRACK.vpMarks).toEqual([3, 6, 10, 15, 20, 26, 33, 40, 48, 53, 58]);
   });
 
-  it('Участки: соседи и доплаты (Лес/Долина +2 золота, Город +1 руда у двойных)', () => {
+  it('Участки (автор 23.11): по 6 на регион; Лес/Долина +2 золота у двойных по картону, Город бесплатно', () => {
     const doubles = PLOTS.filter((p) => p.adjacent.length === 2).map((p) => ({
       region: p.region,
       adjacent: [...p.adjacent].sort(),
@@ -123,15 +131,20 @@ describe('Данные: числа таблиц против rules.md и изо�
     expect(doubles).toEqual([
       { region: 'forest', adjacent: sorted('mine', 'lair'), surcharge: { gold: 2 } },
       { region: 'forest', adjacent: sorted('mine', 'witchCircle'), surcharge: { gold: 2 } },
+      { region: 'forest', adjacent: sorted('lair', 'witchCircle'), surcharge: { gold: 2 } },
       { region: 'valley', adjacent: sorted('market', 'tavern'), surcharge: { gold: 2 } },
       { region: 'valley', adjacent: sorted('mass', 'tavern'), surcharge: { gold: 2 } },
-      { region: 'city', adjacent: sorted('underground', 'chancery'), surcharge: { ore: 1 } },
-      { region: 'city', adjacent: sorted('underground', 'commissariat'), surcharge: { ore: 1 } },
-      { region: 'city', adjacent: sorted('commissariat', 'cityHall'), surcharge: { ore: 1 } },
+      { region: 'valley', adjacent: sorted('mass', 'market'), surcharge: { gold: 2 } },
+      { region: 'city', adjacent: sorted('underground', 'chancery'), surcharge: {} },
+      { region: 'city', adjacent: sorted('underground', 'commissariat'), surcharge: {} },
+      { region: 'city', adjacent: sorted('underground', 'cityHall'), surcharge: {} },
+      { region: 'city', adjacent: sorted('chancery', 'commissariat'), surcharge: {} },
+      { region: 'city', adjacent: sorted('chancery', 'cityHall'), surcharge: {} },
+      { region: 'city', adjacent: sorted('commissariat', 'cityHall'), surcharge: {} },
     ]);
     const singles = PLOTS.filter((p) => p.adjacent.length === 1).map((p) => p.adjacent[0]);
     expect([...singles].sort()).toEqual(
-      ['mine', 'witchCircle', 'lair', 'market', 'mass', 'tavern', 'chancery', 'cityHall'].sort(),
+      ['mine', 'witchCircle', 'lair', 'market', 'mass', 'tavern'].sort(),
     );
   });
 
@@ -154,12 +167,12 @@ describe('Данные: числа таблиц против rules.md и изо�
 });
 
 describe('Параметры партии: 2–4 игрока', () => {
-  it('Для 2, 3 и 4 игроков: по 3 рабочих, 2 золота, нулевое влияние', () => {
+  it('Для 2, 3 и 4 игроков: по 3 рабочих, 2 золота и 1 кровь (автор 24.11), нулевое влияние', () => {
     for (const n of [2, 3, 4]) {
-      const s = newGame({ playerCount: n });
+      const s = createGame({ playerCount: n }, 1);
       expect(s.workers).toHaveLength(3 * n);
       for (const p of s.players) {
-        expect(p.resources).toEqual({ gold: 2, blood: 0, ore: 0, compromat: 0 });
+        expect(p.resources).toEqual({ gold: 2, blood: 1, ore: 0, compromat: 0 });
         expect(p.influence).toEqual({ forest: 0, valley: 0, city: 0 });
       }
     }
@@ -327,8 +340,8 @@ describe('Локации: граничные случаи', () => {
     expect(res(s, 0)).toMatchObject({ gold: 1, blood: 0, ore: 0 });
   });
 
-  it('Подполье копирует второй слот Комиссариата: рабочий возвращается из госпиталя за 2 компромата', () => {
-    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 2 });
+  it('Подполье копирует второй слот Комиссариата: рабочий возвращается из госпиталя за 1 компромат (автор 24.11)', () => {
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 1 });
     s = moveWorker(s, 'p0w1', { kind: 'hospital' });
     s = place(s, 'underground', 1, { workerId: 'p0w0' });
     s = choose(s, { kind: 'copy', location: 'commissariat', slot: 2 });

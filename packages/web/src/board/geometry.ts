@@ -8,7 +8,7 @@ import type { LocationId, RegionId } from '@vampire/data';
  * Координаты ниже записаны в исходной сетке картона и проходят через sx(); размеры карточек,
  * участков и шрифтов не растягиваются — между элементами просто становится больше места.
  */
-export const SX = 1.25;
+export const SX = 1.45;
 
 export type Pt = readonly [number, number];
 
@@ -55,10 +55,10 @@ const SHAPES_RAW: Record<RegionId | 'hospital', readonly Pt[]> = {
     [1745, 330],
     [1675, 590],
     [1405, 592],
-    [1300, 640],
+    [1340, 650],
     [1070, 905],
     [915, 905],
-    [650, 590],
+    [620, 590],
     [400, 560],
     [325, 500],
   ],
@@ -111,15 +111,17 @@ export const REGION_SHAPES: Record<RegionId | 'hospital', readonly Pt[]> = mapPt
 
 /** Центры карточек локаций. */
 export const LOCATION_CENTERS: Record<LocationId, Pt> = mapPt({
-  underground: [690, 170],
-  commissariat: [1269, 170],
-  chancery: [776, 520],
-  cityHall: [1457, 520],
+  // Город (автор 23.11): треугольник Подполье — Комиссариат — Ратуша, Канцелярия в центре.
+  // Все 6 участков Города — на отрезках между парами локаций, связи не пересекаются.
+  underground: [480, 170],
+  commissariat: [1568, 170],
+  chancery: [1024, 290],
+  cityHall: [1024, 750],
   mine: dn([520, 830]),
   lair: dn([740, 1200]),
   witchCircle: dn([290, 1380]),
   market: dn([1467, 840]),
-  tavern: dn([1745, 1196]),
+  tavern: dn([1695, 1196]),
   mass: dn([1317, 1365]),
 });
 
@@ -131,20 +133,23 @@ export const CARD = { width: 360, height: 280 } as const;
  * не меньше 50 — пунктир связи виден (22.11).
  */
 export const PLOT_CENTERS: Record<string, Pt> = mapPt({
-  'city-underground-chancery': [475, 375],
-  'city-underground-commissariat': [992, 120],
-  'city-commissariat-cityHall': [1568, 270],
-  'city-chancery': [880, 770],
-  'city-cityHall': [1234, 710],
+  'city-underground-commissariat': [1024, 65],
+  'city-underground-chancery': [752, 225],
+  'city-chancery-commissariat': [1296, 225],
+  'city-underground-cityHall': [744, 520],
+  'city-commissariat-cityHall': [1304, 520],
+  'city-chancery-cityHall': [1024, 520],
   'forest-mine': dn([287, 735]),
   'forest-mine-lair': dn([757, 917]),
   'forest-mine-witchCircle': dn([235, 1050]),
   'forest-witchCircle': dn([528, 1490]),
   'forest-lair': dn([760, 1450]),
+  'forest-lair-witchCircle': dn([514, 1225]),
   'valley-market': dn([1231, 905]),
   'valley-market-tavern': dn([1703, 940]),
   'valley-mass': dn([1215, 1110]),
   'valley-mass-tavern': dn([1553, 1430]),
+  'valley-mass-market': dn([1360, 1102]),
   'valley-tavern': dn([1760, 1470]),
 });
 
@@ -152,9 +157,9 @@ export const HEX_R = 58;
 
 /** Места Цитаделей — в середине пространства между локациями своего региона. */
 export const STARS: Record<RegionId, Pt> = mapPt({
-  // Середина прохода между двумя рядами локаций Города.
-  city: [1022, 345],
-  forest: dn([483, 1113]),
+  // Под Подпольем: центр Города занят Канцелярией.
+  city: [480, 470],
+  forest: dn([430, 1075]),
   valley: dn([1500, 1110]),
 });
 
@@ -162,7 +167,8 @@ export const STARS: Record<RegionId, Pt> = mapPt({
 export const TRACK_BOXES: Record<RegionId, { x: number; y: number; w: number; cell: number }> = {
   city: { x: 1775 * SX, y: 30, w: 200, cell: 56 },
   forest: { x: 8, y: 640 + CITY_DY, w: 200, cell: 56 },
-  valley: { x: 1838 * SX - 5, y: 600 + CITY_DY, w: 200, cell: 56 },
+  // Ниже, чем раньше: над ней колонка трека Города стала выше (треки крупнее, автор 24.11).
+  valley: { x: 1838 * SX - 5, y: 720 + CITY_DY, w: 200, cell: 56 },
 };
 
 /** Плашка «вход в Город» (с подписью «Вход»), по центру острия Города. */

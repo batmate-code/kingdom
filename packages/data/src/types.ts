@@ -19,7 +19,7 @@ export type ResourceId = 'gold' | 'blood' | 'ore' | 'compromat';
 
 export type Resources = Record<ResourceId, number>;
 
-export type BuildingId = 'crypt' | 'abbey' | 'shop' | 'citadel';
+export type BuildingId = 'crypt' | 'abbey' | 'shop' | 'citadel' | 'obelisk';
 
 export type CombatTokenId = 'retreat' | 'attack' | 'massacre' | 'domination' | 'defense' | 'decoy';
 
@@ -44,13 +44,18 @@ export type SlotAction =
   /** Месса: одно направление до maxTimes раз, unit золота → rate крови или unit крови → rate золота. */
   /** Месса: unit золота (крови) → rate крови (золота), до maxTimes раз. */
   | { kind: 'mass'; unit: number; rate: number; maxTimes: number }
+  /** Месса, второй слот (автор 24.11): count жетонов силы в любой регион. */
+  | { kind: 'powerToken'; count: number }
   /** Рынок: один обмен — buyCost золота/крови → ore руды или ore руды → sellGain золота/крови. */
   /** Рынок: buyCost золота/крови в любом соотношении → ore руды; sellGain — продажа руды (null — нет). */
   | { kind: 'market'; ore: number; buyCost: number; sellGain: number | null }
-  /** Канцелярия, первый слот: (А) до maxTimes раз conversionCost компромата → goldBlood золота/крови или ore руды; (Б) buildRightCost компромата → право стройки. */
+  /**
+   * Канцелярия, первый слот: до maxActions действий — conversionCost компромата → goldBlood
+   * золота/крови или → ore руды (повторяются), buildRightCost компромата → право стройки (раз).
+   */
   | {
       kind: 'chancery';
-      maxTimes: number;
+      maxActions: number;
       conversionCost: number;
       goldBlood: number;
       ore: number;
@@ -165,7 +170,11 @@ export type CharacterId =
   | 'mason'
   | 'pickpocket'
   | 'renegade'
-  | 'blackmailer';
+  | 'blackmailer'
+  | 'mercenary'
+  | 'armorer'
+  | 'shapeshifter'
+  | 'contractor';
 
 export interface CharacterDef {
   id: CharacterId;

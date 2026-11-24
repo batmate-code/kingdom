@@ -16,6 +16,7 @@ import { newKey } from './keys';
 import {
   parseGuestMessage,
   parseHostMessage,
+  BUILD_ID,
   PROTOCOL_VERSION,
   sameAction,
   type HostMessage,
@@ -146,8 +147,20 @@ describe('Онлайн: протокол хоста и гостя (трансп�
     const bad = guest(t.net.connect(), 'чужой-ключ');
     expect(bad.rejects).toEqual(['badKey']);
     const r = raw(t);
-    r.link.send({ type: 'hello', seatKey: t.keys.get(1), protocol: PROTOCOL_VERSION + 1 });
-    expect(r.reasons()).toEqual(['protocol']);
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION + 1,
+      build: BUILD_ID,
+    });
+    // Другая сборка игры (у гостя устаревшая страница) — тоже отказ.
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION,
+      build: 'старая',
+    });
+    expect(r.reasons()).toEqual(['protocol', 'protocol']);
     expect(t.host.connectedSeats()).toEqual([]);
   });
 
@@ -165,7 +178,12 @@ describe('Онлайн: протокол хоста и гостя (трансп�
     expect(g1.rejects.at(-1)).toBe('illegal');
     // Устаревший номер снимка: хост отказывает и присылает свежий снимок.
     const r = raw(t);
-    r.link.send({ type: 'hello', seatKey: t.keys.get(1), protocol: PROTOCOL_VERSION });
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION,
+      build: BUILD_ID,
+    });
     r.link.send({ type: 'act', seq: -1, action: getLegalActions(t.state)[0] });
     expect(r.reasons()).toEqual(['snapshot', 'stale', 'snapshot']);
     expect(t.state.pending?.player).toBe(1);
@@ -183,7 +201,12 @@ describe('Онлайн: протокол хоста и гостя (трансп�
     const legal = getLegalActions(t.state)[0]!;
     const reversed = Object.fromEntries(Object.entries(legal).reverse());
     const r = raw(t);
-    r.link.send({ type: 'hello', seatKey: t.keys.get(1), protocol: PROTOCOL_VERSION });
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION,
+      build: BUILD_ID,
+    });
     const first = r.got[0];
     const seq = first?.type === 'snapshot' ? first.seq : -1;
     r.link.send({ type: 'act', seq, action: { ...reversed, лишнее: 1 } });
@@ -218,8 +241,18 @@ describe('Онлайн: протокол хоста и гостя (трансп�
     const t = setup();
     const r = raw(t);
     r.link.send({ type: 'act', seq: 0, action: { type: 'pass' } });
-    r.link.send({ type: 'hello', seatKey: t.keys.get(1), protocol: PROTOCOL_VERSION });
-    r.link.send({ type: 'hello', seatKey: t.keys.get(2), protocol: PROTOCOL_VERSION });
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION,
+      build: BUILD_ID,
+    });
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(2),
+      protocol: PROTOCOL_VERSION,
+      build: BUILD_ID,
+    });
     expect(r.reasons()).toEqual(['notJoined', 'snapshot', 'alreadyJoined']);
     expect(t.host.connectedSeats()).toEqual([1]);
   });
@@ -240,11 +273,57 @@ describe('Онлайн: протокол хоста и гостя (трансп�
     expect(g.view()?.seq).toBe(42);
   });
 
+  it('Хост перезапустился и не знает гостя: гость представляется заново и принимает снимки с новой нумерацией', () => {
+    const t = setup();
+    // Соединение, по которому говорит «хост»: снимки и отказы подаём вручную.
+    const sent: unknown[] = [];
+    const handlers: ((m: unknown) => void)[] = [];
+    const fake: Link = {
+      send: (m) => sent.push(m),
+      onMessage: (h) => {
+        handlers.push(h);
+        return () => undefined;
+      },
+      onClose: () => () => undefined,
+      close: () => undefined,
+    };
+    const views: number[] = [];
+    const s = createGuestSession({
+      link: fake,
+      seatKey: t.keys.get(1)!,
+      onSnapshot: (v) => views.push(v.seq),
+    });
+    cleanup.push(() => s.close());
+    const deliver = (m: unknown) => handlers.forEach((h) => h(m));
+    const snap = (seq: number): HostMessage => ({
+      type: 'snapshot',
+      seq,
+      seat: 1,
+      observation: getObservation(t.state, 1),
+      legal: [],
+      events: [],
+      canUndo: false,
+      undoVote: null,
+    });
+    deliver(snap(7));
+    sent.length = 0;
+    s.act({ type: 'pass' });
+    deliver({ type: 'reject', reason: 'notJoined', message: 'Сначала представьтесь' });
+    expect(sent.some((m) => (m as { type?: string }).type === 'hello')).toBe(true);
+    deliver(snap(0));
+    expect(views).toEqual([7, 0]);
+  });
+
   it('Тишина дольше таймаута: хост закрывает соединение гостя, кресло освобождается', () => {
     vi.useFakeTimers();
     const t = setup({ timeoutMs: 400 });
     const r = raw(t);
-    r.link.send({ type: 'hello', seatKey: t.keys.get(1), protocol: PROTOCOL_VERSION });
+    r.link.send({
+      type: 'hello',
+      seatKey: t.keys.get(1),
+      protocol: PROTOCOL_VERSION,
+      build: BUILD_ID,
+    });
     expect(t.host.connectedSeats()).toEqual([1]);
     vi.advanceTimersByTime(300);
     expect(t.host.connectedSeats()).toEqual([1]);
@@ -282,6 +361,8 @@ describe('Онлайн: протокол хоста и гостя (трансп�
           observation: getObservation(state, 1),
           legal: [],
           events: [],
+          canUndo: false,
+          undoVote: null,
         } satisfies HostMessage);
       }),
     );
@@ -336,5 +417,40 @@ describe('Онлайн: разбор недоверенных сообщений
     ).toBeNull();
     expect(parseHostMessage({ type: 'reject', reason: 'badKey' })).toBeNull();
     expect(parseHostMessage({ type: 'pong' })).toEqual({ type: 'pong' });
+  });
+
+  it('Отмена хода гостя: хост разрешает — откатывает; не разрешает — отказ cannotUndo', () => {
+    let allowed = true;
+    const undone: number[] = [];
+    const net = memoryNetwork();
+    const state = createGame({ playerCount: 2 }, 1);
+    const key = newKey();
+    const host = createHostSession({
+      listener: net.listener,
+      guestSeats: new Map([[1, key]]),
+      getState: () => state,
+      apply: () => false,
+      canUndo: () => allowed,
+      undo: (seat) => {
+        if (!allowed) return false;
+        undone.push(seat);
+        return true;
+      },
+    });
+    cleanup.push(() => host.close());
+    const g = guest(net.connect(), key);
+    expect(g.view()?.canUndo).toBe(true);
+    g.session.undo();
+    expect(undone).toEqual([1]);
+    allowed = false;
+    const raw2 = net.connect();
+    const got: string[] = [];
+    raw2.onMessage((m) => {
+      const msg = parseHostMessage(m);
+      if (msg && msg.type !== 'pong') got.push(msg.type === 'reject' ? msg.reason : msg.type);
+    });
+    raw2.send({ type: 'hello', seatKey: key, protocol: PROTOCOL_VERSION, build: BUILD_ID });
+    raw2.send({ type: 'undo', seq: 0 });
+    expect(got).toEqual(['snapshot', 'cannotUndo']);
   });
 });

@@ -32,6 +32,8 @@ describe('Переключатели спорных правил (вариант
       'witchCircle/2',
       'lair/1',
       'lair/2',
+      'mass/2',
+      'market/2',
       'tavern/2',
       'commissariat/1',
     ]);

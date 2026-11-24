@@ -12,6 +12,7 @@ import { busyWorkerIds, distinctWorkers, getWorker, regionOfWorker } from './boa
 import { buildOptions } from './buildings';
 import { combatStrengths } from './combat';
 import type { Ctx } from './context';
+import { influenceMin } from './reverse';
 import { changeInfluence, changeResources } from './economy';
 import { applyPlace, placementsFor } from './placement';
 import { addPrestige } from './prestige';
@@ -98,7 +99,15 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   scavenger: {
     apply(c, e) {
       const n = c.draft.workers.filter((w) => w.position.kind === 'hospital').length;
-      changeResources(c, e.player, { blood: n * P.scavenger.bloodPerHospitalWorker }, 'character');
+      changeResources(
+        c,
+        e.player,
+        {
+          blood: n * P.scavenger.bloodPerHospitalWorker,
+          compromat: n * P.scavenger.compromatPerHospitalWorker,
+        },
+        'character',
+      );
     },
   },
   snitch: {
@@ -160,7 +169,8 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   },
   manipulator: {
     options: (state, e) =>
-      (state.players[e.player]?.influence[e.region] ?? 0) < P.manipulator.influenceLoss
+      (state.players[e.player]?.influence[e.region] ?? 0) - influenceMin(state) <
+      P.manipulator.influenceLoss
         ? []
         : REGION_ORDER.filter((r) => r !== e.region).map((to) => ({ kind: 'manipulator', to })),
     apply(c, e, choice) {
@@ -192,7 +202,9 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   renegade: {
     options(state, e) {
       const loss = P.renegade.influenceLoss;
-      if ((state.players[e.player]?.influence[e.region] ?? 0) < loss) return [];
+      // Ниже нижнего предела трека терять нечего (0; в эксперименте influenceModel=reverse — −4).
+      if ((state.players[e.player]?.influence[e.region] ?? 0) - influenceMin(state) < loss)
+        return [];
       const out: CharacterChoice[] = [{ kind: 'renegade', gain: 'ore' }];
       // Стройку проверяем уже с потерянным влиянием: Цитадель может стать недоступной (OQ-43).
       const afterLoss: GameState = {
@@ -301,7 +313,7 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       const cost = P.blackmailer.compromatCost;
       if ((state.players[e.player]?.resources.compromat ?? 0) < cost) return [];
       return state.players.flatMap((p, target) =>
-        target !== e.player && p.influence[e.region] > 0
+        target !== e.player && p.influence[e.region] > influenceMin(state)
           ? [{ kind: 'blackmailer' as const, target }]
           : [],
       );
@@ -317,12 +329,12 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
 
   // Содержание 3
   commissar: {
-    // Свой рабочий из госпиталя сразу размещается с действием, без платы за вход в Город.
+    // Свой рабочий из госпиталя сразу размещается с действием; вход в Город платный (автор 24.11).
     options(state, e) {
       const inHospital = state.workers.filter(
         (w) => w.owner === e.player && w.position.kind === 'hospital',
       );
-      return placementsFor(state, e.player, inHospital, true).map((p) => ({
+      return placementsFor(state, e.player, inHospital).map((p) => ({
         kind: 'commissar',
         ...p,
       }));
@@ -344,7 +356,7 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     },
   },
   patron: {
-    // +1 здесь и +1 за каждое своё здание региона (с Цитаделью), всего не больше 3.
+    // Автор 24.11: +1 за каждое своё здание региона (с Цитаделью), всего не больше 2.
     apply(c, e) {
       const { baseInfluence, perBuilding, maxInfluence } = P.patron;
       const buildings = ownBuildingsIn(c.draft, e.player, e.region);
@@ -418,7 +430,58 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       c.events.push({ type: 'workerReturned', player: e.player, workerId, to: 'reserve' });
     },
   },
+  // Новые карты автора (24.11)
+  mercenary: {
+    // Жетоны силы — на карту рабочего (не больше maxTokens); выкладываются перед боем (combat.ts).
+    apply(c, e) {
+      const w = getWorker(c.draft, e.workerId);
+      w.garrison = Math.min(P.mercenary.maxTokens, (w.garrison ?? 0) + P.mercenary.powerTokens);
+    },
+  },
+  armorer: gain({ compromat: P.armorer.compromat }),
+  shapeshifter: {
+    // Эффект персонажа соперника: по одному варианту на персонажа (и на выбор внутри эффекта).
+    options(state, e) {
+      const seen = new Set<CharacterId>();
+      const out: CharacterChoice[] = [];
+      for (const w of state.workers) {
+        const ch = w.character;
+        if (w.owner === e.player || ch === null || seen.has(ch) || !copyable(ch)) continue;
+        seen.add(ch);
+        const inner = EFFECTS[ch].options;
+        if (!inner) out.push({ kind: 'shapeshifter', character: ch });
+        else
+          for (const o of inner(state, e))
+            out.push({ kind: 'shapeshifter', character: ch, inner: o });
+      }
+      return out;
+    },
+    apply(c, e, choice) {
+      const { character, inner } = expect(choice, 'shapeshifter');
+      EFFECTS[character].apply(c, e, inner ?? null);
+    },
+  },
+  contractor: {
+    apply(c, e) {
+      c.draft.tasks.unshift({
+        t: 'askBuild',
+        player: e.player,
+        source: { kind: 'contractor', region: e.region },
+      });
+    },
+  },
 };
+
+/**
+ * Перевёртыш не копирует себя и карты, которые хранят что-то на своей карте (Наёмник, Рудный
+ * барон, Доносчик), и пассивные свойства без эффекта при размещении.
+ */
+function copyable(ch: CharacterId): boolean {
+  if (ch === 'shapeshifter' || ch === 'mercenary' || ch === 'oreBaron' || ch === 'snitch') {
+    return false;
+  }
+  return EFFECTS[ch] !== passive;
+}
 
 function effectCtx(state: GameState, player: PlayerId, workerId: string): EffectCtx | null {
   const w = getWorker(state, workerId);

@@ -51,9 +51,10 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Месса',
     region: 'valley',
     slots: [
-      // Автор 23.11: один обмен 2 → 5 и один обмен 1 → 1, в любую сторону (золото ↔ кровь).
+      // Автор 23.11: один обмен 2 → 5 и один обмен 1 → 2, в любую сторону (золото ↔ кровь).
       { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
-      { kind: 'mass', unit: 1, rate: 1, maxTimes: 1 },
+      // Автор 24.11: второй слот — 1 жетон силы в любой регион.
+      { kind: 'powerToken', count: 1 },
     ],
   },
   market: {
@@ -63,7 +64,8 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     slots: [
       // Автор 23.11: 2 руды за 2 (или 3) золота/крови в любом соотношении, продажи руды нет.
       { kind: 'market', ore: 2, buyCost: 2, sellGain: null },
-      { kind: 'market', ore: 2, buyCost: 3, sellGain: null },
+      // Автор 24.11: второй слот — 1 компромат и 1 золото.
+      { kind: 'gain', gain: { compromat: 1, gold: 1 } },
     ],
   },
   tavern: {
@@ -77,8 +79,16 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     name: 'Канцелярия',
     region: 'city',
     slots: [
-      // Автор 23.11: 1 компромат → 3 золота/крови или 2 руды; право стройки за 1 (2-й слот — за 2).
-      { kind: 'chancery', maxTimes: 2, conversionCost: 1, goldBlood: 3, ore: 2, buildRightCost: 1 },
+      // Автор 23.11: до 2 действий — 1 компромат → 3 золота/крови, → 2 руды или → право стройки
+      // (OQ-47: обмены повторяются, право стройки один раз); 2-й слот — право стройки за 2.
+      {
+        kind: 'chancery',
+        maxActions: 2,
+        conversionCost: 1,
+        goldBlood: 3,
+        ore: 2,
+        buildRightCost: 1,
+      },
       { kind: 'chanceryBuild', compromatCost: 2 },
     ],
   },
@@ -96,7 +106,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     id: 'commissariat',
     name: 'Комиссариат',
     region: 'city',
-    slots: [{ kind: 'commissariatToken' }, { kind: 'revive', cost: { compromat: 2 } }],
+    slots: [{ kind: 'commissariatToken' }, { kind: 'revive', cost: { compromat: 1 } }], // автор 24.11: 1 компромат
   },
   cityHall: {
     id: 'cityHall',
@@ -159,25 +169,31 @@ export const TRACK_BOOSTS: Readonly<
 > = {
   forest: [{ at: 2, gain: { gold: 2 } }],
   valley: [{ at: 2, gain: { blood: 2 } }],
+  // Автор 24.11: на треке Города позиции 2, 4 и 7 дают компромат (было по руде на 2 и 4).
   city: [
-    { at: 2, gain: { ore: 1 } },
-    { at: 4, gain: { ore: 1 } },
+    { at: 2, gain: { compromat: 1 } },
+    { at: 4, gain: { compromat: 1 } },
+    { at: 7, gain: { compromat: 1 } },
   ],
 };
 
 /** Престиж: трек до max, по 1 ПО на каждой отметке. */
-export const PRESTIGE_TRACK = { max: 40, vpMarks: [3, 6, 10, 15, 20, 26, 33, 40] } as const;
+// Автор 24.11: трек до 58 (максимум за партию); 53 — максимум с Обелиском вместо Шпиля.
+export const PRESTIGE_TRACK = {
+  max: 58,
+  vpMarks: [3, 6, 10, 15, 20, 26, 33, 40, 48, 53, 58],
+} as const;
 
 const forestSurcharge = { gold: 2 };
 const valleySurcharge = { gold: 2 };
-const citySurcharge = { ore: 1 };
 
 /**
  * Доплата за двойной участок по региону вместо картонной (PLOTS) — правило автора по умолчанию
  * (переключатель plotSurcharge=ore; 'base' возвращает доплату из PLOTS).
  */
 export const PLOT_SURCHARGE_VARIANTS = {
-  ore: { forest: { ore: 1 }, valley: { ore: 1 }, city: { compromat: 1 } },
+  // Город: двойные участки бесплатны (автор 23.11), у них нет доплаты и на картоне.
+  ore: { forest: { ore: 1 }, valley: { ore: 1 }, city: {} },
 } as const satisfies Record<string, Record<RegionId, Partial<Resources>>>;
 
 /**
@@ -190,14 +206,15 @@ export const MASS_WEAK_BLOOD_TO_GOLD_PENALTY = 1;
 export const CITADEL_COST_CHEAP = { gold: 6, ore: 2 } as const;
 
 /**
- * Правило автора (23.11): доплата за участок на выбор игрока — вместо доплаты по plotSurcharge.
- * Участок между Таверной и Рынком: 2 ресурса золотом и кровью в любом соотношении.
+ * Доплата за участок на выбор игрока вместо доплаты по plotSurcharge (id участка → варианты).
+ * Сейчас пусто: выбор у Таверны–Рынка отменён автором 23.11 (п. 22), доплата там — руда.
  */
-export const PLOT_SURCHARGE_CHOICES: Readonly<Record<string, readonly Partial<Resources>[]>> = {
-  'valley-market-tavern': [{ gold: 2 }, { gold: 1, blood: 1 }, { blood: 2 }],
-};
+export const PLOT_SURCHARGE_CHOICES: Readonly<Record<string, readonly Partial<Resources>[]>> = {};
 
-/** Участки под здания: по 5 на регион. Цитадель стоит на звезде, не на участке. */
+/**
+ * Участки под здания: по 6 на регион (автор 23.11). Цитадель стоит на звезде, не на участке.
+ * В Городе все участки двойные и бесплатные; в Лесу и Долине доплата двойных — по plotSurcharge.
+ */
 export const PLOTS: readonly PlotDef[] = [
   { id: 'forest-mine', region: 'forest', adjacent: ['mine'], surcharge: {} },
   { id: 'forest-witchCircle', region: 'forest', adjacent: ['witchCircle'], surcharge: {} },
@@ -212,6 +229,12 @@ export const PLOTS: readonly PlotDef[] = [
     id: 'forest-mine-witchCircle',
     region: 'forest',
     adjacent: ['mine', 'witchCircle'],
+    surcharge: forestSurcharge,
+  },
+  {
+    id: 'forest-lair-witchCircle',
+    region: 'forest',
+    adjacent: ['lair', 'witchCircle'],
     surcharge: forestSurcharge,
   },
   { id: 'valley-market', region: 'valley', adjacent: ['market'], surcharge: {} },
@@ -229,24 +252,46 @@ export const PLOTS: readonly PlotDef[] = [
     adjacent: ['mass', 'tavern'],
     surcharge: valleySurcharge,
   },
-  { id: 'city-chancery', region: 'city', adjacent: ['chancery'], surcharge: {} },
-  { id: 'city-cityHall', region: 'city', adjacent: ['cityHall'], surcharge: {} },
+  {
+    id: 'valley-mass-market',
+    region: 'valley',
+    adjacent: ['mass', 'market'],
+    surcharge: valleySurcharge,
+  },
   {
     id: 'city-underground-chancery',
     region: 'city',
     adjacent: ['underground', 'chancery'],
-    surcharge: citySurcharge,
+    surcharge: {},
   },
   {
     id: 'city-underground-commissariat',
     region: 'city',
     adjacent: ['underground', 'commissariat'],
-    surcharge: citySurcharge,
+    surcharge: {},
+  },
+  {
+    id: 'city-underground-cityHall',
+    region: 'city',
+    adjacent: ['underground', 'cityHall'],
+    surcharge: {},
+  },
+  {
+    id: 'city-chancery-commissariat',
+    region: 'city',
+    adjacent: ['chancery', 'commissariat'],
+    surcharge: {},
+  },
+  {
+    id: 'city-chancery-cityHall',
+    region: 'city',
+    adjacent: ['chancery', 'cityHall'],
+    surcharge: {},
   },
   {
     id: 'city-commissariat-cityHall',
     region: 'city',
     adjacent: ['commissariat', 'cityHall'],
-    surcharge: citySurcharge,
+    surcharge: {},
   },
 ];

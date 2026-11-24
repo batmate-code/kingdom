@@ -19,6 +19,79 @@ export interface Listener {
   close(): void;
 }
 
+/** Несколько слушателей как один (хост слушает отдельную комнату на каждое кресло гостя). */
+export function mergeListeners(listeners: readonly Listener[]): Listener {
+  return {
+    onConnect(h) {
+      const offs = listeners.map((l) => l.onConnect(h));
+      return () => offs.forEach((off) => off());
+    },
+    close() {
+      for (const l of listeners) l.close();
+    },
+  };
+}
+
+/**
+ * Соединение, которое появится позже (транспорт грузится лениво): отправки копятся в очереди,
+ * подписки переносятся на настоящее соединение, когда оно готово.
+ */
+export function lazyLink(ready: Promise<Link>): Link {
+  let link: Link | null = null;
+  let closed = false;
+  const queue: unknown[] = [];
+  const message = handlers<[unknown]>();
+  const close = handlers<[]>();
+  void ready.then(
+    (l) => {
+      if (closed) {
+        l.close();
+        return;
+      }
+      link = l;
+      l.onMessage((m) => message.emit(m));
+      l.onClose(() => close.emit());
+      for (const m of queue.splice(0)) l.send(m);
+    },
+    () => close.emit(),
+  );
+  return {
+    send(m) {
+      if (link) link.send(m);
+      else if (!closed) queue.push(m);
+    },
+    onMessage: (h) => message.add(h),
+    onClose: (h) => close.add(h),
+    close() {
+      closed = true;
+      if (link) link.close();
+      else close.emit();
+    },
+  };
+}
+
+/** Слушатель, который появится позже (см. lazyLink). */
+export function lazyListener(ready: Promise<Listener>): Listener {
+  let listener: Listener | null = null;
+  let closed = false;
+  const connects = handlers<[Link]>();
+  void ready.then((l) => {
+    if (closed) {
+      l.close();
+      return;
+    }
+    listener = l;
+    l.onConnect((link) => connects.emit(link));
+  });
+  return {
+    onConnect: (h) => connects.add(h),
+    close() {
+      closed = true;
+      listener?.close();
+    },
+  };
+}
+
 /** Небольшой помощник: список подписчиков с отпиской. */
 export function handlers<T extends unknown[]>() {
   const list = new Set<(...args: T) => void>();

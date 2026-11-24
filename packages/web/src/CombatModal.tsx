@@ -7,7 +7,7 @@ import defenseImg from './assets/tokens/defense.png';
 import dominationImg from './assets/tokens/domination.png';
 import massacreImg from './assets/tokens/massacre.png';
 import retreatImg from './assets/tokens/retreat.png';
-import { PLAYER_COLORS } from './Board';
+import { PLAYER_COLORS } from './players';
 import type { BoardStrengths } from './board/BoardSvg';
 import styles from './CombatModal.module.css';
 import { playerName } from './labels';
@@ -123,6 +123,25 @@ export function CombatModal({
             const def = COMBAT_TOKENS[t];
             const inHand = me?.combatTokens.hand[t] ?? 0;
             const action = options.find((a) => a.token === t);
+            // Приманка в эксперименте: выбор, сколько влияния потерять (0, 1 или 2).
+            const variants = options.filter((a) => a.token === t && a.influenceLoss !== undefined);
+            if (variants.length > 1) {
+              return (
+                <div key={t} className={styles.token}>
+                  <span className={styles.count}>×{inHand}</span>
+                  <img className={styles.icon} src={TOKEN_IMG[t]} alt="" />
+                  <span className={styles.name}>{def.name}</span>
+                  <span className={styles.text}>{def.text}</span>
+                  <span className={styles.lossRow}>
+                    {variants.map((a) => (
+                      <button key={a.influenceLoss} type="button" onClick={() => onPick(a)}>
+                        {a.influenceLoss ? `−${a.influenceLoss} влияния` : 'без потери'}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              );
+            }
             return (
               <button
                 key={t}

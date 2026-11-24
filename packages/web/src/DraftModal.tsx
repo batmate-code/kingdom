@@ -3,7 +3,8 @@ import { CHARACTERS, PROFESSIONS } from '@vampire/data';
 import { useEffect, useState } from 'react';
 import { profStyle } from './colors';
 import { EffectLine, previewEffect } from './ActionBar';
-import { cardUrl } from './cards';
+import { backUrl } from './cards';
+import { CharacterCard } from './CharacterCard';
 import { Draft } from './Draft';
 import styles from './DraftModal.module.css';
 import { playerName } from './labels';
@@ -145,7 +146,9 @@ function UpgradeBlock({
     <div className={styles.upgrade}>
       <div className={styles.flow}>
         <figure className={styles.pair}>
-          <img className={styles.card} src={cardUrl(pick.character)} alt={ch.name} />
+          <div className={styles.card} title={ch.name}>
+            <CharacterCard id={pick.character} size="md" />
+          </div>
           <figcaption className={styles.ribbon} style={profStyle(pick.profession)}>
             <b>{prof.name}</b>
             <span>{prof.text}</span>
@@ -157,7 +160,7 @@ function UpgradeBlock({
             const a = assignFor(w);
             const effect = a ? previewEffect(state, a, viewer) : null;
             const old = w.character ? CHARACTERS[w.character].name : null;
-            const src = cardUrl(w.character ?? '_back');
+            const back = backUrl();
             return (
               <button
                 key={w.id}
@@ -169,7 +172,13 @@ function UpgradeBlock({
                   old ? `Заменит ${old}: старая пара уйдёт за отступные` : 'Рабочий без улучшения'
                 }
               >
-                {src && <img className={styles.card} src={src} alt="" />}
+                {w.character ? (
+                  <div className={styles.card}>
+                    <CharacterCard id={w.character} size="md" />
+                  </div>
+                ) : (
+                  back && <img className={styles.card} src={back} alt="" />
+                )}
                 <span className={styles.slotNum}>Рабочий {i + 1}</span>
                 <span className={styles.slotNote}>{old ? `заменит: ${old}` : 'без улучшения'}</span>
                 {effect && <EffectLine effect={effect} />}

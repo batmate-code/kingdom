@@ -1,6 +1,6 @@
 import { COMBAT_REWARD, COMBAT_TOKENS, REGIONS } from '@vampire/data';
 import { useEffect } from 'react';
-import { PLAYER_COLORS } from './Board';
+import { PLAYER_COLORS } from './players';
 import base from './CombatModal.module.css';
 import { TOKEN_IMG } from './CombatModal';
 import styles from './CombatResultModal.module.css';

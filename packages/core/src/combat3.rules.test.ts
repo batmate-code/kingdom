@@ -341,14 +341,17 @@ describe('Шпион перед боями (Бой, «Перед боями»)',
     const moves = getLegalActions(s).flatMap((a) => (a.type === 'spyMove' ? [a] : []));
     expect(moves[0]).toEqual({ type: 'spyMove', region: null });
     // Только другие регионы; выбираются локация и слот (оба слота свободны).
-    expect(moves.slice(1).every((a) => a.region !== 'forest' && a.location && a.slot)).toBe(true);
+    expect(moves.slice(1).every((a) => a.location && a.slot)).toBe(true);
     expect(moves).toContainEqual({
       type: 'spyMove',
       region: 'valley',
       location: 'market',
       slot: 2,
     });
-    expect(new Set(moves.slice(1).map((a) => a.region))).toEqual(new Set(['valley', 'city']));
+    // Автор 24.11: и в другой слот своего региона.
+    expect(new Set(moves.slice(1).map((a) => a.region))).toEqual(
+      new Set(['forest', 'valley', 'city']),
+    );
   });
 
   it('Шпионы решают по очереди с первого игрока; Шпион из второго слота тоже может уйти', () => {

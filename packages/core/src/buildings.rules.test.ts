@@ -1,3 +1,4 @@
+import { PRESTIGE_TRACK } from '@vampire/data';
 /** Этап 4: здания, участки, Цитадели, престиж, подсчёт (rules.md, «Здания и участки», «Конец игры»). */
 import type { BuildingId, RegionId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
@@ -55,10 +56,11 @@ describe('Право стройки Канцелярии', () => {
     expect(res(s, 0).compromat).toBe(0);
     expect(s.pending).toEqual({ kind: 'build', player: 0, source: { kind: 'chancery' } });
     const choices = buildChoices(s);
-    // После входа (1) золота 2: только Склеп, на одиночных участках трёх регионов (3 + 3 + 2).
+    // После входа (1) золота 2: только Склеп — на одиночных участках Леса и Долины (3 + 3)
+    // и на любом участке Города: там все шесть бесплатны (автор 23.11).
     expect(choices.every((c) => c.building === 'crypt')).toBe(true);
     expect(new Set(choices.map((c) => c.region))).toEqual(new Set(['forest', 'valley', 'city']));
-    expect(choices).toHaveLength(8);
+    expect(choices).toHaveLength(12);
     s = build(s, { building: 'crypt', region: 'valley', plot: 'valley-mass' });
     expect(s.buildings).toEqual([
       { type: 'crypt', owner: 0, region: 'valley', plot: 'valley-mass' },
@@ -103,7 +105,7 @@ describe('Право стройки Канцелярии', () => {
 });
 
 describe('Участки и ограничения', () => {
-  it('Двойной участок: доплата +2 золота в Лесу и Долине, +1 руда в Городе', () => {
+  it('Двойной участок: доплата +2 золота в Лесу и Долине, в Городе бесплатно (автор 23.11)', () => {
     let s = place(start({ gold: 20, ore: 5, compromat: 2 }), 'chancery', 1);
     s = choose(s, { kind: 'buildRight' });
     s = build(s, { building: 'crypt', region: 'forest', plot: 'forest-mine-lair' });
@@ -111,7 +113,7 @@ describe('Участки и ограничения', () => {
     s = withChanceryRight(turnTo(s, 0));
     const before = res(s, 0);
     s = build(s, { building: 'crypt', region: 'city', plot: 'city-underground-chancery' });
-    expect(res(s, 0)).toMatchObject({ gold: before.gold - 2, ore: before.ore - 1 });
+    expect(res(s, 0)).toMatchObject({ gold: before.gold - 2, ore: before.ore });
   });
 
   it('Занятый участок не предлагается', () => {
@@ -261,7 +263,7 @@ describe('Архитектор (Профессии)', () => {
       source: { kind: 'architect', workerId: 'p0w0' },
     });
     expect(new Set(buildChoices(s).map((c) => c.plot))).toEqual(
-      new Set(['forest-lair', 'forest-mine-lair']),
+      new Set(['forest-lair', 'forest-mine-lair', 'forest-lair-witchCircle']),
     );
   });
 
@@ -407,10 +409,10 @@ describe('Крайние случаи стройки и подсчёта', () =>
     expect(getScores(s).map((x) => x.rank)).toEqual([2, 1, 2]);
   });
 
-  it('Престиж не выше 40; на полном треке событие не создаётся', () => {
+  it('Престиж не выше максимума трека; на полном треке событие не создаётся', () => {
     let s = withChanceryRight(start({ gold: 10 }));
     s = edit(s, (d) => {
-      d.players[0]!.prestige = 38;
+      d.players[0]!.prestige = PRESTIGE_TRACK.max - 2;
       d.buildings.push(
         { type: 'crypt', owner: 0, region: 'forest', plot: 'forest-mine' },
         { type: 'crypt', owner: 0, region: 'forest', plot: 'forest-lair' },
@@ -418,12 +420,12 @@ describe('Крайние случаи стройки и подсчёта', () =>
     });
     const log: GameEvent[] = [];
     s = build(s, { building: 'crypt', region: 'valley', plot: 'valley-mass' }, log);
-    expect(s.players[0]?.prestige).toBe(40);
+    expect(s.players[0]?.prestige).toBe(PRESTIGE_TRACK.max);
     expect(log).toContainEqual({
       type: 'prestigeChanged',
       player: 0,
-      from: 38,
-      to: 40,
+      from: PRESTIGE_TRACK.max - 2,
+      to: PRESTIGE_TRACK.max,
       reason: 'building',
     });
     s = withChanceryRight(turnTo(s, 0));
@@ -448,10 +450,10 @@ describe('Крайние случаи стройки и подсчёта', () =>
     });
     s = place(s, 'chancery', 1, { workerId: 'p0w0' });
     s = choose(s, { kind: 'buildRight' });
-    s = build(s, { building: 'crypt', region: 'city', plot: 'city-chancery' });
-    // Затем Архитектор: участок у Канцелярии уже занят.
+    s = build(s, { building: 'crypt', region: 'city', plot: 'city-chancery-cityHall' });
+    // Затем Архитектор: этот участок у Канцелярии уже занят.
     expect(s.pending).toMatchObject({ kind: 'build', source: { kind: 'architect' } });
-    expect(buildChoices(s).some((c) => c.plot === 'city-chancery')).toBe(false);
+    expect(buildChoices(s).some((c) => c.plot === 'city-chancery-cityHall')).toBe(false);
     expect(buildChoices(s).some((c) => c.plot === 'city-underground-chancery')).toBe(true);
   });
 
@@ -475,21 +477,20 @@ describe('Крайние случаи стройки и подсчёта', () =>
 });
 
 describe('Доплата за двойной участок (переключатель plotSurcharge)', () => {
-  it('base: Лес +2 золота, Город +1 руда; ore: Лес +1 руда, Город +1 компромат', () => {
+  it('base: Лес +2 золота; ore: Лес +1 руда; Город бесплатно в обоих (автор 23.11)', () => {
     const base = newGame();
     const ore = newGame({ rules: { plotSurcharge: 'ore' } });
     const forest: BuildChoice = { building: 'crypt', region: 'forest', plot: 'forest-mine-lair' };
-    const city: BuildChoice = { building: 'crypt', region: 'city', plot: 'city-chancery' };
     const cityDouble: BuildChoice = {
       building: 'crypt',
       region: 'city',
       plot: 'city-underground-chancery',
     };
     expect(plotSurcharge(base, forest.plot)).toEqual({ gold: 2 });
-    expect(plotSurcharge(base, cityDouble.plot)).toEqual({ ore: 1 });
+    expect(plotSurcharge(base, cityDouble.plot)).toEqual({});
     expect(plotSurcharge(ore, forest.plot)).toEqual({ ore: 1 });
-    expect(plotSurcharge(ore, cityDouble.plot)).toEqual({ compromat: 1 });
-    expect(plotSurcharge(ore, city.plot)).toEqual({});
+    expect(plotSurcharge(ore, cityDouble.plot)).toEqual({});
+    expect(plotSurcharge(ore, 'valley-market-tavern')).toEqual({ ore: 1 });
     const crypt = buildCost(ore, forest);
     expect(crypt.gold ?? 0).toBe(buildCost(base, forest).gold! - 2);
   });

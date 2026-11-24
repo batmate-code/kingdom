@@ -1,9 +1,11 @@
 import type {
   Action,
   BuildChoice,
+  Building,
   CharacterChoice,
   Decision,
   GameEvent,
+  GameState,
   LocationChoice,
   Worker,
 } from './types';
@@ -15,16 +17,43 @@ import {
   PLOTS,
   PROFESSIONS,
   REGIONS,
+  REVERSE_TRACK,
+  type BuildingId,
   type LocationId,
   type RegionId,
   type Resources,
+  CHARACTER_PARAMS,
+  COMBAT_REWARD,
 } from '@vampire/data';
 
 /**
  * Названия и подписи по-русски для интерфейсов (веб, консольная игра агента).
  * Принимают и состояние, и наблюдение игрока: нужны только рабочие и текущее решение.
  */
-type View = { workers: readonly Worker[]; pending: Decision | null };
+type View = {
+  workers: readonly Worker[];
+  pending: Decision | null;
+  /** Для подписей эксперимента influenceModel=reverse (Шпиль, награды отметок). */
+  config?: Pick<GameState['config'], 'rules'>;
+  buildings?: readonly Building[];
+};
+
+const reverseView = (s?: Pick<View, 'config'>) => s?.config?.rules.influenceModel === 'reverse';
+
+/** Название здания: в эксперименте influenceModel=reverse Цитадель называется Шпилем. */
+export function buildingLabel(type: BuildingId, s?: Pick<View, 'config'>): string {
+  return type === 'citadel' && reverseView(s) ? 'Шпиль' : BUILDINGS[type].name;
+}
+
+/** Награда отметки отрицательного трека — словами. */
+function undergroundRewardLabel(at: number): string {
+  const r = REVERSE_TRACK.marks.find((m) => m.at === at)?.reward;
+  if (!r) return '';
+  if (r.kind === 'ore') return `+${r.ore} руд`;
+  if (r.kind === 'buildRight') return 'право стройки в регионе';
+  if (r.kind === 'strength') return `+${r.strength} сила в боях региона навсегда`;
+  return 'можно строить Обелиск';
+}
 
 export const regionName = (r: RegionId) => REGIONS.find((x) => x.id === r)?.name ?? r;
 export const locName = (l: LocationId) => LOCATIONS[l].name;
@@ -67,10 +96,13 @@ function plotName(plot: string | null, region: RegionId): string {
   return p ? p.adjacent.map(locName).join('–') : plot;
 }
 
-export function buildLabel(b: BuildChoice): string {
+export function buildLabel(b: BuildChoice, s?: Pick<View, 'config'>): string {
   const pay = b.surcharge ? ` (доплата ${resText(b.surcharge)})` : '';
-  return `${BUILDINGS[b.building].name}: ${plotName(b.plot, b.region)}${pay}${b.alchemy ? ' (Алхимик)' : ''}`;
+  return `${buildingLabel(b.building, s)}: ${plotName(b.plot, b.region)}${pay}${b.alchemy ? ' (Алхимик)' : ''}`;
 }
+
+/** Обмен во втором слоте Логова: сколько крови за руду (из данных локации). */
+const LAIR_BLOOD_PER_ORE = LOCATIONS.lair.slots.find((s) => s.kind === 'lairStash')?.bloodPerOre;
 
 function locationChoiceLabel(c: LocationChoice): string {
   switch (c.kind) {
@@ -79,9 +111,13 @@ function locationChoiceLabel(c: LocationChoice): string {
     case 'gain':
       return 'Получить';
     case 'lairStash':
-      return c.exchanges ? `Забрать копилку + ${c.exchanges}× 4 крови → руда` : 'Забрать копилку';
+      return c.exchanges
+        ? `Забрать копилку + ${c.exchanges}× ${LAIR_BLOOD_PER_ORE} крови → руда`
+        : 'Забрать копилку';
     case 'mass':
       return `Месса: ${c.times}× ${c.from === 'gold' ? 'золото → кровь' : 'кровь → золото'}`;
+    case 'powerToken':
+      return `Жетон силы → ${regionName(c.region)}`;
     case 'marketBuy':
       return `Купить руду за ${resText({ gold: -c.pay.gold, blood: -c.pay.blood })}`;
     case 'marketSell':
@@ -93,11 +129,11 @@ function locationChoiceLabel(c: LocationChoice): string {
             ? '1 комп → руда'
             : `1 комп → ${resText({ gold: x.gold, blood: x.blood })}`,
         )
-        .join('; ')}`;
+        .join('; ')}${c.buildRight ? '; право стройки' : ''}`;
     case 'buildRight':
       return 'Купить право стройки';
     case 'cityHall':
-      return `Ратуша: обмен ${c.offer + 1}, влияние в ${regionName(c.region)}${c.alchemy ? ' (Алхимик)' : ''}`;
+      return `Ратуша: обмен ${c.offer + 1}, влияние в ${regionName(c.region)}${c.split ? ` и ${regionName(c.split)}` : ''}${c.alchemy ? ' (Алхимик)' : ''}`;
     case 'copy':
       return `Копировать: ${locName(c.location)}, слот ${c.slot}`;
     case 'revive':
@@ -112,7 +148,7 @@ function locationChoiceLabel(c: LocationChoice): string {
 function characterChoiceLabel(s: View, c: CharacterChoice): string {
   switch (c.kind) {
     case 'manipulator':
-      return `Манипулятор: +2 влияния в ${regionName(c.to)}`;
+      return `Манипулятор: +${CHARACTER_PARAMS.manipulator.influenceGain} влияния в ${regionName(c.to)}`;
     case 'renegade':
       return c.gain === 'ore' ? 'Ренегат: руда' : 'Ренегат: право стройки';
     case 'blackmailer':
@@ -133,6 +169,8 @@ function characterChoiceLabel(s: View, c: CharacterChoice): string {
         : 'Могильщик: никого';
     case 'tactician':
       return `Тактик: вернуть ${workerLabel(workerOf(s, c.workerId))}`;
+    case 'shapeshifter':
+      return `Перевёртыш → ${CHARACTERS[c.character].name}${c.inner ? `: ${characterChoiceLabel(s, c.inner)}` : ''}`;
   }
 }
 
@@ -145,8 +183,26 @@ export function actionLabel(s: View, a: Action): string {
       return 'Пас';
     case 'locationAction':
       return locationChoiceLabel(a.choice);
-    case 'combatReward':
-      return a.choice === 'influence' ? 'Награда: +1 влияние' : 'Награда: право стройки';
+    case 'combatReward': {
+      if (a.choice === 'vp')
+        return `Награда: ${REVERSE_TRACK.spireVp} ПО навсегда (вместо влияния)`;
+      // Владелец Шпиля выбирает награду целиком — подписываем её полностью.
+      const p = s.pending;
+      const spire =
+        reverseView(s) &&
+        p?.kind === 'combatReward' &&
+        (s.buildings ?? []).some(
+          (b) => b.type === 'citadel' && b.owner === p.player && b.region === p.region,
+        );
+      if (spire) {
+        return a.choice === 'influence'
+          ? `Награда: +${COMBAT_REWARD.influence + COMBAT_REWARD.bonusInfluence} влияние`
+          : `Награда: +${COMBAT_REWARD.influence} влияние и право стройки`;
+      }
+      return a.choice === 'influence'
+        ? `Награда: +${COMBAT_REWARD.bonusInfluence} влияние`
+        : 'Награда: право стройки';
+    }
     case 'draftPick':
       return a.pick.kind === 'character'
         ? `Взять персонажа: ${CHARACTERS[a.pick.character].name} (содержание ${CHARACTERS[a.pick.character].upkeep})`
@@ -164,11 +220,15 @@ export function actionLabel(s: View, a: Action): string {
         ? `Шпион → ${a.location ? `${locName(a.location)}, слот ${a.slot ?? 1} (${regionName(a.region)})` : regionName(a.region)}`
         : 'Шпион остаётся';
     case 'combatToken':
-      return `Жетон боя: ${COMBAT_TOKENS[a.token].name}`;
+      return a.influenceLoss === undefined
+        ? `Жетон боя: ${COMBAT_TOKENS[a.token].name}`
+        : `Жетон боя: ${COMBAT_TOKENS[a.token].name}${a.influenceLoss > 0 ? ` (−${a.influenceLoss} влияние)` : ' (влияние не терять)'}`;
     case 'retreat':
       return `Отступить в ${regionName(a.to)}`;
+    case 'garrison':
+      return a.deploy ? 'Наёмник: выложить жетоны силы в бой' : 'Наёмник: придержать жетоны';
     case 'build':
-      return a.choice ? `Построить ${buildLabel(a.choice)}` : 'Не строить';
+      return a.choice ? `Построить ${buildLabel(a.choice, s)}` : 'Не строить';
     case 'character':
       return characterChoiceLabel(s, a.choice);
     case 'effectOrder':
@@ -206,6 +266,8 @@ export function decisionTitle(s: View): string {
       return `${who}: жетон боя (${regionName(p.region)})`;
     case 'retreat':
       return `${who}: куда отступить`;
+    case 'garrison':
+      return `${who}: жетоны Наёмника (${regionName(p.region)})`;
     case 'build':
       return `${who}: стройка`;
     case 'character':
@@ -239,7 +301,11 @@ export function eventText(s: View, e: GameEvent): string | null {
     case 'workerMoved':
       return `${playerName(e.player)}: ${workerLabel(workerOf(s, e.workerId))} → ${regionName(e.to)} (${e.method === 'spy' ? 'Шпион' : 'Отступление'})`;
     case 'buildingBuilt':
-      return `${playerName(e.player)} строит ${BUILDINGS[e.building].name}: ${plotName(e.plot, e.region)}`;
+      return `${playerName(e.player)} строит ${buildingLabel(e.building, s)}: ${plotName(e.plot, e.region)}`;
+    case 'undergroundMark':
+      return `${playerName(e.player)}: отметка ${e.at} (${regionName(e.region)}) — ${undergroundRewardLabel(e.at)}`;
+    case 'spireVp':
+      return `${playerName(e.player)}: Шпиль (${regionName(e.region)}) — +${e.vp} ПО навсегда`;
     case 'draftPicked':
       return `${playerName(e.player)} берёт ${e.pick.kind === 'character' ? CHARACTERS[e.pick.character].name : PROFESSIONS[e.pick.profession].name}`;
     case 'workerUpgraded':

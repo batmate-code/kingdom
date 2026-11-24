@@ -367,7 +367,7 @@
 /* Планшет игрока (как на картоне автора). */
 .planshet {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 6px 10px;
   background: #1a1520;
   border: 1px solid var(--line);
@@ -378,13 +378,18 @@
 .chains {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* Автор 24.11: больше воздуха между строками зданий; блок по центру планшета. */
+  gap: 10px;
+  width: fit-content;
+  margin: 0 auto;
 }
 
 .chainRow {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* Постоянные отступы между значком и шестиугольниками (автор 24.11). */
+  gap: 10px;
+  padding: 2px 4px;
   cursor: help;
 }
 
@@ -397,7 +402,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: clamp(66px, 4.2vw, 88px);
+  /* Не уже самой длинной цены («3 зол + 1 руд»), чтобы она не обрезалась. */
+  min-width: 90px;
   flex: none;
 }
 
@@ -406,19 +412,20 @@
 }
 
 .bCost {
-  font-size: clamp(11px, 0.7vw, 15px);
+  font-size: clamp(13px, 0.85vw, 17px);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .bCost img {
-  height: 12px;
-  vertical-align: -2px;
+  height: 18px;
+  vertical-align: -4px;
 }
 
 .chainStep {
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .arrow {
@@ -462,25 +469,13 @@
   color: #140f12;
 }
 
-.citadelCol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  cursor: help;
-}
-
-.citadelImg {
-  height: clamp(50px, 3.8vw, 96px);
-}
-
 .citadelWhere {
   font-size: 11px;
   color: var(--muted);
 }
 
 .cards {
-  grid-column: 1 / 3;
+  grid-column: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
@@ -522,7 +517,7 @@
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.85));
 }
 
-.zoom img {
+.zoom > img {
   width: 100%;
   aspect-ratio: 5 / 7;
   object-fit: cover;
@@ -538,4 +533,82 @@
   padding: 6px 10px;
   font-size: 14px;
   line-height: 1.25;
+}
+
+.underground {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  padding: 2px 4px;
+  color: #d9c8ec;
+}
+
+/* Цитадель / Шпиль и Обелиск одной строкой под зданиями: Шпиль у левого края блока,
+   Обелиск — у правого (под последним шестиугольником). */
+.monuments {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+/* В нижней строке два здания — отступы плотнее, чтобы она не была шире строк выше. */
+.monuments .chainRow {
+  gap: 6px;
+  padding: 2px 0;
+}
+
+/* Вкладка игрока: имя и ПО, второй строкой — его ресурсы (автор 24.11). */
+.tab.tab {
+  flex-direction: column;
+  gap: 1px;
+  white-space: normal;
+}
+
+.tabHead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.tabRes {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tabRes span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tabRes img {
+  height: 12px;
+  margin: 0 0 0 1px;
+  vertical-align: 0;
+}
+
+/* Клик по карте рабочего выбирает его для размещения. */
+.cardPickable {
+  cursor: pointer;
+}
+
+.cardPickable:hover {
+  transform: translateY(-3px);
+}
+
+.cardSelected {
+  outline: 3px solid #ffe9a8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Рабочий уже выставлен (на поле, в госпитале): карта серая (автор 24.11). */
+.cardPlaced {
+  filter: grayscale(0.9) brightness(0.75);
 }

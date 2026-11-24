@@ -1,6 +1,9 @@
 import {
   BUILDING_ORDER,
   CITADELS_PER_PLAYER,
+  MONUMENTS,
+  OBELISKS_PER_PLAYER,
+  REVERSE_TRACK,
   BUILDINGS,
   BUILDING_EFFECTS,
   LOCATIONS,
@@ -18,8 +21,9 @@ import {
 } from '@vampire/data';
 import { getWorker } from './board';
 import type { Ctx } from './context';
-import { changeResources, payMaybeAlchemy, paymentVariants } from './economy';
+import { changeInfluence, changeResources, payMaybeAlchemy, paymentVariants } from './economy';
 import { addPrestige } from './prestige';
+import { isReverse, monumentAt } from './reverse';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
 /** Доплата за участок по текущему правилу plotSurcharge. */
@@ -69,7 +73,13 @@ function sourceScope(
   source: BuildSource,
 ): { regions: readonly RegionId[]; nearLocation: LocationId | null } {
   if (source.kind === 'chancery') return { regions: REGION_ORDER, nearLocation: null };
-  if (source.kind === 'reward' || source.kind === 'renegade') {
+  if (
+    source.kind === 'reward' ||
+    source.kind === 'renegade' ||
+    source.kind === 'underground' ||
+    source.kind === 'obelisk' ||
+    source.kind === 'contractor'
+  ) {
     return { regions: [source.region], nearLocation: null };
   }
   const w = getWorker(state, source.workerId);
@@ -94,25 +104,31 @@ export function buildOptions(
   const taken = new Set(state.buildings.map((b) => b.plot));
   const out: BuildChoice[] = [];
   for (const building of BUILDING_ORDER) {
-    const limit = building === 'citadel' ? CITADELS_PER_PLAYER : MAX_BUILDINGS_PER_TYPE;
+    // Обелиск — только в эксперименте обратных треков; право отметки −4 — только на Обелиск.
+    if (building === 'obelisk' && !isReverse(state)) continue;
+    if (source.kind === 'obelisk' && building !== 'obelisk') continue;
+    const limit =
+      building === 'citadel'
+        ? CITADELS_PER_PLAYER
+        : building === 'obelisk'
+          ? OBELISKS_PER_PLAYER
+          : MAX_BUILDINGS_PER_TYPE;
     if (ownedOfType(state, player, building) >= limit) continue;
     for (const region of regions) {
-      const candidates: BuildChoice[] =
-        building === 'citadel'
-          ? state.buildings.some((b) => b.type === 'citadel' && b.region === region) ||
-            p.influence[region] < TRACKS[region].citadelAt
-            ? []
-            : [{ building, region, plot: null }]
-          : PLOTS.filter(
-              (plot) =>
-                plot.region === region &&
-                !taken.has(plot.id) &&
-                (nearLocation === null || plot.adjacent.includes(nearLocation)),
-            ).flatMap((plot): BuildChoice[] => {
-              const base = { building, region, plot: plot.id };
-              const choices = PLOT_SURCHARGE_CHOICES[plot.id];
-              return choices ? choices.map((surcharge) => ({ ...base, surcharge })) : [base];
-            });
+      const candidates: BuildChoice[] = MONUMENTS.includes(building)
+        ? monumentAllowed(state, player, building, region)
+          ? [{ building, region, plot: null }]
+          : []
+        : PLOTS.filter(
+            (plot) =>
+              plot.region === region &&
+              !taken.has(plot.id) &&
+              (nearLocation === null || plot.adjacent.includes(nearLocation)),
+          ).flatMap((plot): BuildChoice[] => {
+            const base = { building, region, plot: plot.id };
+            const choices = PLOT_SURCHARGE_CHOICES[plot.id];
+            return choices ? choices.map((surcharge) => ({ ...base, surcharge })) : [base];
+          });
       for (const choice of candidates) {
         for (const v of paymentVariants(state, player, buildCost(state, choice))) {
           out.push(v.alchemy ? { ...choice, alchemy: true } : choice);
@@ -121,6 +137,27 @@ export function buildOptions(
     }
   }
   return out;
+}
+
+/**
+ * Здание на звезде региона. Цитадель (Шпиль): звезда свободна и влияние не ниже порога.
+ * Эксперимент influenceModel=reverse: на звезде одно здание — Шпиль или Обелиск; Обелиск —
+ * пока влияние игрока на нижнем пределе трека (OQ-48).
+ */
+function monumentAllowed(
+  state: GameState,
+  player: PlayerId,
+  building: BuildingId,
+  region: RegionId,
+): boolean {
+  const influence = state.players[player]?.influence[region] ?? 0;
+  const free = isReverse(state)
+    ? monumentAt(state, region) === null
+    : !state.buildings.some((b) => b.type === building && b.region === region);
+  if (!free) return false;
+  return building === 'obelisk'
+    ? influence <= REVERSE_TRACK.min
+    : influence >= TRACKS[region].citadelAt;
 }
 
 /** Построить: оплата, здание на участке (Цитадель — на звезде), престиж по номеру здания типа. */
@@ -137,6 +174,11 @@ export function applyBuild(c: Ctx, player: PlayerId, choice: BuildChoice): void 
   const { alchemy: _alchemy, ...built } = choice;
   c.events.push({ type: 'buildingBuilt', player, ...built });
   addPrestige(c, player, BUILDINGS[choice.building].prestige[number] ?? 0, 'building');
+  // Обелиск возвращает влияние строящего в регионе на 0.
+  if (choice.building === 'obelisk') {
+    const now = c.draft.players[player]?.influence[choice.region] ?? 0;
+    changeInfluence(c, player, choice.region, -now, 'obelisk');
+  }
 }
 
 function adjacentBuildings(state: GameState, type: BuildingId, location: LocationId) {
@@ -163,7 +205,7 @@ export function onVisit(c: Ctx, player: PlayerId, location: LocationId): void {
       changeResources(c, b.owner, { gold: BUILDING_EFFECTS.shopGoldPerVisit }, 'shop');
     }
   }
-  if (LOCATIONS[location].region === 'city') {
+  if (LOCATIONS[location].region === 'city' && !isReverse(c.draft)) {
     const citadel = c.draft.buildings.find((b) => b.type === 'citadel' && b.region === 'city');
     if (citadel && citadel.owner !== player) {
       changeResources(

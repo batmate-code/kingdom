@@ -1,5 +1,6 @@
 import { BUILDING_EFFECTS, CHARACTERS, HOSPITAL } from '@vampire/data';
 import { ownsCitadel } from './buildings';
+import { isReverse } from './reverse';
 import { settleCardStash } from './characters';
 import { getWorker } from './board';
 import type { Ctx } from './context';
@@ -15,7 +16,8 @@ export function upkeepCost(state: GameState, worker: Worker): number {
   if (worker.character === null) return 0;
   let cost = CHARACTERS[worker.character].upkeep;
   if (worker.position.kind === 'hospital') cost -= HOSPITAL.upkeepDiscount;
-  if (ownsCitadel(state, worker.owner, 'valley')) {
+  // У Шпиля (эксперимент influenceModel=reverse) региональных эффектов нет.
+  if (!isReverse(state) && ownsCitadel(state, worker.owner, 'valley')) {
     cost -= BUILDING_EFFECTS.valleyCitadelUpkeepDiscount;
   }
   return Math.max(0, cost);
@@ -69,5 +71,6 @@ export function applyUpkeep(
   }
   discardPair(c, player, worker.character, worker.profession, 'upkeep');
   worker.character = null;
+  delete worker.garrison;
   worker.profession = null;
 }

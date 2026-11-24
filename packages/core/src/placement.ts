@@ -54,7 +54,7 @@ export function isBlocked(state: GameState, location: LocationId): boolean {
 /**
  * Варианты размещения рабочих `workers`. Лазутчик может встать в занятый первый слот (вторым),
  * Ночной охотник — в закрытый второй слот; локации Интригана закрыты для всех.
- * `freeEntry` — без платы за вход в Город (Комиссар).
+ * `freeEntry` — без платы за вход в Город.
  */
 export function placementsFor(
   state: GameState,
@@ -138,7 +138,7 @@ export function displaceWorker(
 /**
  * Размещение: плата за вход в Город, вытеснение (по желанию), затем по порядку
  * эффект персонажа → действие локации → эффект профессии (OQ-21).
- * `nested` — размещение внутри чужого эффекта (Комиссар): вход бесплатный, ход не передаётся.
+ * `nested` — размещение внутри чужого эффекта (Комиссар): ход не передаётся.
  */
 export function applyPlace(
   c: Ctx,
@@ -150,7 +150,8 @@ export function applyPlace(
   const worker = getWorker(d, a.workerId);
   const def = LOCATIONS[a.location];
 
-  if (!opts.nested && def.region === 'city' && paysCityEntry(worker)) {
+  // Вход в Город платят и при размещении Комиссаром (автор 24.11).
+  if (def.region === 'city' && paysCityEntry(worker)) {
     const price = cityEntryPrice(d);
     pay(c, player, price, 'cityEntry');
     c.events.push({ type: 'cityEntryPaid', player, price });

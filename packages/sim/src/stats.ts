@@ -39,6 +39,12 @@ export interface GameStats {
       heldAtEnd: number;
       heldAtEndByWinner: number;
       heldAtEndVp: number;
+      /** Сумма номеров раундов, в которых персонажа взяли на драфте (средний раунд пика). */
+      draftedRoundSum: number;
+      /** Сумма очерёдности среди персонажей драфта раунда (1 — взят первым). */
+      draftedOrderSum: number;
+      /** Сколько раз взят на драфте в раунде N (индекс — раунд − 1). */
+      draftedByRound: number[];
     }
   >;
   /** Ресурсы: получено и потрачено по причинам, остаток в конце (сумма по игрокам). */
@@ -73,6 +79,16 @@ export interface GameStats {
       citadels: number;
     }
   >;
+  /**
+   * Здания на звезде региона: построено и у победителей; ПО Шпиля (эксперимент influenceModel=reverse).
+   * Ключи: citadel, obelisk.
+   */
+  monuments: Record<string, { built: number; byWinner: number; vp: number; vpByWinner: number }>;
+  /**
+   * Жетоны боя: сколько раз сыгран, сколько боёв выиграл сыгравший; Приманка — потеря влияния
+   * (индекс — 0, 1, 2).
+   */
+  combatTokens: Record<string, { played: number; won: number; decoyLoss: number[] }>;
   /** Участки: сколько построено, каких зданий, у победителей; Цитадели — под ключом citadel-<регион>. */
   plots: Record<
     string,
@@ -86,7 +102,14 @@ export class StatsCollector {
   private readonly displaced: LocationId[] = [];
   private readonly skips: LocationId[] = [];
   private readonly copies: LocationId[] = [];
-  private readonly drafted: { player: PlayerId; character: CharacterId }[] = [];
+  private readonly drafted: {
+    player: PlayerId;
+    character: CharacterId;
+    round: number;
+    order: number;
+  }[] = [];
+  /** Сколько персонажей уже взято на драфте текущего раунда. */
+  private draftOrder = 0;
   private readonly offered: CharacterId[] = [];
   private readonly assigned: CharacterId[] = [];
   private readonly triggered: CharacterId[] = [];
@@ -98,6 +121,15 @@ export class StatsCollector {
   /** Запас каждого игрока в конце раунда: [раунд][игрок][ресурс]. */
   private readonly stockPerPlayer: Record<Res, number>[][] = [];
   private readonly influence: { region: string; amount: number; reason: string }[] = [];
+  private readonly spireVp: { player: PlayerId; vp: number }[] = [];
+  /** Жетоны боя, вскрытые в текущем бою: кто что сыграл (до объявления победителя). */
+  private openPlays: { player: PlayerId; token: string; loss: number | undefined }[] = [];
+  private readonly tokenPlays: {
+    player: PlayerId;
+    token: string;
+    loss: number | undefined;
+    won: boolean;
+  }[] = [];
   private readonly builds: { player: PlayerId; key: string; building: string; round: number }[] =
     [];
 
@@ -119,10 +151,16 @@ export class StatsCollector {
           break;
         case 'draftOffered':
           this.offered.push(...e.characters);
+          this.draftOrder = 0;
           break;
         case 'draftPicked':
           if (e.pick.kind === 'character')
-            this.drafted.push({ player: e.player, character: e.pick.character });
+            this.drafted.push({
+              player: e.player,
+              character: e.pick.character,
+              round: state.round,
+              order: ++this.draftOrder,
+            });
           break;
         case 'workerUpgraded':
           this.assigned.push(e.character);
@@ -149,6 +187,21 @@ export class StatsCollector {
             building: e.building,
             round: state.round,
           });
+          break;
+        case 'spireVp':
+          this.spireVp.push({ player: e.player, vp: e.vp });
+          break;
+        case 'combatTokensRevealed':
+          this.openPlays = e.plays.map((p) => ({
+            player: p.player,
+            token: p.token,
+            loss: p.influenceLoss,
+          }));
+          break;
+        case 'combatResolved':
+          for (const p of this.openPlays)
+            this.tokenPlays.push({ ...p, won: p.player === e.winner });
+          this.openPlays = [];
           break;
         case 'roundEnded':
           for (const r of RES) {
@@ -199,12 +252,18 @@ export class StatsCollector {
         heldAtEnd: 0,
         heldAtEndByWinner: 0,
         heldAtEndVp: 0,
+        draftedRoundSum: 0,
+        draftedOrderSum: 0,
+        draftedByRound: [],
       });
     for (const id of this.offered) ch(id).offered += 1;
     for (const d of this.drafted) {
       const c = ch(d.character);
       c.drafted += 1;
       if (isWinner(d.player)) c.draftedByWinner += 1;
+      c.draftedRoundSum += d.round;
+      c.draftedOrderSum += d.order;
+      c.draftedByRound[d.round - 1] = (c.draftedByRound[d.round - 1] ?? 0) + 1;
     }
     for (const id of this.assigned) ch(id).assigned += 1;
     for (const id of this.triggered) ch(id).triggered += 1;
@@ -268,6 +327,27 @@ export class StatsCollector {
       pl.buildings[b.building] = (pl.buildings[b.building] ?? 0) + 1;
     }
 
+    const monuments: GameStats['monuments'] = {};
+    const mon = (k: string) => (monuments[k] ??= { built: 0, byWinner: 0, vp: 0, vpByWinner: 0 });
+    for (const b of state.buildings) {
+      if (b.type !== 'citadel' && b.type !== 'obelisk') continue;
+      const m = mon(b.type);
+      m.built += 1;
+      if (isWinner(b.owner)) m.byWinner += 1;
+    }
+    for (const v of this.spireVp) {
+      const m = mon('citadel');
+      m.vp += v.vp;
+      if (isWinner(v.player)) m.vpByWinner += v.vp;
+    }
+    const combatTokens: GameStats['combatTokens'] = {};
+    for (const t of this.tokenPlays) {
+      const c = (combatTokens[t.token] ??= { played: 0, won: 0, decoyLoss: [] });
+      c.played += 1;
+      if (t.won) c.won += 1;
+      if (t.loss !== undefined) c.decoyLoss[t.loss] = (c.decoyLoss[t.loss] ?? 0) + 1;
+    }
+
     return {
       players: state.players.length,
       winners,
@@ -285,6 +365,8 @@ export class StatsCollector {
       ) as Record<Res, number[]>,
       upkeepDiscards: this.discards.filter((d) => d.reason === 'upkeep').length,
       influence,
+      monuments,
+      combatTokens,
       plots,
     };
   }
@@ -303,6 +385,8 @@ export interface AggregateStats {
   hospitalByRound: number[];
   upkeepDiscards: number;
   influence: GameStats['influence'];
+  monuments: GameStats['monuments'];
+  combatTokens: GameStats['combatTokens'];
   plots: GameStats['plots'];
 }
 
@@ -321,6 +405,8 @@ export function emptyAggregate(): AggregateStats {
     hospitalByRound: [],
     upkeepDiscards: 0,
     influence: {},
+    monuments: {},
+    combatTokens: {},
     plots: {},
   };
 }
@@ -356,4 +442,6 @@ export function mergeStats(agg: AggregateStats, g: GameStats): void {
   });
   addNumbers(agg.influence, g.influence);
   addNumbers(agg.plots, g.plots);
+  addNumbers(agg.monuments, g.monuments);
+  addNumbers(agg.combatTokens, g.combatTokens);
 }

@@ -5,6 +5,8 @@ import {
   CITADELS_PER_PLAYER,
   CITADELS_PER_REGION,
   MAX_BUILDINGS_PER_TYPE,
+  MONUMENTS,
+  OBELISKS_PER_PLAYER,
   PLOTS,
   PRESTIGE_TRACK,
   PROFESSION_ORDER,
@@ -19,6 +21,7 @@ import {
   type ResourceId,
 } from '@vampire/data';
 import { workersAt } from './board';
+import { influenceMin } from './reverse';
 import type { GameState } from './types';
 
 const RESOURCES: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -33,7 +36,7 @@ export function findInvariantViolations(state: GameState): string[] {
     }
     for (const region of REGION_ORDER) {
       const v = p.influence[region];
-      if (!Number.isInteger(v) || v < 0 || v > TRACKS[region].max) {
+      if (!Number.isInteger(v) || v < influenceMin(state) || v > TRACKS[region].max) {
         errors.push(`игрок ${i}: влияние ${region} = ${v}`);
       }
     }
@@ -77,13 +80,21 @@ export function findInvariantViolations(state: GameState): string[] {
     }
     for (const type of BUILDING_ORDER) {
       const n = state.buildings.filter((b) => b.owner === i && b.type === type).length;
-      const limit = type === 'citadel' ? CITADELS_PER_PLAYER : MAX_BUILDINGS_PER_TYPE;
+      const limit =
+        type === 'citadel'
+          ? CITADELS_PER_PLAYER
+          : type === 'obelisk'
+            ? OBELISKS_PER_PLAYER
+            : MAX_BUILDINGS_PER_TYPE;
       if (n > limit) errors.push(`игрок ${i}: зданий ${type} ${n}`);
     }
   });
   for (const region of REGION_ORDER) {
     const n = state.buildings.filter((b) => b.type === 'citadel' && b.region === region).length;
     if (n > CITADELS_PER_REGION) errors.push(`${region}: Цитаделей ${n}`);
+    // Эксперимент influenceModel=reverse: на звезде региона одно здание — Шпиль или Обелиск.
+    const m = state.buildings.filter((b) => MONUMENTS.includes(b.type) && b.region === region);
+    if (m.length > 1) errors.push(`${region}: на звезде ${m.length} здания`);
   }
   const plots = state.buildings.flatMap((b) => (b.plot === null ? [] : [b.plot]));
   if (new Set(plots).size !== plots.length) errors.push('два здания на одном участке');
@@ -91,7 +102,7 @@ export function findInvariantViolations(state: GameState): string[] {
     const plot = b.plot === null ? null : PLOTS.find((p) => p.id === b.plot);
     if (b.plot !== null && plot?.region !== b.region)
       errors.push(`участок ${b.plot} не в ${b.region}`);
-    if ((b.type === 'citadel') !== (b.plot === null))
+    if (MONUMENTS.includes(b.type) !== (b.plot === null))
       errors.push(`здание ${b.type} не на своём месте`);
   }
   if (state.combat !== null && state.phase !== 'combat') errors.push('бой идёт вне фазы боёв');

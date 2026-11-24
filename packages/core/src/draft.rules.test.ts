@@ -1,3 +1,4 @@
+import { CHARACTER_ORDER } from '@vampire/data';
 import { CHARACTERS, PROFESSION_ORDER, type CharacterId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { createGame, getLegalActions, getObservation } from './engine';
@@ -14,13 +15,13 @@ function setOffer(state: GameState, characters: CharacterId[]): GameState {
 }
 
 const game = (playerCount = 3, seed = 1) =>
-  setOffer(createGame({ playerCount, rules: { randomFirstPlayer: true } }, seed), [
-    'bloodsucker',
-    'storekeeper',
-    'officer',
-    'tactician',
-    'oreMiner',
-  ]);
+  setOffer(
+    createGame(
+      { playerCount, rules: { randomFirstPlayer: true, disabledCharacters: false } },
+      seed,
+    ),
+    ['bloodsucker', 'storekeeper', 'officer', 'tactician', 'oreMiner'],
+  );
 
 const pickChar = (s: GameState, character: CharacterId, log?: GameEvent[]) =>
   act(s, { type: 'draftPick', pick: { kind: 'character', character } }, log);
@@ -54,7 +55,7 @@ describe('Подготовка: выкладка драфта', () => {
   it('Порядок колоды скрыт: в наблюдении только её размер', () => {
     const obs = getObservation(createGame({}, 1), 0);
     expect('deck' in obs).toBe(false);
-    expect(obs.deckSize).toBe(25);
+    expect(obs.deckSize).toBe(CHARACTER_ORDER.length - 5);
     expect(obs.offer.characters).toHaveLength(5);
   });
 });
@@ -168,7 +169,7 @@ describe('Улучшение', () => {
     };
     expect(severance('bloodsucker')).toEqual({ gold: 0, ore: 1 });
     expect(severance('troublemaker')).toEqual({ gold: 2, ore: 0 });
-    expect(severance('madman')).toEqual({ gold: 1, ore: 0 });
+    expect(severance('nightHunter')).toEqual({ gold: 1, ore: 0 });
     expect(severance('tactician')).toEqual({ gold: 0, ore: 0 });
   });
 
@@ -190,12 +191,12 @@ describe('Персонажи между раундами', () => {
     expect(s.offer).toEqual({ characters: [], professions: [] });
   });
 
-  it('30 карт хватает ровно на 6 раундов по 5', () => {
+  it('Колоды хватает на 6 раундов по 5 (лишние карты остаются в колоде)', () => {
     let s = createGame({ playerCount: 3 }, 8);
     for (let round = 1; round <= 6; round++) {
       expect(s.round).toBe(round);
       expect(s.offer.characters).toHaveLength(5);
-      expect(s.deck).toHaveLength(30 - 5 * round);
+      expect(s.deck).toHaveLength(CHARACTER_ORDER.length - 5 * round);
       s = draftAll(s);
       while (s.pending?.kind === 'upgrade') {
         s = act(s, { type: 'upgrade', choice: { kind: 'discard' } });
@@ -203,11 +204,11 @@ describe('Персонажи между раундами', () => {
       while (s.pending?.kind === 'placement') s = act(s, { type: 'pass' });
     }
     expect(s.phase).toBe('gameOver');
-    expect(s.deck).toHaveLength(0);
+    expect(s.deck).toHaveLength(CHARACTER_ORDER.length - 30);
   });
 
   it('skipDraft в помощниках тестов не теряет карты', () => {
     const s = skipDraft(createGame({}, 3));
-    expect(s.deck).toHaveLength(30);
+    expect(s.deck).toHaveLength(CHARACTER_ORDER.length);
   });
 });

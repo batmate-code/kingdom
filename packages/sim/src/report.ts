@@ -1,5 +1,8 @@
 import {
   BUILDINGS,
+  COMBAT_TOKENS,
+  COMBAT_TOKEN_ORDER,
+  GAME,
   CHARACTERS,
   PLOTS,
   CHARACTER_ORDER,
@@ -138,6 +141,9 @@ export function renderReport(s: AggregateStats, title: string): string {
       heldAtEnd: 0,
       heldAtEndByWinner: 0,
       heldAtEndVp: 0,
+      draftedRoundSum: 0,
+      draftedOrderSum: 0,
+      draftedByRound: [],
     };
     return {
       id,
@@ -151,6 +157,9 @@ export function renderReport(s: AggregateStats, title: string): string {
         c.heldAtEnd ? f1(c.heldAtEndVp / c.heldAtEnd) : '—',
         pct(c.discardedUpkeep / Math.max(1, c.assigned)),
         f2(c.triggered / g),
+        c.drafted ? f1(c.draftedRoundSum / c.drafted) : '—',
+        c.drafted ? f1(c.draftedOrderSum / c.drafted) : '—',
+        Array.from({ length: GAME.rounds }, (_, i) => c.draftedByRound[i] ?? 0).join(' / '),
       ],
     };
   }).sort((a, b) => b.winHeld - a.winHeld);
@@ -165,6 +174,9 @@ export function renderReport(s: AggregateStats, title: string): string {
         'ПО держателя',
         'Сброс на содержании',
         'Срабатываний / партию',
+        'Средний раунд пика',
+        'Очерёдность пика в раунде',
+        'Пиков по раундам 1–6',
       ],
       charRows.map((r) => r.row),
     ),
@@ -282,6 +294,63 @@ export function renderReport(s: AggregateStats, title: string): string {
     '',
   );
   // Участки
+  // Здания на звезде региона и ПО Шпиля (эксперимент influenceModel=reverse).
+  const mons = s.monuments ?? {};
+  if (Object.keys(mons).length > 0) {
+    out.push('## Здания на звезде', '');
+    out.push(
+      'Сколько построено за партию, доля у победителей (норма ' +
+        pct(baseWin) +
+        '); ПО, которые принёс Шпиль (эксперимент обратных треков).',
+      '',
+    );
+    const names: Record<string, string> = { citadel: 'Цитадель / Шпиль', obelisk: 'Обелиск' };
+    out.push(
+      table(
+        [
+          'Здание',
+          'Построено / партию',
+          'У победителей',
+          'ПО Шпиля / партию',
+          'ПО Шпиля у победителей',
+        ],
+        Object.entries(mons).map(([k, m]) => [
+          names[k] ?? k,
+          f2(m.built / g),
+          pct(m.byWinner / Math.max(1, m.built)),
+          m.vp ? f2(m.vp / g) : '—',
+          m.vp ? pct(m.vpByWinner / m.vp) : '—',
+        ]),
+      ),
+      '',
+    );
+  }
+
+  // Жетоны боя: частота и доля выигранных боёв у сыгравшего.
+  const tokens = s.combatTokens ?? {};
+  if (Object.keys(tokens).length > 0) {
+    out.push('## Жетоны боя', '');
+    out.push(
+      'Сколько раз сыгран за партию (все игроки), доля боёв, выигранных сыгравшим; у Приманки в эксперименте — выбранная потеря влияния.',
+      '',
+    );
+    out.push(
+      table(
+        ['Жетон', 'Сыгран / партию', 'Бой выигран', 'Приманка: потеря 0 / 1 / 2'],
+        COMBAT_TOKEN_ORDER.filter((t) => tokens[t]).map((t) => {
+          const c = tokens[t]!;
+          return [
+            COMBAT_TOKENS[t].name,
+            f2(c.played / g),
+            pct(c.won / Math.max(1, c.played)),
+            c.decoyLoss.length > 0 ? [0, 1, 2].map((i) => c.decoyLoss[i] ?? 0).join(' / ') : '—',
+          ];
+        }),
+      ),
+      '',
+    );
+  }
+
   out.push('## Участки', '');
   out.push(
     'Как часто участок застраивается за партию (не больше одного здания на участок), в каком раунде в среднем, доля построек у победителей и какие здания. Двойные участки — с доплатой; Цитадели — на звёздах.',

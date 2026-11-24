@@ -1,7 +1,7 @@
 import { seatLabel } from './labels';
 import type { GameState, PlayerScore } from '@vampire/core';
 import { useEffect } from 'react';
-import { PLAYER_COLORS } from './Board';
+import { PLAYER_COLORS } from './players';
 import { Icon } from './Icon';
 import styles from './RoundModal.module.css';
 
@@ -69,6 +69,12 @@ export function RoundModal({
                   <span className={styles.seat}>
                     {s.player === viewer ? ' · вы' : seatLabel(seats[s.player])}
                   </span>
+                  {/* Кто ходит первым в этом раунде (автор 24.11). */}
+                  {s.player === state.firstPlayer && (
+                    <span className={styles.first} title="Ходит первым в этом раунде">
+                      первый
+                    </span>
+                  )}
                 </span>
                 <span className={styles.breakdown} title="Из чего сложились очки">
                   престиж {s.prestigeVp} · влияние {s.influenceVp}

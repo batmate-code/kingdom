@@ -7,6 +7,7 @@ import {
   type GameState,
 } from '@vampire/core';
 import {
+  BUILD_ID,
   HEARTBEAT_MS,
   LINK_TIMEOUT_MS,
   parseGuestMessage,
@@ -14,6 +15,7 @@ import {
   sameAction,
   type HostMessage,
   type RejectReason,
+  type UndoVote,
 } from './protocol';
 import type { Link, Listener } from './transport';
 
@@ -32,6 +34,15 @@ export interface HostOptions {
    * false — ход не применился (гость получит отказ).
    */
   apply(action: Action): boolean;
+  /**
+   * Отмена хода гостя: можно ли креслу `seat` отменить свой последний ход и отменить его
+   * (после этого вызывающий код сам вызовет publish()). Без этих функций отмена недоступна.
+   */
+  canUndo?(seat: number): boolean;
+  undo?(seat: number): boolean;
+  /** Ответ гостя на просьбу об отмене и сама идущая просьба (для снимков). */
+  voteUndo?(seat: number, id: number, accept: boolean): void;
+  undoVote?(): UndoVote | null;
   /**
    * Номер первого снимка. Хост после перезагрузки страницы продолжает нумерацию с версии
    * партии, а не с нуля — иначе гость принял бы новые снимки за старые.
@@ -79,6 +90,8 @@ export function createHostSession(opts: HostOptions): HostSession {
       observation: getObservation(state, seat),
       legal: state.pending?.player === seat ? getLegalActions(state) : [],
       events: eventsFor(events, seat),
+      canUndo: opts.canUndo?.(seat) ?? false,
+      undoVote: opts.undoVote?.() ?? null,
     };
   };
 
@@ -114,11 +127,11 @@ export function createHostSession(opts: HostOptions): HostSession {
         return;
       }
       if (msg.type === 'hello') {
-        if (msg.protocol !== PROTOCOL_VERSION) {
+        if (msg.protocol !== PROTOCOL_VERSION || msg.build !== BUILD_ID) {
           reject(
             peer,
             'protocol',
-            `Версия протокола хоста ${PROTOCOL_VERSION}, у вас ${msg.protocol}: обновите страницу`,
+            'У вас другая версия игры, чем у хоста: обновите страницу (Ctrl+F5)',
           );
           return;
         }
@@ -139,6 +152,29 @@ export function createHostSession(opts: HostOptions): HostSession {
         if (previous && previous !== peer) previous.link.close();
         send(peer, snapshot(seat, []));
         notify();
+        return;
+      }
+      if (msg.type === 'undo') {
+        if (peer.seat === null) {
+          reject(peer, 'notJoined', 'Сначала представьтесь');
+          return;
+        }
+        if (msg.seq !== seq) {
+          reject(peer, 'stale', 'Партия ушла вперёд — отмена не принята');
+          send(peer, snapshot(peer.seat, []));
+          return;
+        }
+        if (!opts.undo?.(peer.seat)) {
+          reject(
+            peer,
+            'cannotUndo',
+            'Отменить нельзя: нет вашего хода или уже идёт другая просьба',
+          );
+        }
+        return;
+      }
+      if (msg.type === 'undoVote') {
+        if (peer.seat !== null) opts.voteUndo?.(peer.seat, msg.id, msg.accept);
         return;
       }
       // msg.type === 'act'

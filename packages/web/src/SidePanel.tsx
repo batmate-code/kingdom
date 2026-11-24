@@ -12,19 +12,21 @@ import {
   COMBAT_TOKENS,
   COMBAT_TOKEN_ORDER,
   PROFESSIONS,
+  REGION_ORDER,
   type BuildingId,
+  type RegionId,
 } from '@vampire/data';
-import { PLAYER_COLORS, Token } from './Board';
-import { BuildingGlyph } from './board/BoardSvg';
+import { PLAYER_COLORS } from './players';
+import { Token } from './Token';
 import { profStyle } from './colors';
 import { Icon, RichText } from './Icon';
 import { locName, regionName, seatLabel } from './labels';
 import { useState } from 'react';
-import abbeyImg from './assets/buildings/abbey.png';
-import citadelImg from './assets/buildings/citadel.png';
-import cryptImg from './assets/buildings/crypt.png';
-import shopImg from './assets/buildings/shop.png';
-import { cardUrl } from './cards';
+import { BuildingBadge } from './BuildingBadge';
+import { backUrl } from './cards';
+import { useHoveredWorker } from './hover';
+import { buildingName, isReverseView, OBELISK_TEXT, SPIRE_TEXT } from './reverseView';
+import { CharacterCard } from './CharacterCard';
 import { TOKEN_IMG } from './CombatModal';
 import styles from './SidePanel.module.css';
 
@@ -32,14 +34,6 @@ import styles from './SidePanel.module.css';
  * Правая колонка экрана партии (по образцу панелей игроков BGA): запас ходящего игрока,
  * компактные карточки всех игроков сразу, свёрнутая справка по зданиям.
  */
-
-/** Силуэты зданий с планшета автора (docs/images/player-board.jpg). */
-const BUILDING_IMG: Record<BuildingId, string> = {
-  crypt: cryptImg,
-  abbey: abbeyImg,
-  shop: shopImg,
-  citadel: citadelImg,
-};
 
 const BUILDING_TYPES = [
   'crypt',
@@ -53,7 +47,13 @@ const BUILDING_TEXT: Record<BuildingId, string> = {
   abbey: `+${BUILDING_EFFECTS.abbeyBloodPerDisplacement} кр за каждое вытеснение из соседней локации`,
   shop: `+${BUILDING_EFFECTS.shopGoldPerVisit} зол, когда чужой рабочий приходит в соседнюю локацию`,
   citadel: `Лес: +${BUILDING_EFFECTS.forestCitadelStrength} к силе в бою; Долина: содержание −${BUILDING_EFFECTS.valleyCitadelUpkeepDiscount} кр; Город: +${BUILDING_EFFECTS.cityCitadelCompromatPerVisit} комп за чужой визит`,
+  obelisk: OBELISK_TEXT,
 };
+
+/** Текст здания с учётом режима: в эксперименте у Цитадели (Шпиля) другой эффект. */
+function buildingText(obs: Observation, type: BuildingId): string {
+  return type === 'citadel' && isReverseView(obs) ? SPIRE_TEXT : BUILDING_TEXT[type];
+}
 
 function where(w: Worker): string {
   const p = w.position;
@@ -65,7 +65,15 @@ function where(w: Worker): string {
 
 function costText(obs: Observation, type: BuildingId): string {
   const c = buildingCost(obs, type);
-  return [c.gold ? `${c.gold} зол` : '', c.ore ? `${c.ore} руд` : ''].filter(Boolean).join(' + ');
+  // Все ресурсы цены: у Обелиска (эксперимент) — руда и компромат.
+  return [
+    c.gold ? `${c.gold} зол` : '',
+    c.blood ? `${c.blood} кр` : '',
+    c.ore ? `${c.ore} руд` : '',
+    c.compromat ? `${c.compromat} комп` : '',
+  ]
+    .filter(Boolean)
+    .join(' + ');
 }
 
 /** Рабочий строкой: фишка, персонаж, профессия, где стоит. */
@@ -143,8 +151,7 @@ export function HandPanel({
 
 /** Лупа карты рабочего: крупно слева от панели, на уровне карты (не выходя за экран). */
 function CardZoom({ w, rect }: { w: Worker; rect: DOMRect }) {
-  const ch = w.character ? CHARACTERS[w.character] : null;
-  const src = cardUrl(w.character ?? '_back');
+  const back = backUrl();
   const width = Math.min(340, Math.max(220, window.innerWidth * 0.16));
   const height = (width * 7) / 5 + (w.profession ? 70 : 0);
   const top = Math.min(
@@ -154,7 +161,11 @@ function CardZoom({ w, rect }: { w: Worker; rect: DOMRect }) {
   const left = Math.max(8, rect.left - width - 16);
   return (
     <div className={styles.zoom} style={{ top, left, width }}>
-      {src && <img src={src} alt={ch?.name ?? 'Рубашка'} />}
+      {w.character ? (
+        <CharacterCard id={w.character} size="lg" />
+      ) : (
+        back && <img src={back} alt="Рубашка" />
+      )}
       {w.profession && (
         <div className={styles.zoomProf} style={profStyle(w.profession)}>
           <b>{PROFESSIONS[w.profession].name}</b>
@@ -190,8 +201,23 @@ function PrestigeHex({ value, filled, color }: { value: number; filled: boolean;
  * престижа со стрелками), справа Цитадель, внизу три карты рабочих с номерами. Эффект здания —
  * подсказкой при наведении на строку.
  */
-function Planshet({ obs, player }: { obs: Observation; player: number }) {
+/** Выбор рабочего кликом по его карте (свой ход размещения, автор 24.11). */
+interface WorkerPick {
+  selected: string | null;
+  onPick(id: string): void;
+}
+
+function Planshet({
+  obs,
+  player,
+  pick,
+}: {
+  obs: Observation;
+  player: number;
+  pick?: WorkerPick | undefined;
+}) {
   const [zoom, setZoom] = useState<{ w: Worker; rect: DOMRect } | null>(null);
+  const setHovered = useHoveredWorker((s) => s.set);
   const color = PLAYER_COLORS[player] ?? '#999';
   const own = obs.workers
     .filter((w) => w.owner === player)
@@ -199,6 +225,7 @@ function Planshet({ obs, player }: { obs: Observation; player: number }) {
   const builtOf = (type: BuildingId) =>
     obs.buildings.filter((b) => b.owner === player && b.type === type);
   const citadel = builtOf('citadel')[0];
+  const obelisk = builtOf('obelisk')[0];
   const p = obs.players[player];
   return (
     <div className={styles.planshet}>
@@ -212,7 +239,7 @@ function Planshet({ obs, player }: { obs: Observation; player: number }) {
               title={`${BUILDINGS[type].name}: ${BUILDING_TEXT[type].replace(/ зол/g, ' золото').replace(/ кр /g, ' крови ')}`}
             >
               <span className={styles.bIcon}>
-                <img src={BUILDING_IMG[type]} alt={BUILDINGS[type].name} />
+                <BuildingBadge type={type} />
                 <span className={styles.bCost}>
                   <RichText text={costText(obs, type)} />
                 </span>
@@ -226,33 +253,50 @@ function Planshet({ obs, player }: { obs: Observation; player: number }) {
             </div>
           );
         })}
-      </div>
-      <div className={styles.citadelCol} title={`Цитадель: ${BUILDING_TEXT.citadel}`}>
-        <img className={styles.citadelImg} src={BUILDING_IMG.citadel} alt="Цитадель" />
-        <span className={styles.bCost}>
-          <RichText text={costText(obs, 'citadel')} />
-        </span>
-        <PrestigeHex value={BUILDINGS.citadel.prestige[0] ?? 0} filled={!!citadel} color={color} />
-        {citadel && <span className={styles.citadelWhere}>{regionName(citadel.region)}</span>}
+        {/* Цитадель (в эксперименте — Шпиль и Обелиск) одной строкой под зданиями: справа на
+            планшете (310 px) для них нет места. */}
+        <div className={styles.monuments}>
+          <Monument
+            obs={obs}
+            type="citadel"
+            built={citadel}
+            color={color}
+            note={isReverseView(obs) && (p?.bonusVp ?? 0) > 0 ? `+${p?.bonusVp} ПО` : null}
+          />
+          {isReverseView(obs) && (
+            <Monument obs={obs} type="obelisk" color={color} built={obelisk} note={null} />
+          )}
+        </div>
       </div>
       <div className={styles.cards}>
         {own.map((w, i) => {
           const ch = w.character ? CHARACTERS[w.character] : null;
-          const src = cardUrl(w.character ?? '_back');
+          const back = backUrl();
           return (
             <div
               key={w.id}
-              className={styles.cardSlot}
-              onMouseEnter={(e) => setZoom({ w, rect: e.currentTarget.getBoundingClientRect() })}
-              onMouseLeave={() => setZoom(null)}
+              className={`${styles.cardSlot} ${w.position.kind !== 'reserve' ? styles.cardPlaced : ''} ${pick && w.position.kind === 'reserve' ? styles.cardPickable : ''} ${pick?.selected === w.id ? styles.cardSelected : ''}`}
+              onClick={() => pick && w.position.kind === 'reserve' && pick.onPick(w.id)}
+              onMouseEnter={(e) => {
+                setZoom({ w, rect: e.currentTarget.getBoundingClientRect() });
+                setHovered(w.id);
+              }}
+              onMouseLeave={() => {
+                setZoom(null);
+                setHovered(null);
+              }}
               title={
                 ch
                   ? `${i + 1}. ${ch.name} (содержание ${ch.upkeep}): ${ch.text}${w.profession ? `. Профессия: ${PROFESSIONS[w.profession].name}` : ''}. ${where(w)}`
                   : `${i + 1}. Рабочий без улучшения. ${where(w)}`
               }
             >
-              {src ? (
-                <img className={styles.cardImg} src={src} alt="" />
+              {w.character ? (
+                <div className={styles.cardImg}>
+                  <CharacterCard id={w.character} size="sm" />
+                </div>
+              ) : back ? (
+                <img className={styles.cardImg} src={back} alt="" />
               ) : (
                 <div className={styles.cardImg} />
               )}
@@ -298,12 +342,14 @@ function PlayerCard({
   player,
   seat,
   isViewer,
+  pick,
 }: {
   obs: Observation;
   state: GameState;
   player: number;
   seat: string;
   isViewer: boolean;
+  pick?: WorkerPick | undefined;
 }) {
   const p = obs.players[player];
   if (!p) return null;
@@ -344,7 +390,18 @@ function PlayerCard({
         ))}
       </div>
 
-      <Planshet obs={obs} player={player} />
+      {/* Эксперимент: постоянная сила с отметки −3 по регионам. */}
+      {isReverseView(obs) && REGION_ORDER.some((r) => p.undergroundStrength[r] > 0) && (
+        <div className={styles.underground} title="Постоянная сила в боях региона (отметка −3)">
+          {REGION_ORDER.filter((r) => p.undergroundStrength[r] > 0).map((r) => (
+            <span key={r} className={styles.res}>
+              +{p.undergroundStrength[r]} <Icon name="strengthToken" size={16} /> {regionName(r)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <Planshet obs={obs} player={player} pick={pick} />
 
       <div className={styles.tokens}>
         {/* Жетоны боя: в руке — ярко, потраченные (в сбросе) — тускло и зачёркнуто. */}
@@ -371,24 +428,59 @@ function PlayerCard({
   );
 }
 
+/**
+ * Цитадель/Шпиль или Обелиск на планшете — как строка здания слева: значок, цена, престиж;
+ * под ценой — где построено (и сколько ПО принёс Шпиль).
+ */
+function Monument({
+  obs,
+  type,
+  color,
+  built,
+  note,
+}: {
+  obs: Observation;
+  type: 'citadel' | 'obelisk';
+  color: string;
+  built: { region: RegionId } | undefined;
+  note: string | null;
+}) {
+  const name = buildingName(obs, type);
+  return (
+    <div className={styles.chainRow} title={`${name}: ${buildingText(obs, type)}`}>
+      <span className={styles.bIcon}>
+        <BuildingBadge type={type} spire={isReverseView(obs)} />
+        <span className={styles.bCost}>
+          <RichText text={costText(obs, type)} />
+        </span>
+        {built && (
+          <span className={styles.citadelWhere}>
+            {regionName(built.region)}
+            {note && <> · {note}</>}
+          </span>
+        )}
+      </span>
+      <PrestigeHex value={BUILDINGS[type].prestige[0] ?? 0} filled={!!built} color={color} />
+    </div>
+  );
+}
+
 /** Справка по зданиям: цена, престиж цепочки, эффект. */
 function BuildingsRef({ obs }: { obs: Observation }) {
   return (
     <details className={styles.ref}>
       <summary>Здания: цены и эффекты</summary>
-      {BUILDING_TYPES.map((type) => (
+      {[...BUILDING_TYPES, ...(isReverseView(obs) ? (['obelisk'] as const) : [])].map((type) => (
         <div key={type} className={styles.refRow}>
-          <svg viewBox="-24 -32 48 50" width={26} height={26}>
-            <BuildingGlyph type={type} cx={0} cy={0} />
-          </svg>
+          <BuildingBadge type={type} spire={isReverseView(obs)} size={26} />
           <div>
-            <b>{BUILDINGS[type].name}</b>{' '}
+            <b>{buildingName(obs, type)}</b>{' '}
             <span className={styles.muted}>
               <RichText text={costText(obs, type)} /> · престиж{' '}
               {BUILDINGS[type].prestige.join(' → ')}
             </span>
             <div className={styles.refText}>
-              <RichText text={BUILDING_TEXT[type]} />
+              <RichText text={buildingText(obs, type)} />
             </div>
           </div>
         </div>
@@ -406,11 +498,14 @@ export function PlayersPanel({
   state,
   viewer,
   seats,
+  pick,
 }: {
   obs: Observation;
   state: GameState;
   viewer: number;
   seats: readonly string[];
+  /** Свой ход размещения: клик по карте рабочего на планшете выбирает его. */
+  pick?: WorkerPick | undefined;
 }) {
   const [picked, setPicked] = useState<number | null>(null);
   const player = picked ?? viewer;
@@ -421,6 +516,7 @@ export function PlayersPanel({
         {obs.players.map((_, i) => {
           const color = PLAYER_COLORS[i];
           const turn = state.pending?.player === i;
+          const res = obs.players[i]?.resources;
           return (
             <button
               key={i}
@@ -431,11 +527,22 @@ export function PlayersPanel({
               onClick={() => setPicked(i === viewer ? null : i)}
               title={`Игрок ${i + 1}${i === viewer ? ' (вы)' : seats[i] === 'guest' ? ' (гость)' : seats[i] === 'human' || seats[i] === 'remote' ? '' : ' (бот)'}${turn ? ' — сейчас ходит' : ''}`}
             >
-              {turn && <span className={styles.turnMark}>▶</span>}
-              Игрок {i + 1}
-              <span className={styles.tabVp}>
-                {scores.find((s) => s.player === i)?.vp ?? 0}
-                <Icon name="vp" size={14} />
+              <span className={styles.tabHead}>
+                {turn && <span className={styles.turnMark}>▶</span>}
+                Игрок {i + 1}
+                <span className={styles.tabVp}>
+                  {scores.find((s) => s.player === i)?.vp ?? 0}
+                  <Icon name="vp" size={14} />
+                </span>
+              </span>
+              {/* Ресурсы игрока второй строкой во вкладке (автор 24.11). */}
+              <span className={styles.tabRes}>
+                {(['gold', 'blood', 'ore', 'compromat'] as const).map((r) => (
+                  <span key={r}>
+                    {res?.[r] ?? 0}
+                    <Icon name={r} size={12} />
+                  </span>
+                ))}
               </span>
             </button>
           );
@@ -447,6 +554,7 @@ export function PlayersPanel({
         player={player}
         seat={seats[player] ?? 'human'}
         isViewer={player === viewer}
+        pick={player === viewer ? pick : undefined}
       />
       <BuildingsRef obs={obs} />
     </div>
