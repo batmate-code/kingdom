@@ -87,7 +87,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
     id: 'mason',
     name: 'Каменщик',
     upkeep: 2,
-    text: `+${P.mason.goldPerBuilding} золото за каждое своё здание в текущем регионе, максимум ${P.mason.maxGold}`,
+    text: `+${P.mason.goldPerBuilding} золота за каждое своё здание в текущем регионе, максимум ${P.mason.maxGold}`,
   },
   pickpocket: {
     id: 'pickpocket',
@@ -165,7 +165,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
     id: 'saboteur',
     name: 'Диверсант',
     upkeep: 2,
-    text: `Удалить все чужие жетоны силы в текущем регионе; ${P.saboteur.goldPerToken} золото за каждый`,
+    text: `Удалить все чужие жетоны силы в текущем регионе; ${P.saboteur.goldPerToken} золота за каждый`,
   },
   patron: {
     id: 'patron',
@@ -202,7 +202,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
     id: 'mercenary',
     name: 'Наёмник',
     upkeep: 0,
-    text: `Положи ${P.mercenary.powerTokens} жетон силы на эту карту (копятся, не больше ${P.mercenary.maxTokens}). Перед боем региона, где стоит Наёмник, можешь выложить их туда`,
+    text: `Положи ${P.mercenary.powerTokens} жетон силы на эту карту (копятся, не больше ${P.mercenary.maxTokens}); можешь сразу выложить все жетоны с карты в текущий регион`,
   },
   shapeshifter: {
     id: 'shapeshifter',
