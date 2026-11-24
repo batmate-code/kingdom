@@ -34,7 +34,7 @@
 
 .title {
   margin: 0;
-  font-family: 'Trajan Sans Pro', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-size: clamp(18px, 1.4vw, 28px);
   color: #e9c87c;
   text-transform: uppercase;

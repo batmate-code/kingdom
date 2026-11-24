@@ -1,3 +1,9 @@
+// Шрифты в сборке (автор 25.11): Forum — заголовки (вместо Trajan, его лицензия не даёт
+// распространять файл), Cormorant SC — текст. Оба OFL, с кириллицей.
+import '@fontsource/forum/400.css';
+import '@fontsource/cormorant-sc/500.css';
+import '@fontsource/cormorant-sc/600.css';
+import '@fontsource/cormorant-sc/700.css';
 import { Component, StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';

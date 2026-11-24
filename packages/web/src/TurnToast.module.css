@@ -79,7 +79,7 @@
 }
 
 .mine b {
-  font-family: 'Trajan Sans Pro', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-size: clamp(18px, 1.4vw, 26px);
   color: #f0d48a;
   text-transform: uppercase;

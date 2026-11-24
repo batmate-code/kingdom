@@ -58,7 +58,7 @@
 }
 
 .name {
-  font-family: 'Trajan Sans Pro', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-weight: 700;
   text-align: center;
   font-size: calc(1.35em * var(--fit, 1));

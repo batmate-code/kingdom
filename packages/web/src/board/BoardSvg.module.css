@@ -1,24 +1,8 @@
-/* Шрифт автора: Trajan Sans Pro Black (установлен в системе; файл в репозиторий не кладём — лицензия). */
-@font-face {
-  font-family: 'Board Trajan';
-  src: local('Trajan Sans Pro Black'), local('TrajanSansPro-Black');
-  font-weight: 400 900;
-}
-
-/* Основной текст: Trajan Sans Pro Regular, пока он не установлен — Semibold (тоже из системы). */
-@font-face {
-  font-family: 'Board Trajan Text';
-  src:
-    local('Trajan Sans Pro Regular'), local('TrajanSansPro-Regular'),
-    local('Trajan Sans Pro Semibold'), local('TrajanSansPro-Semibold');
-  font-weight: 400 900;
-}
-
 .svg {
   display: block;
   width: 100%;
   height: 100%;
-  font-family: 'Board Trajan Text', 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Cormorant SC', 'Forum', Georgia, serif;
 }
 
 .card {
@@ -32,7 +16,7 @@
 }
 
 .cardTitle {
-  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-weight: 700;
   font-size: 32px;
   letter-spacing: 0.02em;
@@ -58,7 +42,7 @@
 }
 
 .slotText {
-  /* Эффекты локаций — исходным шрифтом интерфейса: Trajan (только заглавные) слишком широк. */
+  /* Эффекты локаций — исходным шрифтом интерфейса: шрифт заголовков (Forum) слишком широк. */
   font-family: system-ui, sans-serif;
   font-weight: 600;
   font-size: 25px;
@@ -112,7 +96,7 @@
 
 .trackTitle {
   fill: #f0d48a;
-  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-size: 24px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -174,7 +158,7 @@
 
 .regionLabel {
   fill: #e9c87c;
-  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-size: 30px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -182,7 +166,7 @@
 
 /* Подпись здания на светлом цвете игрока. */
 .builtName {
-  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   font-size: 13px;
   letter-spacing: -0.02em;
   color: #1b1418;
@@ -231,7 +215,7 @@
 
 /* Подпись «Вход» у цены входа в Город (Е1). */
 .entryLabel {
-  font-family: 'Board Trajan', 'Cormorant SC', Georgia, serif;
+  font-family: 'Forum', 'Cormorant SC', Georgia, serif;
   text-transform: uppercase;
   color: #e9c87c;
   font-size: 22px;
