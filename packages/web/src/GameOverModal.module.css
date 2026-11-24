@@ -1,0 +1,42 @@
+.dialog {
+  border-width: 3px;
+}
+
+/* Победа смотрящего — золотое свечение заголовка. */
+.won {
+  color: #f3d48a;
+  text-shadow:
+    0 0 18px rgba(233, 200, 124, 0.55),
+    0 3px 10px #000;
+}
+
+.sub {
+  color: #cfc4b3;
+  font-size: clamp(14px, 1vw, 18px);
+}
+
+.winner {
+  background: #45374f;
+  box-shadow: 0 0 0 2px #e9c87c inset;
+}
+
+.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.secondary {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #6b5d78;
+  background: #2e2638;
+  color: #e6dccb;
+  font-size: clamp(14px, 1vw, 17px);
+  cursor: pointer;
+}
+
+.secondary:hover {
+  border-color: #c9a24a;
+}

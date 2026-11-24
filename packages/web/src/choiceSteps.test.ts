@@ -7,7 +7,7 @@ import { useGame } from './store';
 function chancery(): GameState {
   useGame.getState().start(['human', 'human', 'human'], 3);
   const s = structuredClone(useGame.getState().state!) as GameState;
-  s.players[0]!.resources = { gold: 1, blood: 0, ore: 0, compromat: 2 };
+  s.players[0]!.resources = { gold: 1, blood: 0, ore: 0, compromat: 4 };
   s.pending = {
     kind: 'locationAction',
     player: 0,
@@ -26,10 +26,11 @@ describe('Окно выбора: шаги вложенного выбора', ()
     const s = chancery();
     const legal = getLegalActions(s).filter((a) => a.type === 'locationAction');
     const first = stepOptions(s, legal, []);
-    expect(first.some((o) => o.label === '1 комп → 2 руд')).toBe(true);
-    const second = stepOptions(s, legal, ['1 комп → 2 руд']);
+    const ore = first.find((o) => o.label.startsWith('2 комп →'))?.label;
+    expect(ore).toBeDefined();
+    const second = stepOptions(s, legal, [ore!]);
     expect(second.map((o) => o.label)).toContain(DONE);
-    expect(second.map((o) => o.label)).toContain('1 комп → 2 руд');
+    expect(second.map((o) => o.label)).toContain(ore);
     expect(second.every((o) => o.action !== null)).toBe(true);
     // Порядок не важен: после руды можно взять и золото/кровь.
     expect(second.map((o) => o.label).some((l) => l.includes('зол'))).toBe(true);

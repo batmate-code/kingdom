@@ -12,6 +12,13 @@ const RES_WORD: Record<string, string> = {
   compromat: 'комп',
 };
 
+/** Ресурсы строкой: «1 руд + 1 зол». */
+function resLine(r: Partial<Record<keyof typeof R, number>>): string {
+  return (Object.entries(r) as [keyof typeof R, number][])
+    .map(([k, v]) => `${v} ${R[k]}`)
+    .join(' + ');
+}
+
 /**
  * Действие слота как на поле: по одному обмену на строку (строки не переносятся внутри).
  * Слова ресурсов потом заменяются иконками (RichText). Все числа — из данных слота.
@@ -41,7 +48,7 @@ export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): stri
       return [
         `до ${a.maxActions} действий:`,
         `${a.conversionCost} комп → ${a.goldBlood} зол/кр`,
-        `${a.conversionCost} комп → ${a.ore} руд`,
+        `${a.oreConversion.compromat} комп → ${resLine(a.oreConversion.gain)}`,
         `${a.buildRightCost} комп → стройка`,
       ];
     case 'chanceryBuild':
@@ -64,6 +71,6 @@ export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): stri
     case 'tavernSwap':
       return ['заменить пару', 'на пару из пула'];
     case 'cityHall':
-      return a.offers.map((o) => `${o.ore} руд → ${o.influence} вл`);
+      return a.offers.map((o) => `${resLine(o.cost)} → ${o.influence} вл`);
   }
 }

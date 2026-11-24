@@ -1,6 +1,7 @@
 /** Этап 5: эффекты персонажей — каждый со своим тестом (rules.md, «Персонажи»; ответы автора). */
 import {
   CHARACTER_PARAMS as P,
+  REVERSE_TRACK,
   type CharacterId,
   type LocationId,
   type ProfessionId,
@@ -58,23 +59,29 @@ function finishRound(s: GameState, log?: GameEvent[]): GameState {
 }
 
 describe('Персонажи, содержание 0', () => {
-  it('Падальщик: +1 кровь за каждого рабочего в госпитале', () => {
+  it('Падальщик (автор 24.11): +1 золото, +1 кровь, +1 компромат за каждого рабочего в госпитале', () => {
     let s = give(start(), 'p0w0', 'scavenger');
     s = moveWorker(s, 'p1w0', { kind: 'hospital' });
     s = moveWorker(s, 'p2w0', { kind: 'hospital' });
+    const gold = res(s, 0).gold;
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(res(s, 0).blood).toBe(2);
+    expect(res(s, 0)).toMatchObject({
+      gold: gold + 2 * P.scavenger.goldPerHospitalWorker,
+      blood: 2 * P.scavenger.bloodPerHospitalWorker,
+      compromat: 2 * P.scavenger.compromatPerHospitalWorker,
+    });
   });
 
-  it('Доносчик: компромат на карту; если его вытеснят — владелец получает его сверх компенсации', () => {
+  it('Доносчик (автор 24.11): +1 компромат сразу, ещё 2 на карту — владельцу, если его вытеснят', () => {
     let s = give(start(), 'p0w0', 'snitch', 'aristocrat');
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
+    expect(res(s, 0).compromat).toBe(P.snitch.compromat);
     expect(s.cardStash).toEqual([
       {
         workerId: 'p0w0',
         owner: 0,
         character: 'snitch',
-        amount: P.snitch.compromat,
+        amount: P.snitch.onDisplaced,
         region: 'forest',
       },
     ]);
@@ -83,7 +90,7 @@ describe('Персонажи, содержание 0', () => {
     });
     s = give(s, 'p1w0', 'bloodsucker', 'spy');
     s = place(s, 'mine', 2, { workerId: 'p1w0', displace: true });
-    expect(res(s, 0).compromat).toBe(1 + P.snitch.compromat);
+    expect(res(s, 0).compromat).toBe(P.snitch.compromat + 1 + P.snitch.onDisplaced);
     expect(s.cardStash).toEqual([]);
   });
 
@@ -91,7 +98,7 @@ describe('Персонажи, содержание 0', () => {
     let s = give(start({ blood: 5 }), 'p0w0', 'snitch');
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     s = finishRound(s);
-    expect(res(s, 0).compromat).toBe(0);
+    expect(res(s, 0).compromat).toBe(P.snitch.compromat);
     expect(s.cardStash).toEqual([]);
   });
 
@@ -101,14 +108,14 @@ describe('Персонажи, содержание 0', () => {
     expect(res(s, 0)).toMatchObject({ blood: 1, ore: 1 });
   });
 
-  it('Мародёр: +2 золота за вытеснение чужого рабочего', () => {
+  it('Мародёр (автор 24.11): +3 золота за вытеснение чужого рабочего', () => {
     let s = moveWorker(start(), 'p1w0', at('mine'));
     s = edit(s, (d) => {
       d.locations.mine.professionToken = 'spy';
     });
     s = give(s, 'p0w0', 'marauder', 'spy');
     s = place(s, 'mine', 2, { workerId: 'p0w0', displace: true });
-    expect(res(s, 0).gold).toBe(2 + 2 + 2); // старт + второй слот Рудника + Мародёр
+    expect(res(s, 0).gold).toBe(2 + 2 + P.marauder.goldPerDisplaced); // старт + второй слот Рудника + Мародёр
   });
 
   it('Мародёр: за вытеснение своего рабочего ничего', () => {
@@ -121,10 +128,10 @@ describe('Персонажи, содержание 0', () => {
     expect(res(s, 0).gold).toBe(2 + 2);
   });
 
-  it('Летописец: +2 престижа', () => {
+  it('Летописец (автор 24.11): +3 престижа', () => {
     let s = give(start(), 'p0w0', 'chronicler');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(s.players[0]?.prestige).toBe(2);
+    expect(s.players[0]?.prestige).toBe(P.chronicler.prestige);
   });
 });
 
@@ -156,10 +163,10 @@ describe('Персонажи, содержание 1', () => {
     ).toBe(false);
   });
 
-  it('Кладовщик (автор 24.11): +3 золота', () => {
+  it('Кладовщик (автор 24.11): +2 золота', () => {
     let s = give(start(), 'p0w0', 'storekeeper');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(res(s, 0).gold).toBe(2 + 3);
+    expect(res(s, 0).gold).toBe(2 + P.storekeeper.gold);
   });
 
   it('Казначей: 1 компромат → 3 золота; без компромата не срабатывает', () => {
@@ -171,33 +178,45 @@ describe('Персонажи, содержание 1', () => {
     expect(res(t, 0).gold).toBe(2);
   });
 
-  it('Оборотень: 2 жетона силы, если у соперника в регионе сила на 2+ больше', () => {
+  it('Оборотень (автор 24.11): 2 жетона силы, если у соперника в регионе сила на 1+ больше', () => {
     let s = give(start(), 'p1w0', 'bloodsucker', 'spy');
     s = moveWorker(s, 'p1w0', at('witchCircle'));
-    s = edit(s, (d) => {
-      d.powerTokens.push({ owner: 1, region: 'forest', count: 1 });
-    });
     // Не Страж: у Стража сила 2 (автор 23.11).
     s = give(s, 'p0w0', 'werewolf', 'aristocrat');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    // У p1 сила 3, у p0 — 1.
+    // У p1 сила 2 (Шпион), у p0 — 1.
     expect(s.powerTokens).toContainEqual({ owner: 0, region: 'forest', count: 2 });
   });
 
-  it('Оборотень: разница меньше 2 — не срабатывает', () => {
-    let s = moveWorker(start(), 'p1w0', at('witchCircle'));
-    s = give(s, 'p0w0', 'werewolf');
+  it('Оборотень: силы равны — не срабатывает', () => {
+    let s = give(start(), 'p1w0', 'bloodsucker', 'aristocrat');
+    s = moveWorker(s, 'p1w0', at('witchCircle'));
+    s = give(s, 'p0w0', 'werewolf', 'aristocrat');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
     expect(s.powerTokens).toEqual([]);
   });
 
-  it('Информатор: +2 компромата, каждый соперник +1', () => {
+  it('Информатор (автор 24.11): +1 компромат только себе', () => {
     let s = give(start(), 'p0w0', 'informant');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(s.players.map((p) => p.resources.compromat)).toEqual([2, 1, 1]);
+    expect(s.players.map((p) => p.resources.compromat)).toEqual([P.informant.compromat, 0, 0]);
   });
 
-  it('Манипулятор: −1 влияние здесь, +2 в другом регионе', () => {
+  it('Латник (автор 24.11): действие локации выполняется дважды', () => {
+    let s = give(start(), 'p0w0', 'armorer');
+    const gold = res(s, 0).gold;
+    s = place(s, 'mine', 1, { workerId: 'p0w0' });
+    expect(res(s, 0).gold).toBe(gold + P.armorer.locationActions * 3);
+    // С выбором: Месса предлагает обмен дважды.
+    let t = give(start({ gold: 4, blood: 0 }), 'p0w0', 'armorer');
+    t = place(t, 'mass', 1, { workerId: 'p0w0' });
+    t = act(t, { type: 'locationAction', choice: { kind: 'mass', from: 'gold', times: 1 } });
+    expect(t.pending?.kind).toBe('locationAction');
+    t = act(t, { type: 'locationAction', choice: { kind: 'mass', from: 'gold', times: 1 } });
+    expect(res(t, 0)).toMatchObject({ gold: 0, blood: 12 });
+  });
+
+  it('Манипулятор (автор 24.11): −1 влияние здесь, +1 в другом регионе', () => {
     let s = give(start(), 'p0w0', 'manipulator');
     s = edit(s, (d) => {
       d.players[0]!.influence.forest = 1;
@@ -208,7 +227,11 @@ describe('Персонажи, содержание 1', () => {
       { kind: 'manipulator', to: 'city' },
     ]);
     s = pick(s, { kind: 'manipulator', to: 'city' });
-    expect(s.players[0]?.influence).toEqual({ forest: 0, valley: 0, city: 2 });
+    expect(s.players[0]?.influence).toEqual({
+      forest: 0,
+      valley: 0,
+      city: P.manipulator.influenceGain,
+    });
   });
 
   it('Манипулятор: при 0 влияния здесь не срабатывает', () => {
@@ -217,7 +240,7 @@ describe('Персонажи, содержание 1', () => {
     expect(s.pending?.kind).toBe('placement');
   });
 
-  it('Каменщик: +1 золото за каждое своё здание в регионе (с Цитаделью), максимум 3', () => {
+  it('Каменщик (автор 24.11): +2 золота за каждое своё здание в регионе (с Цитаделью), максимум 4', () => {
     let s = give(start(), 'p0w0', 'mason');
     s = edit(s, (d) => {
       d.buildings.push(
@@ -228,7 +251,7 @@ describe('Персонажи, содержание 1', () => {
       );
     });
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(res(s, 0).gold).toBe(2 + 2);
+    expect(res(s, 0).gold).toBe(2 + Math.min(P.mason.maxGold, 2 * P.mason.goldPerBuilding));
   });
 
   it('Карманник: по 1 золоту у каждого соперника, чьи рабочие стоят в регионе', () => {
@@ -239,40 +262,36 @@ describe('Персонажи, содержание 1', () => {
     expect(s.players.map((p) => p.resources.gold)).toEqual([3, 1, 2]);
   });
 
-  it('Ренегат: −1 влияние здесь → 1 руда или право стройки в этом регионе', () => {
-    let s = give(start({ gold: 2 }), 'p0w0', 'renegade');
-    s = edit(s, (d) => {
-      d.players[0]!.influence.forest = 1;
-    });
-    s = place(s, 'witchCircle', 1, { workerId: 'p0w0' });
-    expect(characterChoices(s)).toEqual([
-      { kind: 'renegade', gain: 'ore' },
-      { kind: 'renegade', gain: 'build' },
-    ]);
-    s = pick(s, { kind: 'renegade', gain: 'build' });
-    expect(s.players[0]?.influence.forest).toBe(0);
-    expect(s.pending).toEqual({
-      kind: 'build',
-      player: 0,
-      source: { kind: 'renegade', region: 'forest' },
-    });
-    const regions = getLegalActions(s).flatMap((a) =>
-      a.type === 'build' && a.choice ? [a.choice.region] : [],
-    );
-    expect(new Set(regions)).toEqual(new Set(['forest']));
-  });
-
-  it('Ренегат: выбор руды; при 0 влияния не срабатывает', () => {
+  it('Ренегат (автор 24.11): −1 влияние → 3 руды; при 0 влияния не срабатывает', () => {
     let s = give(start(), 'p0w0', 'renegade');
     s = edit(s, (d) => {
       d.players[0]!.influence.forest = 1;
     });
     s = place(s, 'witchCircle', 1, { workerId: 'p0w0' });
-    s = pick(s, { kind: 'renegade', gain: 'ore' });
-    expect(res(s, 0).ore).toBe(2); // автор 24.11: 2 руды
+    expect(res(s, 0).ore).toBe(P.renegade.ore); // автор 24.11: 3 руды, единственный вариант
     let t = give(start(), 'p0w0', 'renegade');
     t = place(t, 'witchCircle', 1, { workerId: 'p0w0' });
     expect(t.pending?.kind).toBe('placement');
+  });
+
+  it('Ренегат (автор 24.11, обратные треки): срабатывает при 0 и ниже, но не на дне трека', () => {
+    const reverse = (influence: number) =>
+      edit(
+        give(
+          setResources(turnTo(newGame({ rules: { influenceModel: 'reverse' } }), 0), 0, {}),
+          'p0w0',
+          'renegade',
+        ),
+        (d) => {
+          d.players[0]!.influence.forest = influence;
+        },
+      );
+    let s = place(reverse(0), 'witchCircle', 1, { workerId: 'p0w0' });
+    // 3 руды Ренегата и 1 руда отметки −1 обратного трека.
+    expect(res(s, 0).ore).toBe(P.renegade.ore + 1);
+    expect(s.players[0]!.influence.forest).toBe(-P.renegade.influenceLoss);
+    s = place(reverse(REVERSE_TRACK.min), 'witchCircle', 1, { workerId: 'p0w0' });
+    expect(res(s, 0).ore).toBe(0);
   });
 });
 
@@ -339,10 +358,14 @@ describe('Персонажи, содержание 2', () => {
     expect(placeActions(s).some((a) => a.location === 'mine' && a.slot === 1)).toBe(false);
   });
 
-  it('Дипломат: +1 влияние в текущем регионе', () => {
+  it('Дипломат (автор 24.11): +1 влияние, если в регионе стоит рабочий соперника', () => {
     let s = give(start(), 'p0w0', 'diplomat');
     s = place(s, 'mass', 2, { workerId: 'p0w0' });
-    expect(s.players[0]?.influence.valley).toBe(1);
+    expect(s.players[0]?.influence.valley).toBe(0);
+    let t = moveWorker(start(), 'p1w0', at('market'));
+    t = give(t, 'p0w0', 'diplomat');
+    t = place(t, 'mass', 2, { workerId: 'p0w0' });
+    expect(t.players[0]?.influence.valley).toBe(P.diplomat.influence);
   });
 
   it('Рудокоп: +1 руда', () => {
@@ -406,8 +429,8 @@ describe('Персонажи, содержание 2', () => {
     });
   });
 
-  it('Шантажист (автор 24.11): 1 компромат → забрать 1 влияние у соперника в регионе (не у того, у кого 0)', () => {
-    let s = give(start({ compromat: 1 }), 'p0w0', 'blackmailer');
+  it('Шантажист (автор 24.11): 3 компромата → забрать 1 влияние у соперника в регионе (не у того, у кого 0)', () => {
+    let s = give(start({ compromat: P.blackmailer.compromatCost }), 'p0w0', 'blackmailer');
     s = edit(s, (d) => {
       d.players[1]!.influence.forest = 2;
     });
@@ -425,7 +448,7 @@ describe('Персонажи, содержание 2', () => {
   });
 
   it('Шантажист: единственная цель выбирается сама', () => {
-    let s = give(start({ compromat: 2 }), 'p0w0', 'blackmailer');
+    let s = give(start({ compromat: P.blackmailer.compromatCost }), 'p0w0', 'blackmailer');
     s = edit(s, (d) => {
       d.players[1]!.influence.forest = 2;
     });
@@ -433,8 +456,8 @@ describe('Персонажи, содержание 2', () => {
     expect(s.players.map((p) => p.influence.forest)).toEqual([1, 1, 0]);
   });
 
-  it('Шантажист: без 2 компроматов не срабатывает', () => {
-    let s = give(start({ compromat: 1 }), 'p0w0', 'blackmailer');
+  it('Шантажист: без 3 компроматов не срабатывает', () => {
+    let s = give(start({ compromat: P.blackmailer.compromatCost - 1 }), 'p0w0', 'blackmailer');
     s = edit(s, (d) => {
       d.players[1]!.influence.forest = 2;
     });
@@ -501,13 +524,13 @@ describe('Персонажи, содержание 3', () => {
     ]);
   });
 
-  it('Меценат (автор 24.11): +1 за каждое своё здание в регионе, всего не больше 2', () => {
+  it('Меценат (автор 24.11): +1 влияние, если у тебя в регионе 2+ здания', () => {
     let s = give(start(), 'p0w0', 'patron');
     s = edit(s, (d) => {
       d.buildings.push({ type: 'crypt', owner: 0, region: 'forest', plot: 'forest-mine' });
     });
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(s.players[0]?.influence.forest).toBe(1);
+    expect(s.players[0]?.influence.forest).toBe(0);
     let t = give(start(), 'p0w0', 'patron');
     t = edit(t, (d) => {
       for (const plot of ['forest-mine', 'forest-lair', 'forest-witchCircle']) {
@@ -515,23 +538,23 @@ describe('Персонажи, содержание 3', () => {
       }
     });
     t = place(t, 'lair', 1, { workerId: 'p0w0' });
-    expect(t.players[0]?.influence.forest).toBe(2);
+    expect(t.players[0]?.influence.forest).toBe(P.patron.influence);
   });
 
-  it('Рудный барон: 2 руды на карту; получи их, если остался в регионе и выиграл там бой', () => {
+  it('Рудный барон (автор 24.11): 2 руды на карту; получи их, если остался в регионе', () => {
     let s = give(start({ blood: 5 }), 'p0w0', 'oreBaron');
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     s = finishRound(s);
     expect(res(s, 0).ore).toBe(2);
   });
 
-  it('Рудный барон: бой проигран — руда в банк', () => {
+  it('Рудный барон (автор 24.11): бой проигран — руда всё равно владельцу', () => {
     let s = give(start({ blood: 5 }), 'p0w0', 'oreBaron');
     s = give(s, 'p1w0', 'bloodsucker', 'spy');
     s = moveWorker(s, 'p1w0', at('witchCircle'));
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     s = finishRound(s);
-    expect(res(s, 0).ore).toBe(0);
+    expect(res(s, 0).ore).toBe(P.oreBaron.ore);
   });
 
   it('Могильщик: другие свои рабочие региона — в госпиталь (не вытеснение), +1 руда за каждого', () => {
@@ -592,15 +615,18 @@ describe('Общие правила эффектов', () => {
     expect(worker(s, 'p0w0')?.character).toBe('bloodsucker');
     // Отступные за старую пару (Кладовщика) — автор 23.11.
     const sev = upkeepTier('storekeeper').severance;
-    expect(res(s, 0)).toMatchObject({ gold: 2 + 3 + (sev.gold ?? 0), blood: sev.blood ?? 0 });
+    expect(res(s, 0)).toMatchObject({
+      gold: 2 + P.storekeeper.gold + (sev.gold ?? 0),
+      blood: sev.blood ?? 0,
+    });
   });
 
   it('Копирование через Подполье не вызывает эффект персонажа повторно', () => {
     let s = give(start({ gold: 5 }), 'p0w0', 'storekeeper');
     s = place(s, 'underground', 1, { workerId: 'p0w0' });
-    expect(res(s, 0).gold).toBe(5 - 1 + 3);
+    expect(res(s, 0).gold).toBe(5 - 1 + P.storekeeper.gold);
     s = act(s, { type: 'locationAction', choice: { kind: 'copy', location: 'mine', slot: 1 } });
-    expect(res(s, 0).gold).toBe(5 - 1 + 3 + 3);
+    expect(res(s, 0).gold).toBe(5 - 1 + P.storekeeper.gold + 3);
   });
 });
 
@@ -631,29 +657,6 @@ describe('Крайние случаи персонажей (ревью)', () => 
     // Тактику некого вернуть: Комиссар ещё выполняет ход. Оба действия выполнены.
     expect(worker(s, 'p0w0')?.position).toEqual(at('mine'));
     expect(res(s, 0)).toMatchObject({ gold: 5, ore: 1 });
-  });
-
-  it('OQ-43 (автор): Ренегат не предлагает стройку, если после потери влияния строить нечего', () => {
-    let s = give(start({ gold: 7, ore: 3 }), 'p0w0', 'renegade');
-    s = edit(s, (d) => {
-      d.players[0]!.influence.forest = 4;
-      // Все участки Леса заняты — остаётся только Цитадель.
-      for (const plot of [
-        'forest-mine',
-        'forest-witchCircle',
-        'forest-lair',
-        'forest-mine-lair',
-        'forest-mine-witchCircle',
-        'forest-lair-witchCircle',
-      ]) {
-        const owner = d.buildings.filter((b) => b.owner === 1).length < 3 ? 1 : 2;
-        d.buildings.push({ type: 'abbey', owner, region: 'forest', plot });
-      }
-    });
-    s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    // Только руда — выбрана сама.
-    expect(s.players[0]?.influence.forest).toBe(3);
-    expect(res(s, 0).ore).toBe(3 + 1 + 2);
   });
 
   it('Интриган: если до владельца очередь не дошла, блок переходит в следующий раунд', () => {

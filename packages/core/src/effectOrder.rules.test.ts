@@ -48,7 +48,7 @@ describe('Свободный порядок эффектов (effectOrder = free
     });
     s = order(s, 'location'); // компромата 0 — Канцелярия пропускается сама
     expect(s.pending).toEqual({ kind: 'placement', player: 1 });
-    expect(res(s, 0).compromat).toBe(2);
+    expect(res(s, 0).compromat).toBe(1); // Информатор: 1 компромат (автор 24.11)
   });
 
   it('Архитектор, потом Каменщик: золото и за только что построенное здание', () => {
@@ -66,8 +66,8 @@ describe('Свободный порядок эффектов (effectOrder = free
       choice: { building: 'crypt', region: 'forest', plot: 'forest-lair' },
     });
     s = order(s, 'character');
-    // Склеп (−2), Каменщик за 1 здание (+1), затем Логово сработало само (+1 руда).
-    expect(res(s, 0)).toMatchObject({ gold: 1, ore: 1 });
+    // Склеп (−2), Каменщик за 1 здание (+2, автор 24.11), затем Логово сработало само (+1 руда).
+    expect(res(s, 0)).toMatchObject({ gold: 2, ore: 1 });
   });
 
   it('Таверна первой: новый персонаж в этом размещении не срабатывает', () => {

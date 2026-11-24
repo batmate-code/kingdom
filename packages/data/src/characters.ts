@@ -1,4 +1,5 @@
 import { ALCHEMY, CHARACTER_PARAMS as P } from './effects';
+import { REVERSE_TRACK } from './reverseInfluence';
 import type { CharacterDef, CharacterId, UpkeepTier } from './types';
 
 /**
@@ -11,14 +12,14 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   scavenger: {
     id: 'scavenger',
     name: 'Падальщик',
-    upkeep: 0,
-    text: `${P.scavenger.bloodPerHospitalWorker} кровь и ${P.scavenger.compromatPerHospitalWorker} компромат за каждого рабочего в госпитале`,
+    upkeep: 1,
+    text: `${P.scavenger.goldPerHospitalWorker} золото, ${P.scavenger.bloodPerHospitalWorker} кровь и ${P.scavenger.compromatPerHospitalWorker} компромат за каждого рабочего в госпитале`,
   },
   snitch: {
     id: 'snitch',
     name: 'Доносчик',
     upkeep: 0,
-    text: 'При размещении кладёт на себя компромат; при вытеснении получает его дополнительно',
+    text: `+${P.snitch.compromat} компромат; при вытеснении ещё ${P.snitch.onDisplaced}`,
   },
   bloodsucker: {
     id: 'bloodsucker',
@@ -35,7 +36,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   chronicler: {
     id: 'chronicler',
     name: 'Летописец',
-    upkeep: 0,
+    upkeep: 2,
     text: `Получить ${P.chronicler.prestige} престижа`,
   },
 
@@ -61,7 +62,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   treasurer: {
     id: 'treasurer',
     name: 'Казначей',
-    upkeep: 0,
+    upkeep: 1,
     text: `Потратить ${P.treasurer.compromatCost} компромат, получить ${P.treasurer.gold} золота`,
   },
   werewolf: {
@@ -73,8 +74,8 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   informant: {
     id: 'informant',
     name: 'Информатор',
-    upkeep: 1,
-    text: `Получить ${P.informant.compromat} компромата; остальные игроки получают по ${P.informant.opponentsCompromat}`,
+    upkeep: 0,
+    text: `Получить ${P.informant.compromat} компромат`,
   },
   manipulator: {
     id: 'manipulator',
@@ -85,7 +86,7 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   mason: {
     id: 'mason',
     name: 'Каменщик',
-    upkeep: 1,
+    upkeep: 2,
     text: `+${P.mason.goldPerBuilding} золото за каждое своё здание в текущем регионе, максимум ${P.mason.maxGold}`,
   },
   pickpocket: {
@@ -97,8 +98,9 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   renegade: {
     id: 'renegade',
     name: 'Ренегат',
-    upkeep: 1,
-    text: `Потеряй ${P.renegade.influenceLoss} влияние здесь (нельзя при 0): получи ${P.renegade.ore} руду или право стройки в этом регионе по полной цене`,
+    upkeep: 2, // автор 24.11: было 0
+    // Автор 24.11: можно и при 0 и ниже — нельзя только на дне трека.
+    text: `Потеряй ${P.renegade.influenceLoss} влияние здесь (нельзя при −${-REVERSE_TRACK.min}): получи ${P.renegade.ore} руды`,
   },
 
   // Содержание 2
@@ -123,32 +125,32 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   diplomat: {
     id: 'diplomat',
     name: 'Дипломат',
-    upkeep: 2,
-    text: `+${P.diplomat.influence} политическое влияние в текущем регионе`,
+    upkeep: 3,
+    text: `+${P.diplomat.influence} политическое влияние в текущем регионе, если там стоит рабочий соперника`,
   },
   oreMiner: { id: 'oreMiner', name: 'Рудокоп', upkeep: 2, text: `Получить ${P.oreMiner.ore} руду` },
   intriguer: {
     id: 'intriguer',
     name: 'Интриган',
-    upkeep: 1,
+    upkeep: 0,
     text: 'Заблокировать другую локацию до начала своего следующего хода',
   },
   nightHunter: {
     id: 'nightHunter',
     name: 'Ночной охотник',
-    upkeep: 2,
+    upkeep: 1,
     text: 'Использовать уже закрытый второй слот',
   },
   hypocrite: {
     id: 'hypocrite',
     name: 'Лицемер',
     upkeep: 1,
-    text: 'Поменять профессию одного своего рабочего на любую из пяти',
+    text: 'Смени профессию любого своего рабочего с профессией (и самого Лицемера) на другую; новая профессия Лицемера срабатывает сразу',
   },
   blackmailer: {
     id: 'blackmailer',
     name: 'Шантажист',
-    upkeep: 1,
+    upkeep: 3,
     text: `Потрать ${P.blackmailer.compromatCost} компромата: забери ${P.blackmailer.influence} влияние у выбранного соперника в текущем регионе`,
   },
 
@@ -156,26 +158,26 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   commissar: {
     id: 'commissar',
     name: 'Комиссар',
-    upkeep: 3,
+    upkeep: 2,
     text: 'Вернуть своего рабочего из госпиталя и немедленно разместить снова с действием',
   },
   saboteur: {
     id: 'saboteur',
     name: 'Диверсант',
-    upkeep: 1,
+    upkeep: 2,
     text: `Удалить все чужие жетоны силы в текущем регионе; ${P.saboteur.goldPerToken} золото за каждый`,
   },
   patron: {
     id: 'patron',
     name: 'Меценат',
     upkeep: 3,
-    text: `+${P.patron.perBuilding} влияние здесь за каждое своё здание в регионе, максимум ${P.patron.maxInfluence}`,
+    text: `+${P.patron.influence} влияние здесь, если у тебя в регионе ${P.patron.minBuildings}+ зданий`,
   },
   oreBaron: {
     id: 'oreBaron',
     name: 'Рудный барон',
     upkeep: 2,
-    text: `Положи ${P.oreBaron.ore} руды на карту; получи их в конце раунда, если барон остался в регионе и ты выиграл там бой`,
+    text: `Положи ${P.oreBaron.ore} руды на карту; получи их в конце раунда, если барон остался в регионе`,
   },
   gravedigger: {
     id: 'gravedigger',
@@ -193,8 +195,8 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   armorer: {
     id: 'armorer',
     name: 'Латник',
-    upkeep: 0,
-    text: `Получить ${P.armorer.compromat} компромат`,
+    upkeep: 3,
+    text: 'Действие локации выполняется дважды',
   },
   mercenary: {
     id: 'mercenary',
@@ -205,13 +207,13 @@ export const CHARACTERS: Readonly<Record<CharacterId, CharacterDef>> = {
   shapeshifter: {
     id: 'shapeshifter',
     name: 'Перевёртыш',
-    upkeep: 3,
+    upkeep: 2,
     text: 'Выполни эффект персонажа любого рабочего другого игрока (кроме Перевёртыша, Наёмника, Рудного барона и Доносчика)',
   },
   contractor: {
     id: 'contractor',
     name: 'Подрядчик',
-    upkeep: 1,
+    upkeep: 2,
     text: 'Право стройки в текущем регионе по полной цене',
   },
 };

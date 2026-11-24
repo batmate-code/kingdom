@@ -55,11 +55,11 @@ describe('данные правил согласованы', () => {
     expect(PRESTIGE_TRACK.vpMarks).toHaveLength(11); // автор 24.11: трек до 58
   });
 
-  it('в колоде 34 персонажа (автор 24.11: новые карты и пересмотр содержания): 0/1/2/3 — 9/15/5/5', () => {
+  it('в колоде 34 персонажа (автор 24.11: новые карты и пересмотр содержания): 0/1/2/3 — 7/11/10/6', () => {
     const all = Object.values(CHARACTERS);
     expect(all).toHaveLength(34);
     const counts = [0, 1, 2, 3].map((u) => all.filter((c) => c.upkeep === u).length);
-    expect(counts).toEqual([9, 15, 5, 5]);
+    expect(counts).toEqual([7, 11, 10, 6]);
     for (const c of all) expect(UPKEEP_TIERS.some((t) => t.upkeep === c.upkeep)).toBe(true);
   });
 

@@ -9,7 +9,6 @@ import {
   type RegionId,
 } from '@vampire/data';
 import { busyWorkerIds, distinctWorkers, getWorker, regionOfWorker } from './board';
-import { buildOptions } from './buildings';
 import { combatStrengths } from './combat';
 import type { Ctx } from './context';
 import { influenceMin } from './reverse';
@@ -83,6 +82,15 @@ function clearCard(c: Ctx, workerId: string): void {
   c.draft.cardStash = c.draft.cardStash.filter((s) => s.workerId !== workerId);
 }
 
+/** Контекст действия локации текущего размещения рабочего (в очереди или в свободном выборе). */
+function locationContextOf(state: GameState, workerId: string) {
+  for (const t of state.tasks) {
+    if (t.t === 'askLocationAction' && t.context.workerId === workerId) return t.context;
+    if (t.t === 'chooseEffect' && t.workerId === workerId) return t.context;
+  }
+  return null;
+}
+
 /** Ещё не разыгранное действие локации рабочего (в очереди или в свободном выборе). */
 function pendingLocationStep(state: GameState, workerId: string) {
   for (const t of state.tasks) {
@@ -103,6 +111,7 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
         c,
         e.player,
         {
+          gold: n * P.scavenger.goldPerHospitalWorker,
           blood: n * P.scavenger.bloodPerHospitalWorker,
           compromat: n * P.scavenger.compromatPerHospitalWorker,
         },
@@ -111,13 +120,14 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     },
   },
   snitch: {
-    // Компромат из банка на карту; при вытеснении — владельцу, иначе в конце раунда в банк.
+    // Автор 24.11: +1 компромат сразу; ещё 2 на карту — владельцу при вытеснении, иначе в конце раунда в банк.
     apply(c, e) {
+      changeResources(c, e.player, { compromat: P.snitch.compromat }, 'character');
       putOnCard(c, {
         workerId: e.workerId,
         owner: e.player,
         character: 'snitch',
-        amount: P.snitch.compromat,
+        amount: P.snitch.onDisplaced,
         region: e.region,
       });
     },
@@ -159,12 +169,8 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   },
   informant: {
     apply(c, e) {
+      // Автор 24.11: только себе, соперники больше ничего не получают.
       changeResources(c, e.player, { compromat: P.informant.compromat }, 'character');
-      c.draft.players.forEach((_, p) => {
-        if (p !== e.player) {
-          changeResources(c, p, { compromat: P.informant.opponentsCompromat }, 'character');
-        }
-      });
     },
   },
   manipulator: {
@@ -205,20 +211,8 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       // Ниже нижнего предела трека терять нечего (0; в эксперименте influenceModel=reverse — −4).
       if ((state.players[e.player]?.influence[e.region] ?? 0) - influenceMin(state) < loss)
         return [];
-      const out: CharacterChoice[] = [{ kind: 'renegade', gain: 'ore' }];
-      // Стройку проверяем уже с потерянным влиянием: Цитадель может стать недоступной (OQ-43).
-      const afterLoss: GameState = {
-        ...state,
-        players: state.players.map((p, i) =>
-          i === e.player
-            ? { ...p, influence: { ...p.influence, [e.region]: p.influence[e.region] - loss } }
-            : p,
-        ),
-      };
-      if (buildOptions(afterLoss, e.player, { kind: 'renegade', region: e.region }).length > 0) {
-        out.push({ kind: 'renegade', gain: 'build' });
-      }
-      return out;
+      // Автор 24.11: только руда (право стройки убрано).
+      return [{ kind: 'renegade', gain: 'ore' }];
     },
     apply(c, e, choice) {
       const { gain: what } = expect(choice, 'renegade');
@@ -259,7 +253,13 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   },
   infiltrator: passive, // встаёт в занятый первый слот — placementsFor
   diplomat: {
-    apply: (c, e) => changeInfluence(c, e.player, e.region, P.diplomat.influence, 'diplomat'),
+    // Автор 24.11: только если в регионе стоит рабочий соперника.
+    apply(c, e) {
+      const rival = c.draft.workers.some(
+        (w) => w.owner !== e.player && regionOfWorker(w) === e.region,
+      );
+      if (rival) changeInfluence(c, e.player, e.region, P.diplomat.influence, 'diplomat');
+    },
   },
   oreMiner: gain({ ore: P.oreMiner.ore }),
   intriguer: {
@@ -356,12 +356,11 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
     },
   },
   patron: {
-    // Автор 24.11: +1 за каждое своё здание региона (с Цитаделью), всего не больше 2.
+    // Автор 24.11: +1, если у тебя в регионе не меньше 2 зданий (с Цитаделью).
     apply(c, e) {
-      const { baseInfluence, perBuilding, maxInfluence } = P.patron;
-      const buildings = ownBuildingsIn(c.draft, e.player, e.region);
-      const amount = Math.min(maxInfluence, baseInfluence + perBuilding * buildings);
-      changeInfluence(c, e.player, e.region, amount, 'patron');
+      if (ownBuildingsIn(c.draft, e.player, e.region) >= P.patron.minBuildings) {
+        changeInfluence(c, e.player, e.region, P.patron.influence, 'patron');
+      }
     },
   },
   oreBaron: {
@@ -438,7 +437,16 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
       w.garrison = Math.min(P.mercenary.maxTokens, (w.garrison ?? 0) + P.mercenary.powerTokens);
     },
   },
-  armorer: gain({ compromat: P.armorer.compromat }),
+  armorer: {
+    // Автор 24.11: действие локации этого размещения выполняется ещё раз (сразу, отдельным шагом).
+    apply(c, e) {
+      const context = locationContextOf(c.draft, e.workerId);
+      if (!context) return;
+      for (let i = 1; i < P.armorer.locationActions; i++) {
+        c.draft.tasks.unshift({ t: 'askLocationAction', player: e.player, context });
+      }
+    },
+  },
   shapeshifter: {
     // Эффект персонажа соперника: по одному варианту на персонажа (и на выбор внутри эффекта).
     options(state, e) {
@@ -547,7 +555,7 @@ export function onCharacterDisplaced(c: Ctx, by: Worker, victim: Worker): void {
 
 /**
  * Конец раунда (до возврата рабочих): Рудный барон приносит руду, если остался в своём регионе
- * (Шпион — в регионе, куда перешёл) и владелец выиграл там бой; остальное с карт уходит в банк.
+ * (Шпион — в регионе, куда перешёл; автор 24.11: победа в бою не нужна); остальное с карт — в банк.
  */
 export function settleCardStash(c: Ctx): void {
   const d = c.draft;
@@ -556,7 +564,8 @@ export function settleCardStash(c: Ctx): void {
     // Автор 23.11: Рудный барон-Шпион, перешедший в другой регион, получает руду за победу там.
     const w = getWorker(d, s.workerId);
     const region = w.profession === 'spy' ? regionOfWorker(w) : s.region;
-    if (region !== null && regionOfWorker(w) === region && d.combatWinners[region] === s.owner) {
+    // Автор 24.11: победа в бою больше не нужна — достаточно остаться в регионе.
+    if (region !== null && regionOfWorker(w) === region) {
       changeResources(c, s.owner, { ore: s.amount }, 'oreBaron');
     }
   }

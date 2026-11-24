@@ -135,8 +135,8 @@ describe('Улучшение', () => {
   it('Замена улучшения: за старую пару дают отступные', () => {
     let s = edit(game(), (d) => {
       const w = d.workers.find((x) => x.id === `p${d.firstPlayer}w0`)!;
-      d.deck = d.deck.filter((c) => c !== 'scavenger');
-      w.character = 'scavenger'; // содержание 0 → отступные 1 руда
+      d.deck.splice(d.deck.indexOf('marauder'), 1);
+      w.character = 'marauder'; // содержание 0 → отступные 1 руда
       w.profession = 'guard';
     });
     const p = s.firstPlayer;
@@ -148,7 +148,7 @@ describe('Улучшение', () => {
     });
     s = act(s, { type: 'upgrade', choice: { kind: 'assign', workerId: `p${p}w0` } });
     expect(res(s, p).ore).toBe(1);
-    expect(s.discard).toContain('scavenger');
+    expect(s.discard).toContain('marauder');
     expect(s.workers.find((w) => w.id === `p${p}w0`)?.character).toBe('officer');
   });
 
@@ -169,7 +169,7 @@ describe('Улучшение', () => {
     };
     expect(severance('bloodsucker')).toEqual({ gold: 0, ore: 1 });
     expect(severance('troublemaker')).toEqual({ gold: 2, ore: 0 });
-    expect(severance('nightHunter')).toEqual({ gold: 1, ore: 0 });
+    expect(severance('oreBaron')).toEqual({ gold: 1, ore: 0 });
     expect(severance('tactician')).toEqual({ gold: 0, ore: 0 });
   });
 

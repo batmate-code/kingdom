@@ -39,13 +39,13 @@ describe('Содержание в конце раунда', () => {
   });
 
   it('Не хватает крови — пара сбрасывается автоматически', () => {
-    const { s, log } = toUpkeep('tactician', 2);
+    const { s, log } = toUpkeep('manipulator', 2);
     expect(s.phase).not.toBe('upkeep');
     expect(worker(s, 'p0w0')?.character).toBeNull();
     expect(log).toContainEqual({
       type: 'pairDiscarded',
       player: 0,
-      character: 'tactician',
+      character: 'manipulator',
       profession: 'guard',
       reason: 'upkeep',
     });

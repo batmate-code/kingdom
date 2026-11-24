@@ -69,8 +69,8 @@ describe('Право стройки Канцелярии', () => {
     expect(s.players[0]?.prestige).toBe(1);
   });
 
-  it('Второй слот (автор 23.11): 2 компромата → право стройки', () => {
-    let s = place(start({ gold: 6, compromat: 2 }), 'chancery', 2);
+  it('Второй слот (автор 24.11): 1 компромат → право стройки', () => {
+    let s = place(start({ gold: 6, compromat: 1 }), 'chancery', 2);
     expect(getLegalActions(s)).toContainEqual({
       type: 'locationAction',
       choice: { kind: 'buildRight' },

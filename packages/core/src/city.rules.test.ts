@@ -59,9 +59,9 @@ describe('Вход в Город', () => {
     s = choose(s, { kind: 'cityHall', offer: 0, region: 'forest' });
     expect(cityEntryCost(s)).toBe(2);
 
-    // Игрок 1 тоже доходит до 5 в Лесу (через Подполье) — рубеж Леса уже сработал.
-    s = place(s, 'underground', 1);
-    s = choose(s, { kind: 'copy', location: 'cityHall', slot: 1 });
+    // Игрок 1 тоже доходит до 5 в Лесу (Подполье-2: 3 компромата → 1 влияние) — рубеж уже сработал.
+    s = setResources(s, 1, { compromat: 3 });
+    s = place(s, 'underground', 2);
     s = choose(s, { kind: 'cityHall', offer: 0, region: 'forest' });
     expect(s.players[1]?.influence.forest).toBe(5);
     expect(cityEntryCost(s)).toBe(2);
@@ -104,15 +104,8 @@ describe('Подполье', () => {
     expect(s.lair.stash).toBe(1);
   });
 
-  it('Первый слот: любое действие, кроме Подполья (Город тоже можно)', () => {
+  it('Первый слот (автор 24.11): только действия Леса и Долины', () => {
     const targets = copyTargets(place(start(), 'underground', 1));
-    expect(targets).not.toContain('underground');
-    expect(targets).toContain('cityHall');
-    expect(targets).toContain('mine');
-  });
-
-  it('Второй слот: только действия Леса и Долины', () => {
-    const targets = copyTargets(place(start(), 'underground', 2));
     expect(targets).toContain('mine');
     expect(targets).toContain('tavern');
     expect(targets.some((t) => CITY.includes(t))).toBe(false);

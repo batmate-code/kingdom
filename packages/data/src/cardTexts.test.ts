@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS } from './characters';
 import { ALCHEMY, CHARACTER_PARAMS } from './effects';
+import { REVERSE_TRACK } from './reverseInfluence';
 
 /** Все числа в объекте параметров (вложенность — один уровень). */
 const numbers = (o: object): number[] =>
@@ -15,6 +16,8 @@ describe('Тексты карт берут числа из параметров'
         0,
         ...numbers(params),
         ...(id === 'alchemist' ? numbers(ALCHEMY) : []),
+        // Ренегат: «нельзя при −4» — дно обратного трека.
+        ...(id === 'renegade' ? [-REVERSE_TRACK.min] : []),
       ]);
       for (const n of def.text.match(/\d+/g) ?? []) {
         expect(

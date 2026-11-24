@@ -1,4 +1,4 @@
-import { CHARACTER_ORDER } from '@vampire/data';
+import { CHARACTER_ORDER, CHARACTERS } from '@vampire/data';
 import { CharacterCard, type CardSize } from './CharacterCard';
 
 /** Страница проверки карт (?cards): все персонажи в трёх размерах. */
@@ -8,6 +8,9 @@ const SIZES: { size: CardSize; width: number; title: string }[] = [
   { size: 'sm', width: 110, title: 'Маленький — панель игрока' },
 ];
 
+/** Карты по стоимости содержания (0 → 3), внутри уровня — порядок колоды. */
+const BY_UPKEEP = [...CHARACTER_ORDER].sort((a, b) => CHARACTERS[a].upkeep - CHARACTERS[b].upkeep);
+
 export function CardsPreview() {
   return (
     <div style={{ padding: 24, color: '#ece6f2', fontFamily: 'system-ui, sans-serif' }}>
@@ -16,7 +19,7 @@ export function CardsPreview() {
         <section key={size} style={{ margin: '24px 0 36px' }}>
           <h2 style={{ fontFamily: "'Cormorant SC', serif", margin: '0 0 12px' }}>{title}</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-            {CHARACTER_ORDER.map((id) => (
+            {BY_UPKEEP.map((id) => (
               <div key={id} style={{ width }}>
                 <CharacterCard id={id} size={size} />
               </div>

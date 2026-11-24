@@ -437,18 +437,6 @@ describe('Комиссариат (Локации, Комиссариат)', () =
     ]);
   });
 
-  it('Копия первого слота через Подполье забирает жетон', () => {
-    let s = edit(newGame(), (d) => {
-      d.commissariat = { owner: 1, region: 'city' };
-    });
-    s = turnTo(s, 0);
-    s = setResources(s, 0, { gold: 5 });
-    s = place(s, 'underground', 1);
-    s = choose(s, { kind: 'copy', location: 'commissariat', slot: 1 });
-    s = choose(s, { kind: 'commissariat', region: 'valley' });
-    expect(s.commissariat).toEqual({ owner: 0, region: 'valley' });
-  });
-
   it('Жетон снимается в конце раунда', () => {
     let s = edit(duel(), (d) => {
       d.commissariat = { owner: 0, region: 'forest' };

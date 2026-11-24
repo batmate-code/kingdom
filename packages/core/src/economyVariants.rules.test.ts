@@ -84,13 +84,13 @@ describe('Правила автора 23.11: старт, вход в Город,
       from: 'blood',
       times: 1,
     });
-    expect(res(s, 0)).toMatchObject({ gold: 4, blood: 0 });
+    expect(res(s, 0)).toMatchObject({ gold: 5, blood: 0 });
     s = choose(place(weak({ gold: 2, blood: 0 }), 'mass', 1), {
       kind: 'mass',
       from: 'gold',
       times: 1,
     });
-    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 5 });
+    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 6 });
   });
 
   it('citadelCost=cheap: Цитадель стоит 6 золота и 2 руды вместо 7 и 3', () => {
@@ -116,11 +116,11 @@ describe('Правила автора 23.11: старт, вход в Город,
     expect(res(b.state, 0).gold).toBe(gold + 2);
   });
 
-  it('trackBoosts: Город — компромат на 2, 4 и 7 (автор 24.11), прыжок через позиции даёт все', () => {
+  it('trackBoosts: Город — руда на 2, 4 и 7 (автор 24.11), прыжок через позиции даёт все', () => {
     const s = newGame({ rules: { trackBoosts: true } });
-    const comp = res(s, 1).compromat;
-    expect(res(influence(s, 1, 'city', 4).state, 1).compromat).toBe(comp + 2);
-    expect(res(influence(s, 1, 'city', 7).state, 1).compromat).toBe(comp + 3);
+    const ore = res(s, 1).ore;
+    expect(res(influence(s, 1, 'city', 4).state, 1).ore).toBe(ore + 2);
+    expect(res(influence(s, 1, 'city', 7).state, 1).ore).toBe(ore + 3);
     expect(res(influence(s, 1, 'valley', 2).state, 1).blood).toBe(res(s, 1).blood + 2);
   });
 

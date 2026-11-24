@@ -82,7 +82,7 @@ type ChanceryAction = SlotActionOf<'chancery'>;
 /** Изменение ресурсов от одной конверсии Канцелярии. */
 function conversionDelta(action: ChanceryAction, conv: ChanceryConversion): Partial<Resources> {
   return conv.to === 'ore'
-    ? { compromat: -action.conversionCost, ore: action.ore }
+    ? { compromat: -action.oreConversion.compromat, ...action.oreConversion.gain }
     : { compromat: -action.conversionCost, gold: conv.gold, blood: conv.blood };
 }
 
@@ -254,10 +254,11 @@ const HANDLERS: HandlerRegistry = {
         { to: 'ore' },
       ];
       const compromat = res(state, player).compromat;
-      const maxCount = Math.min(action.maxActions, Math.floor(compromat / action.conversionCost));
+      const costOf = (k: ChanceryConversion) =>
+        k.to === 'ore' ? action.oreConversion.compromat : action.conversionCost;
       const out: LocationChoice[] = [];
       // Мультимножества конверсий размером 0..maxCount (индексы по неубыванию — без повторов).
-      const build = (start: number, acc: ChanceryConversion[]) => {
+      const build = (start: number, acc: ChanceryConversion[], spent: number) => {
         if (acc.length > 0) out.push({ kind: 'chancery', conversions: [...acc] });
         if (
           acc.length < action.maxActions &&
@@ -269,11 +270,13 @@ const HANDLERS: HandlerRegistry = {
               : { kind: 'chancery', conversions: [...acc], buildRight: true },
           );
         }
-        if (acc.length === maxCount) return;
-        for (let i = start; i < kinds.length; i++)
-          build(i, [...acc, kinds[i] as ChanceryConversion]);
+        if (acc.length === action.maxActions) return;
+        for (let i = start; i < kinds.length; i++) {
+          const k = kinds[i] as ChanceryConversion;
+          if (spent + costOf(k) <= compromat) build(i, [...acc, k], spent + costOf(k));
+        }
       };
-      build(0, []);
+      build(0, [], 0);
       return out;
     },
     apply(c, player, _ctx, action, choice) {
@@ -445,7 +448,7 @@ const HANDLERS: HandlerRegistry = {
       if (!p) throw new Error(`Нет игрока ${player}`);
       const out: LocationChoice[] = [];
       action.offers.forEach((offer, index) => {
-        for (const v of paymentVariants(state, player, { ore: offer.ore })) {
+        for (const v of paymentVariants(state, player, offer.cost)) {
           const open = REGION_ORDER.filter(
             // OQ-5: обмен в регионе с полным треком.
             (r) => state.config.rules.cityHallAllowsFullTrack || p.influence[r] < TRACKS[r].max,
@@ -467,7 +470,7 @@ const HANDLERS: HandlerRegistry = {
       if (choice.kind !== 'cityHall') mismatch(choice);
       const offer = action.offers[choice.offer];
       if (!offer) throw new Error(`Нет обмена ${choice.offer} в Ратуше`);
-      const cost = { ore: offer.ore };
+      const cost = offer.cost;
       payMaybeAlchemy(c, player, cost, choice.alchemy, 'cityHall');
       if (choice.split) {
         changeInfluence(c, player, choice.region, offer.influence - 1, 'cityHall');

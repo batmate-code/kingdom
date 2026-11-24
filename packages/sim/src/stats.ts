@@ -89,6 +89,20 @@ export interface GameStats {
    * (индекс — 0, 1, 2).
    */
   combatTokens: Record<string, { played: number; won: number; decoyLoss: number[] }>;
+  /**
+   * Спуск по трекам ниже 0 (обратные треки): «игроко-регион» — пара игрок + регион.
+   * belowZeroByReason — сколько единиц влияния ушло ниже 0 по причинам; minReached — у скольких
+   * игроко-регионов минимум за партию был ровно −1…−4; marks — сработавшие отметки снизу (раз).
+   */
+  descent: {
+    wentBelowZero: number;
+    wentBelowZeroWinners: number;
+    endBelowZero: number;
+    belowZeroByReason: Record<string, number>;
+    minReached: Record<string, number>;
+    marks: Record<string, number>;
+    marksWinners: Record<string, number>;
+  };
   /** Участки: сколько построено, каких зданий, у победителей; Цитадели — под ключом citadel-<регион>. */
   plots: Record<
     string,
@@ -121,6 +135,10 @@ export class StatsCollector {
   /** Запас каждого игрока в конце раунда: [раунд][игрок][ресурс]. */
   private readonly stockPerPlayer: Record<Res, number>[][] = [];
   private readonly influence: { region: string; amount: number; reason: string }[] = [];
+  /** Минимум влияния за партию: ключ «игрок:регион». */
+  private readonly minInfluence = new Map<string, number>();
+  private readonly belowZero: Record<string, number> = {};
+  private readonly marks: { player: PlayerId; at: number }[] = [];
   private readonly spireVp: { player: PlayerId; vp: number }[] = [];
   /** Жетоны боя, вскрытые в текущем бою: кто что сыграл (до объявления победителя). */
   private openPlays: { player: PlayerId; token: string; loss: number | undefined }[] = [];
@@ -179,6 +197,15 @@ export class StatsCollector {
           break;
         case 'influenceChanged':
           this.influence.push({ region: e.region, amount: e.to - e.from, reason: e.reason });
+          {
+            const key = `${e.player}:${e.region}`;
+            this.minInfluence.set(key, Math.min(this.minInfluence.get(key) ?? 0, e.to));
+            const under = Math.min(0, e.from) - Math.min(0, e.to);
+            if (under > 0) this.belowZero[e.reason] = (this.belowZero[e.reason] ?? 0) + under;
+          }
+          break;
+        case 'undergroundMark':
+          this.marks.push({ player: e.player, at: e.at });
           break;
         case 'buildingBuilt':
           this.builds.push({
@@ -340,6 +367,30 @@ export class StatsCollector {
       m.vp += v.vp;
       if (isWinner(v.player)) m.vpByWinner += v.vp;
     }
+    const descent: GameStats['descent'] = {
+      wentBelowZero: 0,
+      wentBelowZeroWinners: 0,
+      endBelowZero: 0,
+      belowZeroByReason: { ...this.belowZero },
+      minReached: {},
+      marks: {},
+      marksWinners: {},
+    };
+    for (const [key, min] of this.minInfluence) {
+      if (min >= 0) continue;
+      descent.wentBelowZero += 1;
+      if (isWinner(Number(key.split(':')[0]))) descent.wentBelowZeroWinners += 1;
+      descent.minReached[String(min)] = (descent.minReached[String(min)] ?? 0) + 1;
+    }
+    for (const p of state.players) {
+      for (const region of REGION_ORDER) if (p.influence[region] < 0) descent.endBelowZero += 1;
+    }
+    for (const m of this.marks) {
+      descent.marks[String(m.at)] = (descent.marks[String(m.at)] ?? 0) + 1;
+      if (isWinner(m.player)) {
+        descent.marksWinners[String(m.at)] = (descent.marksWinners[String(m.at)] ?? 0) + 1;
+      }
+    }
     const combatTokens: GameStats['combatTokens'] = {};
     for (const t of this.tokenPlays) {
       const c = (combatTokens[t.token] ??= { played: 0, won: 0, decoyLoss: [] });
@@ -367,6 +418,7 @@ export class StatsCollector {
       influence,
       monuments,
       combatTokens,
+      descent,
       plots,
     };
   }
@@ -387,6 +439,7 @@ export interface AggregateStats {
   influence: GameStats['influence'];
   monuments: GameStats['monuments'];
   combatTokens: GameStats['combatTokens'];
+  descent: GameStats['descent'];
   plots: GameStats['plots'];
 }
 
@@ -407,6 +460,15 @@ export function emptyAggregate(): AggregateStats {
     influence: {},
     monuments: {},
     combatTokens: {},
+    descent: {
+      wentBelowZero: 0,
+      wentBelowZeroWinners: 0,
+      endBelowZero: 0,
+      belowZeroByReason: {},
+      minReached: {},
+      marks: {},
+      marksWinners: {},
+    },
     plots: {},
   };
 }
@@ -444,4 +506,5 @@ export function mergeStats(agg: AggregateStats, g: GameStats): void {
   addNumbers(agg.plots, g.plots);
   addNumbers(agg.monuments, g.monuments);
   addNumbers(agg.combatTokens, g.combatTokens);
+  addNumbers(agg.descent, g.descent);
 }

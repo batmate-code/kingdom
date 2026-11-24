@@ -124,20 +124,20 @@ describe('Содержание: отступные и госпиталь (Стр
     const afterOfficer = act(officer, { type: 'upkeep', choice: 'discard' });
     expect(res(afterOfficer, 0)).toMatchObject({ gold: 2 + 1, blood: 5 });
 
-    const tactician = toUpkeep('tactician', 5);
-    const afterTactician = act(tactician, { type: 'upkeep', choice: 'discard' });
-    expect(res(afterTactician, 0)).toMatchObject({ gold: 2, ore: 0, blood: 5 });
-    expect(worker(afterTactician, 'p0w0')).toMatchObject({ character: null, profession: null });
+    const manipulator = toUpkeep('manipulator', 5);
+    const afterManipulator = act(manipulator, { type: 'upkeep', choice: 'discard' });
+    expect(res(afterManipulator, 0)).toMatchObject({ gold: 2, ore: 0, blood: 5 });
+    expect(worker(afterManipulator, 'p0w0')).toMatchObject({ character: null, profession: null });
   });
 
   it('Госпиталь −1: содержание 3 в госпитале стоит 2 крови, хватает ровно 2', () => {
-    const s = toUpkeep('tactician', 2, true);
+    const s = toUpkeep('manipulator', 2, true);
     expect(getLegalActions(s)).toContainEqual({ type: 'upkeep', choice: 'pay' });
     expect(res(act(s, { type: 'upkeep', choice: 'pay' }), 0).blood).toBe(0);
   });
 
   it('Без госпиталя тот же персонаж за 2 крови не оплачивается (3 > 2)', () => {
-    const s = toUpkeep('tactician', 2, false);
+    const s = toUpkeep('manipulator', 2, false);
     // Выбора нет: пара сброшена сразу, ожидание содержания p0 не наступило.
     expect(s.pending?.kind === 'upkeep' && s.pending.player === 0).toBe(false);
     expect(worker(s, 'p0w0')?.character).toBeNull();
@@ -146,7 +146,7 @@ describe('Содержание: отступные и госпиталь (Стр
   it('OQ-18 (автор): игрок сам выбирает, кого оплатить, — сбросить первого и оплатить второго', () => {
     let s = newGame({}, 1);
     s = setWorker(s, 'p0w0', { profession: 'guard', character: 'officer' });
-    s = setWorker(s, 'p0w1', { profession: 'spy', character: 'diplomat' });
+    s = setWorker(s, 'p0w1', { profession: 'spy', character: 'oreMiner' });
     s = setResources(s, 0, { blood: 2 });
     s = passUntilUpkeep(s, 0);
     expect(getLegalActions(s)).toContainEqual({ type: 'upkeep', choice: 'discard' });
@@ -154,14 +154,14 @@ describe('Содержание: отступные и госпиталь (Стр
     expect(s.pending).toEqual({ kind: 'upkeep', player: 0, workerId: 'p0w1' });
     s = act(s, { type: 'upkeep', choice: 'pay' });
     expect(worker(s, 'p0w0')?.character).toBeNull();
-    expect(worker(s, 'p0w1')?.character).toBe('diplomat');
+    expect(worker(s, 'p0w1')?.character).toBe('oreMiner');
     expect(res(s, 0).blood).toBe(0);
   });
 
   it('OQ-18: при нехватке крови на двоих оплатить первого — второй сбрасывается', () => {
     let s = newGame({}, 1);
     s = setWorker(s, 'p0w0', { profession: 'guard', character: 'officer' });
-    s = setWorker(s, 'p0w1', { profession: 'spy', character: 'diplomat' });
+    s = setWorker(s, 'p0w1', { profession: 'spy', character: 'oreMiner' });
     s = setResources(s, 0, { blood: 2 });
     s = passUntilUpkeep(s, 0);
     expect(s.pending).toEqual({ kind: 'upkeep', player: 0, workerId: 'p0w0' });

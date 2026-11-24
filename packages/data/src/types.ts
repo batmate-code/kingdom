@@ -26,8 +26,9 @@ export type CombatTokenId = 'retreat' | 'attack' | 'massacre' | 'domination' | '
 export type SlotIndex = 1 | 2;
 
 /** Сколько влияния даёт обмен в Ратуше и сколько руды он стоит. */
+/** Обмен на влияние (Ратуша, Подполье-2): cost → influence влияния. */
 export interface CityHallOffer {
-  ore: number;
+  cost: Partial<Resources>;
   influence: number;
 }
 
@@ -51,14 +52,15 @@ export type SlotAction =
   | { kind: 'market'; ore: number; buyCost: number; sellGain: number | null }
   /**
    * Канцелярия, первый слот: до maxActions действий — conversionCost компромата → goldBlood
-   * золота/крови или → ore руды (повторяются), buildRightCost компромата → право стройки (раз).
+   * золота/крови или oreConversion (повторяются), buildRightCost компромата → право стройки (раз).
    */
   | {
       kind: 'chancery';
       maxActions: number;
       conversionCost: number;
       goldBlood: number;
-      ore: number;
+      /** Автор 24.11: compromat компромата → gain (1 руда + 1 золото). */
+      oreConversion: { compromat: number; gain: Partial<Resources> };
       buildRightCost: number;
     }
   /** Канцелярия, второй слот: compromatCost компромата → право стройки. */
@@ -71,7 +73,7 @@ export type SlotAction =
   | { kind: 'revive'; cost: Partial<Resources> }
   /** Таверна, первый слот: заменить пару «персонаж + профессия» на оставшуюся после драфта. */
   | { kind: 'tavernSwap' }
-  /** Ратуша: один из обменов руды на влияние; всё влияние — в один регион. */
+  /** Обмен на влияние (Ратуша, Подполье-2): один из обменов; 2 влияния можно разделить на два региона. */
   | { kind: 'cityHall'; offers: readonly CityHallOffer[] };
 
 export interface RegionDef {

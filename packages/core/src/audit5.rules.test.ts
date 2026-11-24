@@ -80,8 +80,10 @@ describe('Аудит этапа 5: размещение и вытеснение'
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
     s = act(s, { type: 'executioner', target: 'p1w0' });
     expect(worker(s, 'p1w0')?.position.kind).toBe('hospital');
-    expect(res(s, 1).compromat).toBe(1 + CHARACTER_PARAMS.snitch.compromat); // 1 от Палача (автор, 23.11) + компромат Доносчика
-    expect(res(s, 0).gold).toBe(2 + 3 + 2); // Рудник + Мародёр
+    expect(res(s, 1).compromat).toBe(
+      CHARACTER_PARAMS.snitch.compromat + 1 + CHARACTER_PARAMS.snitch.onDisplaced,
+    ); // Доносчик сразу + 1 от Палача (автор, 23.11) + компромат с карты Доносчика
+    expect(res(s, 0).gold).toBe(2 + 3 + CHARACTER_PARAMS.marauder.goldPerDisplaced); // Рудник + Мародёр
     expect(res(s, 2).blood).toBe(2); // Аббатство
     expect(s.locations.witchCircle.slot2Locked).toBe(false);
   });
@@ -141,9 +143,10 @@ describe('Аудит этапа 5: эффекты персонажей и эко
     s = place(s, 'witchCircle', 1, { workerId: 'p0w0' });
     s = place(turnTo(s, 0), 'mine', 1, { workerId: 'p0w1' });
     s = act(s, { type: 'character', choice: { kind: 'gravedigger', workerIds: ['p0w0'] } });
-    expect(res(s, 0).compromat).toBe(0);
+    // Только компромат, полученный сразу при размещении (автор 24.11).
+    expect(res(s, 0).compromat).toBe(CHARACTER_PARAMS.snitch.compromat);
     s = passAll(s);
-    expect(res(s, 0).compromat).toBe(0);
+    expect(res(s, 0).compromat).toBe(CHARACTER_PARAMS.snitch.compromat);
   });
 });
 

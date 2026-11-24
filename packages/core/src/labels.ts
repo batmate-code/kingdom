@@ -126,7 +126,7 @@ function locationChoiceLabel(c: LocationChoice): string {
       return `Канцелярия: ${c.conversions
         .map((x) =>
           x.to === 'ore'
-            ? '1 комп → руда'
+            ? 'комп → руда + золото'
             : `1 комп → ${resText({ gold: x.gold, blood: x.blood })}`,
         )
         .join('; ')}${c.buildRight ? '; право стройки' : ''}`;

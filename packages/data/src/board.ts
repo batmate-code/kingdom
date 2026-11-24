@@ -43,7 +43,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     slots: [
       { kind: 'gain', gain: { ore: 1 } },
       // Ответ автора (22.11): 4 крови → 1 руда + копилка (OQ-46: обмен один раз).
-      { kind: 'lairStash', bloodPerOre: 4, maxExchanges: 1 },
+      { kind: 'lairStash', bloodPerOre: 3, maxExchanges: 1 }, // автор 24.11: 3 крови (было 4)
     ],
   },
   mass: {
@@ -52,7 +52,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     region: 'valley',
     slots: [
       // Автор 23.11: один обмен 2 → 5 и один обмен 1 → 2, в любую сторону (золото ↔ кровь).
-      { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
+      { kind: 'mass', unit: 2, rate: 6, maxTimes: 1 }, // автор 24.11: 2 → 6 (было 5)
       // Автор 24.11: второй слот — 1 жетон силы в любой регион.
       { kind: 'powerToken', count: 1 },
     ],
@@ -86,10 +86,11 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
         maxActions: 2,
         conversionCost: 1,
         goldBlood: 3,
-        ore: 2,
+        // Автор 24.11: 2 компромата → 1 руда + 1 золото (было 1 → 2 руды).
+        oreConversion: { compromat: 2, gain: { ore: 1, gold: 1 } },
         buildRightCost: 1,
       },
-      { kind: 'chanceryBuild', compromatCost: 2 },
+      { kind: 'chanceryBuild', compromatCost: 1 }, // автор 24.11: 1 компромат
     ],
   },
   underground: {
@@ -98,8 +99,16 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     region: 'city',
     slots: [
       // Автор 23.11: копирование бесплатно (было 1 золото).
-      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley', 'city'] },
+      // Автор 24.11: первый слот копирует только Лес и Долину; второй — компромат → влияние.
       { kind: 'copy', goldCost: 0, scope: ['forest', 'valley'] },
+      {
+        kind: 'cityHall',
+        // Автор 24.11: 3 компромата → 1 влияние или 5 → 2 (было 2 → 1).
+        offers: [
+          { cost: { compromat: 3 }, influence: 1 },
+          { cost: { compromat: 5 }, influence: 2 },
+        ],
+      },
     ],
   },
   commissariat: {
@@ -116,15 +125,15 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
       {
         kind: 'cityHall',
         offers: [
-          { ore: 1, influence: 1 },
-          { ore: 3, influence: 2 },
+          { cost: { ore: 1 }, influence: 1 },
+          { cost: { ore: 3 }, influence: 2 },
         ],
       },
       {
         kind: 'cityHall',
         offers: [
-          { ore: 2, influence: 1 },
-          { ore: 4, influence: 2 },
+          { cost: { ore: 2 }, influence: 1 },
+          { cost: { ore: 4 }, influence: 2 },
         ],
       },
     ],
@@ -170,10 +179,11 @@ export const TRACK_BOOSTS: Readonly<
   forest: [{ at: 2, gain: { gold: 2 } }],
   valley: [{ at: 2, gain: { blood: 2 } }],
   // Автор 24.11: на треке Города позиции 2, 4 и 7 дают компромат (было по руде на 2 и 4).
+  // Автор 24.11 (позже): руда вместо компромата.
   city: [
-    { at: 2, gain: { compromat: 1 } },
-    { at: 4, gain: { compromat: 1 } },
-    { at: 7, gain: { compromat: 1 } },
+    { at: 2, gain: { ore: 1 } },
+    { at: 4, gain: { ore: 1 } },
+    { at: 7, gain: { ore: 1 } },
   ],
 };
 

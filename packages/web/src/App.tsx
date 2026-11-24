@@ -23,6 +23,7 @@ import { useMotionBusy } from './board/tokenMotion';
 import { ChoiceModal } from './ChoiceModal';
 import { DraftModal } from './DraftModal';
 import { RoundModal } from './RoundModal';
+import { GameOverModal } from './GameOverModal';
 import { screenView, targetHint } from './view';
 import { TurnToast } from './TurnToast';
 import { HandPanel, PlayersPanel } from './SidePanel';
@@ -139,8 +140,16 @@ function Game() {
   if (state && roundScores.current[state.round] === undefined) {
     roundScores.current[state.round] = getScores(state);
   }
+  // Окно конца партии (автор 24.11): показывается, пока его не закрыли.
+  const [gameOverClosed, setGameOverClosed] = useState(false);
+  useEffect(() => {
+    if (state?.phase !== 'gameOver') setGameOverClosed(false);
+  }, [state?.phase]);
   // Окно итогов боя: первый ещё не просмотренный бой (id итогов растут на всю сессию).
-  const [combatSeen, setCombatSeen] = useState(-1);
+  // После перезагрузки бои, прошедшие до неё, считаются просмотренными — окна не встают в очередь.
+  const [combatSeen, setCombatSeen] = useState(() =>
+    Math.max(-1, ...useGame.getState().combatReports.map((r) => r.id)),
+  );
   const combatResult = combatReports.find((r) => r.id > combatSeen) ?? null;
   const logEnd = useRef<HTMLDivElement>(null);
   const pending = state?.pending ?? null;
@@ -280,6 +289,20 @@ function Game() {
             )}
             viewer={viewer}
             onClose={() => setCombatSeen(combatResult.id)}
+          />
+        )}
+        {state.phase === 'gameOver' && !combatResult && !gameOverClosed && (
+          <GameOverModal
+            state={state}
+            scores={getScores(state)}
+            seats={seats}
+            viewer={viewer}
+            onClose={() => setGameOverClosed(true)}
+            onNewGame={() => {
+              reset();
+              if (guest) leavePage();
+            }}
+            newGameLabel={guest ? 'Выйти' : 'Новая партия'}
           />
         )}
         {roundOpen && !combatResult && (

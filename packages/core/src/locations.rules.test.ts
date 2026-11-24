@@ -42,7 +42,7 @@ describe('Локации Леса', () => {
     expect(s.lair.stash).toBe(0);
   });
 
-  it('Логово, второй слот (автор, 22.11): копилка + по желанию 4 крови → 1 руда, один раз (OQ-46)', () => {
+  it('Логово, второй слот (автор 24.11): копилка + по желанию 3 крови → 1 руда, один раз (OQ-46)', () => {
     let s = edit(start({ blood: 9 }), (d) => {
       d.lair.stash = 2;
     });
@@ -52,19 +52,19 @@ describe('Локации Леса', () => {
       { kind: 'lairStash', exchanges: 1 },
     ]);
     s = choose(s, { kind: 'lairStash', exchanges: 1 });
-    expect(res(s, 0)).toMatchObject({ ore: 2 + 1, blood: 9 - 4 });
+    expect(res(s, 0)).toMatchObject({ ore: 2 + 1, blood: 9 - 3 });
     expect(s.lair.stash).toBe(0);
   });
 
-  it('Логово, второй слот: без 4 крови — только копилка', () => {
-    const s = place(start({ blood: 3 }), 'lair', 2);
+  it('Логово, второй слот: без 3 крови — только копилка', () => {
+    const s = place(start({ blood: 2 }), 'lair', 2);
     // Единственный вариант выбран сам.
-    expect(res(s, 0)).toMatchObject({ ore: 0, blood: 3 });
+    expect(res(s, 0)).toMatchObject({ ore: 0, blood: 2 });
   });
 });
 
 describe('Локации Долины', () => {
-  it('Месса, первый слот (автор 23.11): один обмен 2 → 5 в любую сторону', () => {
+  it('Месса, первый слот (автор 24.11): один обмен 2 → 6 в любую сторону', () => {
     let s = place(start({ gold: 2, blood: 2 }), 'mass', 1);
     expect(locationOptions(s)).toEqual([
       { kind: 'mass', from: 'gold', times: 1 },
@@ -72,7 +72,7 @@ describe('Локации Долины', () => {
       { kind: 'skip' },
     ]);
     s = choose(s, { kind: 'mass', from: 'gold', times: 1 });
-    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 7 });
+    expect(res(s, 0)).toMatchObject({ gold: 0, blood: 8 });
   });
 
   it('Месса, второй слот (автор 24.11): 1 жетон силы в любой регион', () => {
@@ -115,17 +115,14 @@ describe('Локации Долины', () => {
 });
 
 describe('Локации Города', () => {
-  it('Канцелярия, первый слот (автор 23.11): до 2 действий, можно смешивать: 1 компромат → 3 золота/крови или 2 руды', () => {
+  it('Канцелярия, первый слот (автор 24.11): до 2 действий — 1 компромат → 3 золота/крови или 2 компромата → 1 руда + 1 золото', () => {
     let s = place(start({ gold: 1, compromat: 2 }), 'chancery', 1);
-    // 5 видов конверсии (3 золота/крови — 4 разбиения, руда): размер 1 — 5, размер 2 — 15; пропуск.
-    // Право стройки одно не предлагается: после входа золота 0, строить не на что (OQ-29).
-    // После обмена на 3 или 2 золота можно поставить Склеп — ещё 2 сочетания «обмен + право».
-    expect(locationOptions(s)).toHaveLength(5 + 15 + 2 + 1);
-    s = choose(s, {
-      kind: 'chancery',
-      conversions: [{ to: 'goldBlood', gold: 3, blood: 0 }, { to: 'ore' }],
-    });
-    expect(res(s, 0)).toMatchObject({ gold: 0 + 3, ore: 2, compromat: 0 });
+    // 5 видов конверсии (3 золота/крови — 4 разбиения, руда за 2): размер 1 — 5; размер 2 — 10
+    // (руда съедает весь компромат). Право стройки одно не предлагается: после входа золота 0 (OQ-29).
+    // После обмена на 3 или 2 золота можно поставить Склеп — ещё 2 сочетания «обмен + право»; пропуск.
+    expect(locationOptions(s)).toHaveLength(5 + 10 + 2 + 1);
+    s = choose(s, { kind: 'chancery', conversions: [{ to: 'ore' }] });
+    expect(res(s, 0)).toMatchObject({ gold: 0 + 1, ore: 1, compromat: 0 });
   });
 
   it('Канцелярия (автор 23.11, OQ-47): обмен, затем право стройки на полученное золото', () => {

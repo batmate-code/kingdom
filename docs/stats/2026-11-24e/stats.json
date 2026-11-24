@@ -1,0 +1,1058 @@
+{
+  "games": 100,
+  "playerSlots": 300,
+  "winnerSlots": 100,
+  "locations": {
+    "commissariat": {
+      "placements": [252, 16],
+      "winnerPlacements": 77,
+      "displaced": 90,
+      "skipped": 15,
+      "copied": 1
+    },
+    "tavern": {
+      "placements": [494, 244],
+      "winnerPlacements": 236,
+      "displaced": 85,
+      "skipped": 6,
+      "copied": 12
+    },
+    "mine": {
+      "placements": [551, 55],
+      "winnerPlacements": 215,
+      "displaced": 121,
+      "skipped": 0,
+      "copied": 13
+    },
+    "witchCircle": {
+      "placements": [646, 219],
+      "winnerPlacements": 269,
+      "displaced": 107,
+      "skipped": 0,
+      "copied": 33
+    },
+    "underground": {
+      "placements": [170, 324],
+      "winnerPlacements": 162,
+      "displaced": 25,
+      "skipped": 3,
+      "copied": 0
+    },
+    "lair": {
+      "placements": [289, 188],
+      "winnerPlacements": 166,
+      "displaced": 44,
+      "skipped": 0,
+      "copied": 8
+    },
+    "chancery": {
+      "placements": [188, 11],
+      "winnerPlacements": 80,
+      "displaced": 10,
+      "skipped": 15,
+      "copied": 0
+    },
+    "market": {
+      "placements": [348, 123],
+      "winnerPlacements": 170,
+      "displaced": 25,
+      "skipped": 23,
+      "copied": 18
+    },
+    "cityHall": {
+      "placements": [530, 198],
+      "winnerPlacements": 256,
+      "displaced": 60,
+      "skipped": 15,
+      "copied": 0
+    },
+    "mass": {
+      "placements": [539, 86],
+      "winnerPlacements": 199,
+      "displaced": 61,
+      "skipped": 34,
+      "copied": 96
+    }
+  },
+  "characters": {
+    "blackmailer": {
+      "offered": 84,
+      "drafted": 84,
+      "draftedByWinner": 20,
+      "assigned": 84,
+      "triggered": 58,
+      "discardedUpkeep": 32,
+      "discardedDraft": 0,
+      "replaced": 0,
+      "heldAtEnd": 52,
+      "heldAtEndByWinner": 15,
+      "heldAtEndVp": 623,
+      "draftedRoundSum": 287,
+      "draftedOrderSum": 84,
+      "draftedByRound": [18, 12, 15, 10, 14, 15]
+    },
+    "officer": {
+      "offered": 89,
+      "drafted": 43,
+      "draftedByWinner": 15,
+      "assigned": 37,
+      "triggered": 130,
+      "discardedUpkeep": 23,
+      "discardedDraft": 6,
+      "replaced": 17,
+      "heldAtEnd": 26,
+      "heldAtEndByWinner": 7,
+      "heldAtEndVp": 311,
+      "draftedRoundSum": 148,
+      "draftedOrderSum": 107,
+      "draftedByRound": [9, 7, 8, 4, 5, 10]
+    },
+    "renegade": {
+      "offered": 88,
+      "drafted": 87,
+      "draftedByWinner": 21,
+      "assigned": 74,
+      "triggered": 183,
+      "discardedUpkeep": 0,
+      "discardedDraft": 13,
+      "replaced": 22,
+      "heldAtEnd": 45,
+      "heldAtEndByWinner": 13,
+      "heldAtEndVp": 533,
+      "draftedRoundSum": 340,
+      "draftedOrderSum": 138,
+      "draftedByRound": [12, 13, 9, 14, 15, 24]
+    },
+    "werewolf": {
+      "offered": 86,
+      "drafted": 20,
+      "draftedByWinner": 10,
+      "assigned": 12,
+      "triggered": 80,
+      "discardedUpkeep": 11,
+      "discardedDraft": 8,
+      "replaced": 13,
+      "heldAtEnd": 15,
+      "heldAtEndByWinner": 6,
+      "heldAtEndVp": 186,
+      "draftedRoundSum": 71,
+      "draftedOrderSum": 57,
+      "draftedByRound": [3, 2, 5, 4, 3, 3]
+    },
+    "oreBaron": {
+      "offered": 86,
+      "drafted": 86,
+      "draftedByWinner": 32,
+      "assigned": 86,
+      "triggered": 257,
+      "discardedUpkeep": 38,
+      "discardedDraft": 0,
+      "replaced": 0,
+      "heldAtEnd": 47,
+      "heldAtEndByWinner": 17,
+      "heldAtEndVp": 585,
+      "draftedRoundSum": 290,
+      "draftedOrderSum": 101,
+      "draftedByRound": [15, 12, 16, 19, 17, 7]
+    },
+    "contractor": {
+      "offered": 92,
+      "drafted": 44,
+      "draftedByWinner": 7,
+      "assigned": 41,
+      "triggered": 115,
+      "discardedUpkeep": 35,
+      "discardedDraft": 3,
+      "replaced": 5,
+      "heldAtEnd": 29,
+      "heldAtEndByWinner": 8,
+      "heldAtEndVp": 335,
+      "draftedRoundSum": 139,
+      "draftedOrderSum": 114,
+      "draftedByRound": [7, 12, 8, 8, 2, 7]
+    },
+    "mercenary": {
+      "offered": 88,
+      "drafted": 79,
+      "draftedByWinner": 30,
+      "assigned": 43,
+      "triggered": 110,
+      "discardedUpkeep": 0,
+      "discardedDraft": 36,
+      "replaced": 28,
+      "heldAtEnd": 9,
+      "heldAtEndByWinner": 2,
+      "heldAtEndVp": 106,
+      "draftedRoundSum": 296,
+      "draftedOrderSum": 178,
+      "draftedByRound": [11, 11, 13, 13, 14, 17]
+    },
+    "mason": {
+      "offered": 89,
+      "drafted": 80,
+      "draftedByWinner": 32,
+      "assigned": 71,
+      "triggered": 178,
+      "discardedUpkeep": 26,
+      "discardedDraft": 9,
+      "replaced": 26,
+      "heldAtEnd": 24,
+      "heldAtEndByWinner": 13,
+      "heldAtEndVp": 309,
+      "draftedRoundSum": 276,
+      "draftedOrderSum": 158,
+      "draftedByRound": [13, 16, 13, 12, 12, 14]
+    },
+    "storekeeper": {
+      "offered": 89,
+      "drafted": 61,
+      "draftedByWinner": 22,
+      "assigned": 45,
+      "triggered": 142,
+      "discardedUpkeep": 15,
+      "discardedDraft": 16,
+      "replaced": 24,
+      "heldAtEnd": 20,
+      "heldAtEndByWinner": 6,
+      "heldAtEndVp": 255,
+      "draftedRoundSum": 221,
+      "draftedOrderSum": 150,
+      "draftedByRound": [8, 9, 12, 10, 13, 9]
+    },
+    "troublemaker": {
+      "offered": 89,
+      "drafted": 14,
+      "draftedByWinner": 3,
+      "assigned": 11,
+      "triggered": 44,
+      "discardedUpkeep": 11,
+      "discardedDraft": 3,
+      "replaced": 12,
+      "heldAtEnd": 8,
+      "heldAtEndByWinner": 3,
+      "heldAtEndVp": 93,
+      "draftedRoundSum": 44,
+      "draftedOrderSum": 41,
+      "draftedByRound": [4, 1, 3, 3, 1, 2]
+    },
+    "pickpocket": {
+      "offered": 90,
+      "drafted": 90,
+      "draftedByWinner": 31,
+      "assigned": 87,
+      "triggered": 287,
+      "discardedUpkeep": 1,
+      "discardedDraft": 3,
+      "replaced": 30,
+      "heldAtEnd": 46,
+      "heldAtEndByWinner": 17,
+      "heldAtEndVp": 557,
+      "draftedRoundSum": 313,
+      "draftedOrderSum": 123,
+      "draftedByRound": [14, 15, 19, 16, 8, 18]
+    },
+    "shapeshifter": {
+      "offered": 87,
+      "drafted": 71,
+      "draftedByWinner": 25,
+      "assigned": 67,
+      "triggered": 205,
+      "discardedUpkeep": 27,
+      "discardedDraft": 4,
+      "replaced": 9,
+      "heldAtEnd": 39,
+      "heldAtEndByWinner": 11,
+      "heldAtEndVp": 468,
+      "draftedRoundSum": 230,
+      "draftedOrderSum": 153,
+      "draftedByRound": [15, 12, 9, 16, 14, 5]
+    },
+    "diplomat": {
+      "offered": 88,
+      "drafted": 70,
+      "draftedByWinner": 23,
+      "assigned": 70,
+      "triggered": 170,
+      "discardedUpkeep": 50,
+      "discardedDraft": 0,
+      "replaced": 3,
+      "heldAtEnd": 28,
+      "heldAtEndByWinner": 7,
+      "heldAtEndVp": 345,
+      "draftedRoundSum": 221,
+      "draftedOrderSum": 141,
+      "draftedByRound": [18, 13, 13, 5, 8, 13]
+    },
+    "patron": {
+      "offered": 94,
+      "drafted": 78,
+      "draftedByWinner": 23,
+      "assigned": 77,
+      "triggered": 218,
+      "discardedUpkeep": 38,
+      "discardedDraft": 1,
+      "replaced": 7,
+      "heldAtEnd": 38,
+      "heldAtEndByWinner": 12,
+      "heldAtEndVp": 458,
+      "draftedRoundSum": 263,
+      "draftedOrderSum": 158,
+      "draftedByRound": [15, 14, 9, 17, 13, 10]
+    },
+    "hypocrite": {
+      "offered": 88,
+      "drafted": 2,
+      "draftedByWinner": 0,
+      "assigned": 1,
+      "triggered": 8,
+      "discardedUpkeep": 7,
+      "discardedDraft": 1,
+      "replaced": 5,
+      "heldAtEnd": 4,
+      "heldAtEndByWinner": 1,
+      "heldAtEndVp": 46,
+      "draftedRoundSum": 8,
+      "draftedOrderSum": 6,
+      "draftedByRound": [null, null, 1, null, 1]
+    },
+    "alchemist": {
+      "offered": 88,
+      "drafted": 6,
+      "draftedByWinner": 2,
+      "assigned": 5,
+      "triggered": 26,
+      "discardedUpkeep": 7,
+      "discardedDraft": 1,
+      "replaced": 6,
+      "heldAtEnd": 6,
+      "heldAtEndByWinner": 2,
+      "heldAtEndVp": 76,
+      "draftedRoundSum": 14,
+      "draftedOrderSum": 18,
+      "draftedByRound": [2, 2, 1, null, 1]
+    },
+    "snitch": {
+      "offered": 85,
+      "drafted": 81,
+      "draftedByWinner": 31,
+      "assigned": 74,
+      "triggered": 185,
+      "discardedUpkeep": 0,
+      "discardedDraft": 7,
+      "replaced": 48,
+      "heldAtEnd": 20,
+      "heldAtEndByWinner": 8,
+      "heldAtEndVp": 248,
+      "draftedRoundSum": 280,
+      "draftedOrderSum": 155,
+      "draftedByRound": [13, 13, 16, 12, 17, 10]
+    },
+    "intriguer": {
+      "offered": 90,
+      "drafted": 29,
+      "draftedByWinner": 12,
+      "assigned": 18,
+      "triggered": 103,
+      "discardedUpkeep": 0,
+      "discardedDraft": 11,
+      "replaced": 18,
+      "heldAtEnd": 11,
+      "heldAtEndByWinner": 5,
+      "heldAtEndVp": 139,
+      "draftedRoundSum": 107,
+      "draftedOrderSum": 81,
+      "draftedByRound": [4, 4, 5, 7, 2, 7]
+    },
+    "bloodsucker": {
+      "offered": 83,
+      "drafted": 46,
+      "draftedByWinner": 17,
+      "assigned": 27,
+      "triggered": 93,
+      "discardedUpkeep": 0,
+      "discardedDraft": 19,
+      "replaced": 31,
+      "heldAtEnd": 10,
+      "heldAtEndByWinner": 3,
+      "heldAtEndVp": 123,
+      "draftedRoundSum": 178,
+      "draftedOrderSum": 122,
+      "draftedByRound": [3, 7, 10, 9, 7, 10]
+    },
+    "chronicler": {
+      "offered": 90,
+      "drafted": 90,
+      "draftedByWinner": 36,
+      "assigned": 90,
+      "triggered": 287,
+      "discardedUpkeep": 22,
+      "discardedDraft": 0,
+      "replaced": 4,
+      "heldAtEnd": 62,
+      "heldAtEndByWinner": 25,
+      "heldAtEndVp": 781,
+      "draftedRoundSum": 338,
+      "draftedOrderSum": 104,
+      "draftedByRound": [14, 7, 13, 21, 23, 12]
+    },
+    "gravedigger": {
+      "offered": 89,
+      "drafted": 33,
+      "draftedByWinner": 11,
+      "assigned": 20,
+      "triggered": 59,
+      "discardedUpkeep": 12,
+      "discardedDraft": 13,
+      "replaced": 13,
+      "heldAtEnd": 20,
+      "heldAtEndByWinner": 6,
+      "heldAtEndVp": 242,
+      "draftedRoundSum": 130,
+      "draftedOrderSum": 84,
+      "draftedByRound": [3, 2, 8, 5, 11, 4]
+    },
+    "marauder": {
+      "offered": 90,
+      "drafted": 35,
+      "draftedByWinner": 15,
+      "assigned": 23,
+      "triggered": 110,
+      "discardedUpkeep": 0,
+      "discardedDraft": 12,
+      "replaced": 26,
+      "heldAtEnd": 11,
+      "heldAtEndByWinner": 4,
+      "heldAtEndVp": 136,
+      "draftedRoundSum": 123,
+      "draftedOrderSum": 95,
+      "draftedByRound": [3, 6, 10, 6, 6, 4]
+    },
+    "saboteur": {
+      "offered": 85,
+      "drafted": 76,
+      "draftedByWinner": 28,
+      "assigned": 66,
+      "triggered": 157,
+      "discardedUpkeep": 15,
+      "discardedDraft": 10,
+      "replaced": 23,
+      "heldAtEnd": 24,
+      "heldAtEndByWinner": 12,
+      "heldAtEndVp": 302,
+      "draftedRoundSum": 263,
+      "draftedOrderSum": 150,
+      "draftedByRound": [15, 16, 9, 6, 15, 15]
+    },
+    "informant": {
+      "offered": 87,
+      "drafted": 71,
+      "draftedByWinner": 18,
+      "assigned": 52,
+      "triggered": 131,
+      "discardedUpkeep": 16,
+      "discardedDraft": 19,
+      "replaced": 19,
+      "heldAtEnd": 18,
+      "heldAtEndByWinner": 7,
+      "heldAtEndVp": 231,
+      "draftedRoundSum": 259,
+      "draftedOrderSum": 175,
+      "draftedByRound": [9, 12, 10, 17, 10, 13]
+    },
+    "commissar": {
+      "offered": 87,
+      "drafted": 87,
+      "draftedByWinner": 28,
+      "assigned": 85,
+      "triggered": 28,
+      "discardedUpkeep": 28,
+      "discardedDraft": 2,
+      "replaced": 10,
+      "heldAtEnd": 43,
+      "heldAtEndByWinner": 14,
+      "heldAtEndVp": 521,
+      "draftedRoundSum": 308,
+      "draftedOrderSum": 132,
+      "draftedByRound": [10, 20, 13, 17, 11, 16]
+    },
+    "manipulator": {
+      "offered": 92,
+      "drafted": 0,
+      "draftedByWinner": 0,
+      "assigned": 0,
+      "triggered": 3,
+      "discardedUpkeep": 5,
+      "discardedDraft": 0,
+      "replaced": 2,
+      "heldAtEnd": 12,
+      "heldAtEndByWinner": 3,
+      "heldAtEndVp": 135,
+      "draftedRoundSum": 0,
+      "draftedOrderSum": 0,
+      "draftedByRound": []
+    },
+    "oreMiner": {
+      "offered": 85,
+      "drafted": 82,
+      "draftedByWinner": 22,
+      "assigned": 82,
+      "triggered": 192,
+      "discardedUpkeep": 38,
+      "discardedDraft": 0,
+      "replaced": 5,
+      "heldAtEnd": 40,
+      "heldAtEndByWinner": 10,
+      "heldAtEndVp": 480,
+      "draftedRoundSum": 283,
+      "draftedOrderSum": 153,
+      "draftedByRound": [14, 17, 9, 15, 14, 13]
+    },
+    "infiltrator": {
+      "offered": 87,
+      "drafted": 12,
+      "draftedByWinner": 4,
+      "assigned": 8,
+      "triggered": 26,
+      "discardedUpkeep": 6,
+      "discardedDraft": 4,
+      "replaced": 13,
+      "heldAtEnd": 3,
+      "heldAtEndByWinner": 2,
+      "heldAtEndVp": 38,
+      "draftedRoundSum": 42,
+      "draftedOrderSum": 36,
+      "draftedByRound": [1, 2, 4, 1, 3, 1]
+    },
+    "treasurer": {
+      "offered": 85,
+      "drafted": 69,
+      "draftedByWinner": 25,
+      "assigned": 52,
+      "triggered": 122,
+      "discardedUpkeep": 10,
+      "discardedDraft": 17,
+      "replaced": 23,
+      "heldAtEnd": 22,
+      "heldAtEndByWinner": 8,
+      "heldAtEndVp": 283,
+      "draftedRoundSum": 249,
+      "draftedOrderSum": 162,
+      "draftedByRound": [9, 12, 12, 11, 14, 11]
+    },
+    "tactician": {
+      "offered": 96,
+      "drafted": 41,
+      "draftedByWinner": 7,
+      "assigned": 35,
+      "triggered": 88,
+      "discardedUpkeep": 21,
+      "discardedDraft": 6,
+      "replaced": 15,
+      "heldAtEnd": 27,
+      "heldAtEndByWinner": 6,
+      "heldAtEndVp": 317,
+      "draftedRoundSum": 120,
+      "draftedOrderSum": 112,
+      "draftedByRound": [13, 6, 7, 5, 6, 4]
+    },
+    "nightHunter": {
+      "offered": 87,
+      "drafted": 2,
+      "draftedByWinner": 0,
+      "assigned": 1,
+      "triggered": 6,
+      "discardedUpkeep": 7,
+      "discardedDraft": 1,
+      "replaced": 7,
+      "heldAtEnd": 1,
+      "heldAtEndByWinner": 0,
+      "heldAtEndVp": 9,
+      "draftedRoundSum": 7,
+      "draftedOrderSum": 6,
+      "draftedByRound": [null, null, 1, 1]
+    },
+    "armorer": {
+      "offered": 94,
+      "drafted": 55,
+      "draftedByWinner": 21,
+      "assigned": 37,
+      "triggered": 135,
+      "discardedUpkeep": 0,
+      "discardedDraft": 18,
+      "replaced": 36,
+      "heldAtEnd": 9,
+      "heldAtEndByWinner": 3,
+      "heldAtEndVp": 101,
+      "draftedRoundSum": 187,
+      "draftedOrderSum": 137,
+      "draftedByRound": [10, 11, 8, 9, 7, 10]
+    },
+    "scavenger": {
+      "offered": 85,
+      "drafted": 72,
+      "draftedByWinner": 27,
+      "assigned": 63,
+      "triggered": 143,
+      "discardedUpkeep": 6,
+      "discardedDraft": 9,
+      "replaced": 37,
+      "heldAtEnd": 21,
+      "heldAtEndByWinner": 6,
+      "heldAtEndVp": 251,
+      "draftedRoundSum": 252,
+      "draftedOrderSum": 158,
+      "draftedByRound": [14, 13, 11, 6, 13, 15]
+    },
+    "madman": {
+      "offered": 88,
+      "drafted": 4,
+      "draftedByWinner": 2,
+      "assigned": 2,
+      "triggered": 16,
+      "discardedUpkeep": 4,
+      "discardedDraft": 2,
+      "replaced": 17,
+      "heldAtEnd": 1,
+      "heldAtEndByWinner": 0,
+      "heldAtEndVp": 9,
+      "draftedRoundSum": 13,
+      "draftedOrderSum": 11,
+      "draftedByRound": [1, 1, null, 1, null, 1]
+    }
+  },
+  "resources": {
+    "gold": {
+      "gained": {
+        "location": 2148,
+        "chancery": 459,
+        "trackBoost": 566,
+        "character": 1285,
+        "severance": 1493,
+        "shop": 815,
+        "mass": 966
+      },
+      "spent": {
+        "build": 5038,
+        "mass": 868,
+        "cityEntry": 1107,
+        "character": 181,
+        "market": 495,
+        "cityHall": 9
+      },
+      "leftAtEnd": 634,
+      "leftAtEndWinners": 222
+    },
+    "blood": {
+      "gained": {
+        "location": 2691,
+        "mass": 2604,
+        "trackBoost": 522,
+        "character": 196,
+        "abbey": 502,
+        "chancery": 321
+      },
+      "spent": {
+        "cityEntry": 1677,
+        "upkeep": 4603,
+        "mass": 322,
+        "lairExchange": 51,
+        "market": 159
+      },
+      "leftAtEnd": 324,
+      "leftAtEndWinners": 82
+    },
+    "ore": {
+      "gained": {
+        "underground": 127,
+        "character": 830,
+        "location": 283,
+        "trackBoost": 627,
+        "oreBaron": 374,
+        "severance": 452,
+        "lairStash": 350,
+        "market": 654,
+        "lairExchange": 17,
+        "chancery": 3
+      },
+      "spent": {
+        "build": 1086,
+        "cityHall": 1731
+      },
+      "leftAtEnd": 900,
+      "leftAtEndWinners": 258
+    },
+    "compromat": {
+      "gained": {
+        "executioner": 983,
+        "character": 955,
+        "displaced": 136,
+        "location": 132,
+        "snitch": 38,
+        "obelisk": 19
+      },
+      "spent": {
+        "chancery": 326,
+        "cityHall": 646,
+        "character": 292,
+        "build": 30,
+        "revive": 3
+      },
+      "leftAtEnd": 966,
+      "leftAtEndWinners": 295
+    }
+  },
+  "stockByRound": {
+    "gold": [507, 677, 713, 735, 612, 634],
+    "blood": [750, 662, 635, 649, 689, 324],
+    "ore": [268, 463, 647, 719, 842, 900],
+    "compromat": [219, 412, 580, 760, 912, 966]
+  },
+  "stockByRoundWinners": {
+    "gold": [159, 245, 273, 281, 252, 222],
+    "blood": [293, 256, 245, 244, 240, 82],
+    "ore": [104, 167, 219, 228, 255, 258],
+    "compromat": [80, 151, 203, 258, 304, 295]
+  },
+  "hospitalByRound": [98, 123, 122, 117, 119, 90],
+  "upkeepDiscards": 511,
+  "influence": {
+    "forest": {
+      "gained": {
+        "combat": 450,
+        "combatBonus": 346,
+        "cityHall": 535,
+        "diplomat": 52,
+        "domination": 87,
+        "blackmailer": 25,
+        "patron": 44,
+        "manipulator": 1
+      },
+      "lost": {
+        "renegade": 37,
+        "retreat": 46,
+        "decoy": 33,
+        "blackmailer": 27,
+        "manipulator": 3
+      },
+      "final": 1394,
+      "finalWinners": 501,
+      "reached": {
+        "3": 255,
+        "6": 158
+      },
+      "firstToMax": 99,
+      "citadels": 67
+    },
+    "valley": {
+      "gained": {
+        "combat": 463,
+        "cityHall": 350,
+        "combatBonus": 383,
+        "diplomat": 49,
+        "domination": 105,
+        "blackmailer": 17,
+        "patron": 16,
+        "obelisk": 32,
+        "manipulator": 2
+      },
+      "lost": {
+        "renegade": 53,
+        "retreat": 54,
+        "decoy": 26,
+        "blackmailer": 19,
+        "manipulator": 1
+      },
+      "final": 1264,
+      "finalWinners": 482,
+      "reached": {
+        "3": 233,
+        "6": 141
+      },
+      "firstToMax": 98,
+      "citadels": 43
+    },
+    "city": {
+      "gained": {
+        "combat": 501,
+        "combatBonus": 438,
+        "cityHall": 559,
+        "diplomat": 46,
+        "blackmailer": 24,
+        "domination": 123,
+        "patron": 23,
+        "manipulator": 2,
+        "obelisk": 8
+      },
+      "lost": {
+        "blackmailer": 24,
+        "renegade": 97,
+        "retreat": 10,
+        "decoy": 17,
+        "manipulator": 1
+      },
+      "final": 1575,
+      "finalWinners": 635,
+      "reached": {
+        "3": 228,
+        "5": 200,
+        "8": 95
+      },
+      "firstToMax": 87,
+      "citadels": 31
+    }
+  },
+  "monuments": {
+    "citadel": {
+      "built": 141,
+      "byWinner": 67,
+      "vp": 80,
+      "vpByWinner": 49
+    },
+    "obelisk": {
+      "built": 10,
+      "byWinner": 2,
+      "vp": 0,
+      "vpByWinner": 0
+    }
+  },
+  "combatTokens": {
+    "decoy": {
+      "played": 691,
+      "won": 266,
+      "decoyLoss": [615, 76]
+    },
+    "retreat": {
+      "played": 542,
+      "won": 8,
+      "decoyLoss": [465, 44, 33]
+    },
+    "massacre": {
+      "played": 720,
+      "won": 343,
+      "decoyLoss": []
+    },
+    "domination": {
+      "played": 681,
+      "won": 339,
+      "decoyLoss": []
+    },
+    "attack": {
+      "played": 753,
+      "won": 329,
+      "decoyLoss": []
+    },
+    "defense": {
+      "played": 585,
+      "won": 288,
+      "decoyLoss": []
+    }
+  },
+  "plots": {
+    "city-underground-commissariat": {
+      "built": 97,
+      "byWinner": 34,
+      "round": 110,
+      "buildings": {
+        "crypt": 92,
+        "shop": 1,
+        "abbey": 4
+      }
+    },
+    "forest-witchCircle": {
+      "built": 98,
+      "byWinner": 33,
+      "round": 269,
+      "buildings": {
+        "shop": 27,
+        "crypt": 48,
+        "abbey": 23
+      }
+    },
+    "valley-market": {
+      "built": 95,
+      "byWinner": 32,
+      "round": 275,
+      "buildings": {
+        "crypt": 41,
+        "shop": 25,
+        "abbey": 29
+      }
+    },
+    "valley-tavern": {
+      "built": 94,
+      "byWinner": 33,
+      "round": 338,
+      "buildings": {
+        "crypt": 41,
+        "shop": 21,
+        "abbey": 32
+      }
+    },
+    "city-underground-cityHall": {
+      "built": 96,
+      "byWinner": 34,
+      "round": 292,
+      "buildings": {
+        "crypt": 37,
+        "shop": 28,
+        "abbey": 31
+      }
+    },
+    "forest-mine": {
+      "built": 100,
+      "byWinner": 36,
+      "round": 226,
+      "buildings": {
+        "abbey": 25,
+        "shop": 30,
+        "crypt": 45
+      }
+    },
+    "city-chancery-cityHall": {
+      "built": 74,
+      "byWinner": 34,
+      "round": 306,
+      "buildings": {
+        "crypt": 36,
+        "shop": 14,
+        "abbey": 24
+      }
+    },
+    "forest-lair": {
+      "built": 97,
+      "byWinner": 36,
+      "round": 300,
+      "buildings": {
+        "shop": 33,
+        "crypt": 34,
+        "abbey": 30
+      }
+    },
+    "forest-mine-witchCircle": {
+      "built": 94,
+      "byWinner": 33,
+      "round": 431,
+      "buildings": {
+        "crypt": 34,
+        "abbey": 34,
+        "shop": 26
+      }
+    },
+    "city-commissariat-cityHall": {
+      "built": 47,
+      "byWinner": 20,
+      "round": 230,
+      "buildings": {
+        "crypt": 11,
+        "shop": 17,
+        "abbey": 19
+      }
+    },
+    "valley-mass": {
+      "built": 95,
+      "byWinner": 35,
+      "round": 251,
+      "buildings": {
+        "abbey": 28,
+        "crypt": 46,
+        "shop": 21
+      }
+    },
+    "forest-lair-witchCircle": {
+      "built": 58,
+      "byWinner": 20,
+      "round": 294,
+      "buildings": {
+        "crypt": 26,
+        "shop": 9,
+        "abbey": 23
+      }
+    },
+    "valley-market-tavern": {
+      "built": 67,
+      "byWinner": 21,
+      "round": 325,
+      "buildings": {
+        "crypt": 34,
+        "abbey": 18,
+        "shop": 15
+      }
+    },
+    "valley-mass-tavern": {
+      "built": 61,
+      "byWinner": 20,
+      "round": 282,
+      "buildings": {
+        "abbey": 25,
+        "shop": 15,
+        "crypt": 21
+      }
+    },
+    "forest-mine-lair": {
+      "built": 97,
+      "byWinner": 32,
+      "round": 379,
+      "buildings": {
+        "abbey": 47,
+        "crypt": 22,
+        "shop": 28
+      }
+    },
+    "valley-mass-market": {
+      "built": 39,
+      "byWinner": 12,
+      "round": 194,
+      "buildings": {
+        "abbey": 18,
+        "crypt": 13,
+        "shop": 8
+      }
+    },
+    "citadel-forest": {
+      "built": 67,
+      "byWinner": 26,
+      "round": 321,
+      "buildings": {
+        "citadel": 67
+      }
+    },
+    "city-underground-chancery": {
+      "built": 92,
+      "byWinner": 35,
+      "round": 254,
+      "buildings": {
+        "shop": 27,
+        "abbey": 21,
+        "crypt": 44
+      }
+    },
+    "citadel-city": {
+      "built": 33,
+      "byWinner": 19,
+      "round": 160,
+      "buildings": {
+        "citadel": 31,
+        "obelisk": 2
+      }
+    },
+    "citadel-valley": {
+      "built": 51,
+      "byWinner": 24,
+      "round": 224,
+      "buildings": {
+        "citadel": 43,
+        "obelisk": 8
+      }
+    },
+    "city-chancery-commissariat": {
+      "built": 61,
+      "byWinner": 21,
+      "round": 234,
+      "buildings": {
+        "crypt": 24,
+        "abbey": 23,
+        "shop": 14
+      }
+    }
+  }
+}

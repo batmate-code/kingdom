@@ -126,7 +126,7 @@ export const LOCATION_CENTERS: Record<LocationId, Pt> = mapPt({
 });
 
 /** Карточка локации (крупнее для читаемости на ноутбуке, 22.11). */
-export const CARD = { width: 360, height: 280 } as const;
+export const CARD = { width: 400, height: 280 } as const; // автор 24.11: шире на 40 (было 360)
 
 /**
  * Центры гексов участков (id из PLOTS). Подобраны так, чтобы от каждой карточки локации был зазор

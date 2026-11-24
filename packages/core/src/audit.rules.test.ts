@@ -52,10 +52,10 @@ describe('Данные: числа таблиц против rules.md и изо�
     ]);
     expect(slots('lair')).toEqual([
       { kind: 'gain', gain: { ore: 1 } },
-      { kind: 'lairStash', bloodPerOre: 4, maxExchanges: 1 },
+      { kind: 'lairStash', bloodPerOre: 3, maxExchanges: 1 },
     ]);
     expect(slots('mass')).toEqual([
-      { kind: 'mass', unit: 2, rate: 5, maxTimes: 1 },
+      { kind: 'mass', unit: 2, rate: 6, maxTimes: 1 },
       { kind: 'powerToken', count: 1 },
     ]);
     expect(slots('market')).toEqual([
@@ -69,29 +69,35 @@ describe('Данные: числа таблиц против rules.md и изо�
         maxActions: 2,
         conversionCost: 1,
         goldBlood: 3,
-        ore: 2,
+        oreConversion: { compromat: 2, gain: { ore: 1, gold: 1 } },
         buildRightCost: 1,
       },
-      { kind: 'chanceryBuild', compromatCost: 2 },
+      { kind: 'chanceryBuild', compromatCost: 1 },
     ]);
     expect(slots('underground')).toEqual([
-      { kind: 'copy', goldCost: 0, scope: ['forest', 'valley', 'city'] },
       { kind: 'copy', goldCost: 0, scope: ['forest', 'valley'] },
+      {
+        kind: 'cityHall',
+        offers: [
+          { cost: { compromat: 3 }, influence: 1 },
+          { cost: { compromat: 5 }, influence: 2 },
+        ],
+      },
     ]);
     expect(slots('commissariat')[1]).toEqual({ kind: 'revive', cost: { compromat: 1 } });
     expect(slots('cityHall')).toEqual([
       {
         kind: 'cityHall',
         offers: [
-          { ore: 1, influence: 1 },
-          { ore: 3, influence: 2 },
+          { cost: { ore: 1 }, influence: 1 },
+          { cost: { ore: 3 }, influence: 2 },
         ],
       },
       {
         kind: 'cityHall',
         offers: [
-          { ore: 2, influence: 1 },
-          { ore: 4, influence: 2 },
+          { cost: { ore: 2 }, influence: 1 },
+          { cost: { ore: 4 }, influence: 2 },
         ],
       },
     ]);
@@ -340,15 +346,19 @@ describe('Локации: граничные случаи', () => {
     expect(res(s, 0)).toMatchObject({ gold: 1, blood: 0, ore: 0 });
   });
 
-  it('Подполье копирует второй слот Комиссариата: рабочий возвращается из госпиталя за 1 компромат (автор 24.11)', () => {
-    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 1 });
-    s = moveWorker(s, 'p0w1', { kind: 'hospital' });
-    s = place(s, 'underground', 1, { workerId: 'p0w0' });
-    s = choose(s, { kind: 'copy', location: 'commissariat', slot: 2 });
-    expect(locationOptions(s)).toContainEqual({ kind: 'revive', workerId: 'p0w1' });
-    s = choose(s, { kind: 'revive', workerId: 'p0w1' });
-    expect(res(s, 0)).toMatchObject({ gold: 2, compromat: 0 });
-    expect(s.workers.find((w) => w.id === 'p0w1')?.position).toEqual({ kind: 'reserve' });
+  it('Подполье, второй слот (автор 24.11): 3 компромата → 1 влияние или 5 → 2', () => {
+    let s = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 3 });
+    const before = s.players[0]!.influence.valley;
+    s = place(s, 'underground', 2, { workerId: 'p0w0' });
+    s = choose(s, { kind: 'cityHall', offer: 0, region: 'valley' });
+    expect(res(s, 0).compromat).toBe(0);
+    expect(s.players[0]!.influence.valley).toBe(before + 1);
+
+    let t = setResources(turnTo(newGame(), 0), 0, { gold: 3, compromat: 5 });
+    t = place(t, 'underground', 2, { workerId: 'p0w0' });
+    t = choose(t, { kind: 'cityHall', offer: 1, region: 'valley', split: 'city' });
+    expect(res(t, 0).compromat).toBe(0);
+    expect(t.players[0]!.influence).toMatchObject({ valley: 1, city: 1 });
   });
 
   it('OQ-5: Ратуша разрешает платить руду за влияние в регионе, где трек уже на максимуме', () => {

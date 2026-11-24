@@ -123,17 +123,17 @@ describe('Обратные треки: влияние и отметки (авт�
 });
 
 describe('Шпиль и Обелиск (автор 23.11, пп. 31–33)', () => {
-  it('Обелиск (автор 24.11): 3 руды + 3 компромата, 5 престижа; влияние строящего — снова 0; звезда занята', () => {
+  it('Обелиск (автор 24.11): 2 руды + 2 компромата, 5 престижа; влияние строящего — снова 0; звезда занята', () => {
     // Сценарий собран вручную (право стройки без хода размещения) — инварианты проверяем сами.
     const game = newGame({ rules: { influenceModel: 'reverse' }, checkInvariants: false });
-    let s = setResources(game, 0, { ore: 3, compromat: 3 });
+    let s = setResources(game, 0, { ore: 2, compromat: 2 });
     s = influence(s, 0, 'forest', -4).state;
     s = edit(s, (d) => {
       d.tasks = [];
       d.pending = { kind: 'build', player: 0, source: { kind: 'obelisk', region: 'forest' } };
     });
     s = act(s, { type: 'build', choice: { building: 'obelisk', region: 'forest', plot: null } });
-    expect(BUILDINGS.obelisk.cost).toEqual({ ore: 3, compromat: 3 });
+    expect(BUILDINGS.obelisk.cost).toEqual({ ore: 2, compromat: 2 });
     expect(res(s, 0)).toMatchObject({ ore: 1, compromat: 0 }); // +1 руда за отметку −1
     expect(s.players[0]?.prestige).toBe(5);
     expect(s.players[0]?.influence.forest).toBe(0);

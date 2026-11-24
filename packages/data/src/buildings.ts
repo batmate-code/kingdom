@@ -7,7 +7,7 @@ export const BUILDINGS: Readonly<Record<BuildingId, BuildingDef>> = {
   citadel: { id: 'citadel', name: 'Цитадель', cost: { gold: 7, ore: 3 }, prestige: [10] },
   // Эксперимент автора (influenceModel=reverse): строится на звезде региона вместо Шпиля;
   // 24.11 — 3 руды + 3 компромата, 5 престижа (было 2 + 2 и 0).
-  obelisk: { id: 'obelisk', name: 'Обелиск', cost: { ore: 3, compromat: 3 }, prestige: [5] },
+  obelisk: { id: 'obelisk', name: 'Обелиск', cost: { ore: 2, compromat: 2 }, prestige: [5] }, // автор 24.11: 2 + 2 (было 3 + 3)
 };
 
 /** Порядок перечисления типов зданий в действиях. */

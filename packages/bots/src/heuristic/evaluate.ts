@@ -99,6 +99,7 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
     const track = TRACKS[region];
     const inf = p.influence[region];
     value += trackValue(inf, track.vpMarks, w) * hope;
+    value += inf * w.influenceExtraVp * hope;
     // Порог Цитадели, пока она в регионе не построена (в эксперименте звезда одна — и для Обелиска).
     const citadelFree = !state.buildings.some(
       (b) => (b.type === 'citadel' || (reverse && b.type === 'obelisk')) && b.region === region,

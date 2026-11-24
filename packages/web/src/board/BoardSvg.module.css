@@ -53,7 +53,8 @@
 
 .socketSpace {
   flex: none;
-  width: 82px;
+  /* Автор 24.11: отступ текста от гнезда больше (было 82). */
+  width: 96px;
 }
 
 .slotText {

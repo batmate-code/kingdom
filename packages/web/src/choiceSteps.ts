@@ -11,20 +11,22 @@ export function choiceSteps(state: GameState, a: Action): string[] {
     const c = a.choice;
     if (c.kind === 'chancery') {
       const slot = LOCATIONS.chancery.slots[0];
-      const ore = slot?.kind === 'chancery' ? slot.ore : 0;
+      const oreConv = slot?.kind === 'chancery' ? slot.oreConversion : undefined;
       const steps = c.conversions.map((x) =>
         x.to === 'ore'
-          ? `1 комп → ${ore} руд`
+          ? `${oreConv?.compromat ?? ''} комп → ${oreConv ? resText(oreConv.gain) : 'руда'}`
           : `1 комп → ${resText({ gold: x.gold, blood: x.blood })}`,
       );
       if (c.buildRight) steps.push('1 комп → право стройки');
       return steps;
     }
     if (c.kind === 'cityHall') {
-      const slot = state.pending?.kind === 'locationAction' ? state.pending.context.slot : 1;
-      const def = LOCATIONS.cityHall.slots[slot - 1];
+      const ctx = state.pending?.kind === 'locationAction' ? state.pending.context : undefined;
+      const def = LOCATIONS[ctx?.location ?? 'cityHall'].slots[(ctx?.slot ?? 1) - 1];
       const offer = def?.kind === 'cityHall' ? def.offers[c.offer] : undefined;
-      const head = offer ? `${offer.ore} руд → ${offer.influence} влияния` : `Обмен ${c.offer + 1}`;
+      const head = offer
+        ? `${resText(offer.cost)} → ${offer.influence} влияния`
+        : `Обмен ${c.offer + 1}`;
       const where = c.split
         ? `${regionName(c.region)} и ${regionName(c.split)}`
         : regionName(c.region);

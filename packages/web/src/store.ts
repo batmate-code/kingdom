@@ -502,6 +502,10 @@ try {
       const bots = saved.seats.map((seat, i) =>
         seat === 'human' ? null : (BOT_FACTORIES[seat]?.(saved.state!.round * 31 + i) ?? null),
       );
+      // Счётчики id продолжаются после перезагрузки: иначе новые итоги боёв получат id уже
+      // просмотренных и окно итогов их не покажет.
+      reportId = Math.max(reportId, ...saved.combatReports.map((r) => r.id + 1));
+      lineId = Math.max(lineId, ...saved.log.map((l) => l.id + 1));
       useGame.setState({
         ...saved,
         hostRoom: saved.hostRoom ?? null,

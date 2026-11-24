@@ -29,6 +29,7 @@ export function newGame(
         massBloodToGold: 'base',
         citadelCost: 'base',
         disabledCharacters: false,
+        influenceModel: 'classic',
         ...config.rules,
       },
     },

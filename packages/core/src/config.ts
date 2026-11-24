@@ -82,7 +82,7 @@ export interface RuleToggles {
   /**
    * Эксперимент автора 23.11 «обратные треки, Шпиль и Обелиск» (ответы пп. 27–33): 'reverse' —
    * влияние до −4 с наградами отметок, Шпиль вместо Цитадели (ПО за победы), Обелиск;
-   * 'classic' — прежние треки и Цитадель с региональными эффектами (по умолчанию).
+   * 'classic' — прежние треки и Цитадель с региональными эффектами. Автор 24.11: по умолчанию 'reverse'.
    */
   influenceModel: 'classic' | 'reverse';
 }
@@ -146,7 +146,7 @@ export const DEFAULT_RULES: RuleToggles = {
   // Автор 23.11: 6 жетонов (по одному каждого вида), возврат каждые 2 раунда — по умолчанию.
   combatTokenSet: 'six',
   disabledCharacters: true,
-  influenceModel: 'classic',
+  influenceModel: 'reverse', // автор 24.11: обратные треки — режим по умолчанию
 };
 
 /**
@@ -228,5 +228,10 @@ export const RULE_OPTIONS: Readonly<Record<keyof RuleToggles, readonly RuleOptio
     },
   ],
   disabledCharacters: [{ value: false, label: 'Все персонажи (с Манипулятором и Меценатом)' }],
-  influenceModel: [{ value: 'reverse', label: 'Эксперимент: обратные треки, Шпиль и Обелиск' }],
+  influenceModel: [
+    {
+      value: 'classic',
+      label: 'Классические треки и Цитадель (без обратных треков, Шпиля и Обелиска)',
+    },
+  ],
 };

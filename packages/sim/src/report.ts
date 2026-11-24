@@ -9,6 +9,7 @@ import {
   LOCATIONS,
   LOCATION_ORDER,
   REGION_ORDER,
+  REVERSE_TRACK,
   REGIONS,
   TRACKS,
 } from '@vampire/data';
@@ -252,6 +253,9 @@ export function renderReport(s: AggregateStats, title: string): string {
     renegade: 'Ренегат',
     blackmailer: 'Шантажист',
     patron: 'Меценат',
+    decoy: 'Приманка',
+    retreat: 'Отступление',
+    obelisk: 'Обелиск',
   };
   out.push('## Влияние', '');
   out.push(
@@ -321,6 +325,66 @@ export function renderReport(s: AggregateStats, title: string): string {
           m.vp ? f2(m.vp / g) : '—',
           m.vp ? pct(m.vpByWinner / m.vp) : '—',
         ]),
+      ),
+      '',
+    );
+  }
+
+  // Спуск по трекам ниже 0 (обратные треки).
+  const ds = s.descent;
+  if (ds && (ds.wentBelowZero > 0 || Object.keys(ds.marks).length > 0)) {
+    const pairs = s.playerSlots * REGION_ORDER.length;
+    const winnerPairs = s.winnerSlots * REGION_ORDER.length;
+    out.push('## Спуск по трекам', '');
+    out.push(
+      '«Игроко-регион» — один игрок в одном регионе (на партию их игроков × 3). Сколько из них хоть раз уходили ниже 0, какой минимум влияния был за партию, кто опускал ниже 0 и какие отметки снизу срабатывали.',
+      '',
+    );
+    out.push(
+      `Уходили ниже 0: ${f2(ds.wentBelowZero / g)} игроко-региона за партию (${pct(ds.wentBelowZero / pairs)} всех; у победителей ${pct(ds.wentBelowZeroWinners / Math.max(1, winnerPairs))}). Закончили партию ниже 0: ${f2(ds.endBelowZero / g)} за партию.`,
+      '',
+    );
+    out.push(
+      table(
+        ['Минимум за партию', '−1', '−2', '−3', '−4'],
+        [
+          [
+            'Игроко-регионов / партию',
+            ...['-1', '-2', '-3', '-4'].map((k) => f2((ds.minReached[k] ?? 0) / g)),
+          ],
+        ],
+      ),
+      '',
+    );
+    const reasons = Object.entries(ds.belowZeroByReason).sort((a, b) => b[1] - a[1]);
+    if (reasons.length > 0) {
+      out.push(
+        `Кто опускает ниже 0 (единиц влияния за партию): ${reasons
+          .map(([k, v]) => `${INF_REASON[k] ?? k} ${f2(v / g)}`)
+          .join(', ')}.`,
+        '',
+      );
+    }
+    out.push(
+      table(
+        ['Отметка снизу', 'Награда', 'Срабатываний / партию', 'У победителей'],
+        REVERSE_TRACK.marks.map((m) => {
+          const n = ds.marks[String(m.at)] ?? 0;
+          const reward =
+            m.reward.kind === 'ore'
+              ? `${m.reward.ore} руда`
+              : m.reward.kind === 'buildRight'
+                ? 'право стройки'
+                : m.reward.kind === 'strength'
+                  ? `+${m.reward.strength} сила навсегда`
+                  : 'право на Обелиск';
+          return [
+            String(m.at),
+            reward + (m.once ? ' (раз)' : ''),
+            f2(n / g),
+            pct((ds.marksWinners[String(m.at)] ?? 0) / Math.max(1, n)),
+          ];
+        }),
       ),
       '',
     );
