@@ -14,6 +14,7 @@ export { determinize } from './determinize';
 export { combatStrengths } from './combat';
 export { buildCost, buildingCost, buildOptions, plotSurcharge } from './buildings';
 export { massRate } from './locationActions';
+export { monumentSlots, monumentsAt } from './reverse';
 export { getScores } from './scores';
 export type { PlayerScore } from './scores';
 export { findInvariantViolations } from './invariants';

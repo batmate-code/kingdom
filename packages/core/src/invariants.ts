@@ -21,7 +21,7 @@ import {
   type ResourceId,
 } from '@vampire/data';
 import { workersAt } from './board';
-import { influenceMin } from './reverse';
+import { influenceMin, isReverse, monumentSlots } from './reverse';
 import type { GameState } from './types';
 
 const RESOURCES: readonly ResourceId[] = ['gold', 'blood', 'ore', 'compromat'];
@@ -91,10 +91,11 @@ export function findInvariantViolations(state: GameState): string[] {
   });
   for (const region of REGION_ORDER) {
     const n = state.buildings.filter((b) => b.type === 'citadel' && b.region === region).length;
-    if (n > CITADELS_PER_REGION) errors.push(`${region}: Цитаделей ${n}`);
-    // Эксперимент influenceModel=reverse: на звезде региона одно здание — Шпиль или Обелиск.
+    // Обратные треки: на звезде региона до monumentSlots зданий — Шпилей и Обелисков (автор 24.11).
+    const slots = isReverse(state) ? monumentSlots(state) : CITADELS_PER_REGION;
+    if (n > slots) errors.push(`${region}: Цитаделей ${n}`);
     const m = state.buildings.filter((b) => MONUMENTS.includes(b.type) && b.region === region);
-    if (m.length > 1) errors.push(`${region}: на звезде ${m.length} здания`);
+    if (m.length > slots) errors.push(`${region}: на звезде ${m.length} здания`);
   }
   const plots = state.buildings.flatMap((b) => (b.plot === null ? [] : [b.plot]));
   if (new Set(plots).size !== plots.length) errors.push('два здания на одном участке');

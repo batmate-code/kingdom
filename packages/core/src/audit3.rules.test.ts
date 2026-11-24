@@ -73,7 +73,7 @@ describe('Аудит этапа 3 (Бой)', () => {
     expect(combatIn(log, 'forest')?.winner).toBe(0);
   });
 
-  it('Уточнения, Склеп: один Склеп на двойном участке с рабочими в обеих соседних локациях даёт +1', () => {
+  it('Склеп (автор 24.11): +1 за каждого своего рабочего в соседних локациях — двойной участок даёт +2', () => {
     let s = moveWorker(duel(), 'p0w1', at('lair'));
     s = edit(s, (d) => {
       d.buildings.push({ type: 'crypt', owner: 0, region: 'forest', plot: 'forest-mine-lair' });
@@ -82,7 +82,7 @@ describe('Аудит этапа 3 (Бой)', () => {
     fight(s, {}, log);
     expect(combatIn(log, 'forest')?.strengths.find((x) => x.player === 0)).toEqual({
       player: 0,
-      strength: 2 + 1,
+      strength: 2 + 2,
       workers: 2,
     });
   });

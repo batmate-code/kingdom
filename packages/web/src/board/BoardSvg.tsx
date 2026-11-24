@@ -9,6 +9,7 @@ import {
   PLOTS,
   PRESTIGE_TRACK,
   REGION_ORDER,
+  MONUMENT_SLOTS,
   REVERSE_TRACK,
   TRACKS,
   TRACK_BOOSTS,
@@ -63,6 +64,7 @@ import {
   PLOT_CENTERS,
   PRESTIGE_BOX,
   REGION_SHAPES,
+  STAR_PAIRS,
   STARS,
   SX,
   TRACK_BOXES,
@@ -623,59 +625,142 @@ function Plot({
 function Star({ region, obs }: { region: RegionId; obs: Observation }) {
   const c = STARS[region];
   const reverse = isReverseView(obs);
-  // Здание на звезде: Цитадель (в эксперименте — Шпиль) или Обелиск (только в эксперименте).
-  const citadel = obs.buildings.find(
+  // Здания на звезде: Цитадель (в эксперименте — Шпиль) или Обелиск (только в эксперименте).
+  const built = obs.buildings.filter(
     (b) => (b.type === 'citadel' || b.type === 'obelisk') && b.region === region,
   );
+  // Автор 24.11: при 3–4 игроках на звезде два места под Шпиль и Обелиск.
+  const slots =
+    reverse && obs.players.length >= MONUMENT_SLOTS.manyFromPlayers
+      ? MONUMENT_SLOTS.many
+      : MONUMENT_SLOTS.base;
   const visitors = obs.workers.filter(
     (w) => w.position.kind === 'citadelSpot' && w.position.region === region,
   );
   // Б1: яркое место — только если смотрящему игроку хватает влияния на Цитадель здесь
   // (в эксперименте — или он на нижней отметке и может строить Обелиск).
   const inf = obs.players[obs.viewer]?.influence[region] ?? 0;
-  const obeliskReady = reverse && !citadel && inf <= REVERSE_TRACK.min;
-  const ready = (!citadel && inf >= TRACKS[region].citadelAt) || obeliskReady;
-  const lit = ready || citadel !== undefined;
-  const spireVp =
-    reverse && citadel?.type === 'citadel' ? (obs.players[citadel.owner]?.bonusVp ?? 0) : 0;
+  const free = built.length < slots;
+  const obeliskReady = reverse && free && inf <= REVERSE_TRACK.min;
+  const ready = (free && inf >= TRACKS[region].citadelAt) || obeliskReady;
+  const spireVp = built
+    .filter((b) => reverse && b.type === 'citadel')
+    .reduce((sum, b) => sum + (obs.players[b.owner]?.bonusVp ?? 0), 0);
+  const pair = STAR_PAIRS[region];
+  const r = slots > 1 ? pair.r : 76;
+  const centers: (readonly [number, number])[] =
+    slots > 1
+      ? [
+          [c[0] - pair.dx, c[1] + pair.shiftY - pair.dy],
+          [c[0] + pair.dx, c[1] + pair.shiftY + pair.dy],
+        ]
+      : [c];
+  // Низ звезды: под ним — ПО Шпилей и рабочие у звезды.
+  const bottom = slots > 1 ? c[1] + pair.shiftY + pair.dy + r : c[1] + 76;
+  // Цель стройки (подсветка) — первое свободное место.
+  const firstFree = built.length;
+  return (
+    <g>
+      {centers.map((center, i) => (
+        <StarSlot
+          key={i}
+          c={center}
+          r={r}
+          reverse={reverse}
+          building={built[i] ?? null}
+          ready={i === firstFree && ready}
+          obeliskReady={i === firstFree && obeliskReady}
+          markId={i === firstFree || (firstFree >= slots && i === 0) ? `citadel:${region}` : null}
+          region={region}
+          obs={obs}
+        />
+      ))}
+      {/* ПО, которые принесли Шпили за партию, — по центру под звездой. */}
+      {spireVp > 0 && (
+        <Html
+          x={c[0] - 50}
+          y={slots > 1 ? bottom : c[1] + SPIRE_VP_DY}
+          w={100}
+          h={36}
+          className={styles.spireVp}
+        >
+          +{spireVp}
+          <Icon name="vp" size={22} />
+        </Html>
+      )}
+      {visitors.map((w, i) => (
+        <Token
+          key={w.id}
+          w={w}
+          cx={c[0] - 40 + i * 40}
+          cy={bottom + (spireVp > 0 ? 54 : 24)}
+          r={24}
+        />
+      ))}
+    </g>
+  );
+}
+
+function StarSlot({
+  c,
+  r,
+  reverse,
+  building,
+  ready,
+  obeliskReady,
+  markId,
+  region,
+  obs,
+}: {
+  c: readonly [number, number];
+  r: number;
+  reverse: boolean;
+  building: Observation['buildings'][number] | null;
+  ready: boolean;
+  obeliskReady: boolean;
+  markId: string | null;
+  region: RegionId;
+  obs: Observation;
+}) {
+  const lit = ready || building !== null;
   const hint = !reverse
     ? null
-    : citadel
-      ? `${buildingName(obs, citadel.type)} игрока ${citadel.owner + 1}: ${citadel.type === 'citadel' ? SPIRE_TEXT : OBELISK_TEXT}`
+    : building
+      ? `${buildingName(obs, building.type)} игрока ${building.owner + 1}: ${building.type === 'citadel' ? SPIRE_TEXT : OBELISK_TEXT}`
       : `Место для Шпиля (влияние +${TRACKS[region].citadelAt}) или Обелиска (влияние ${REVERSE_TRACK.min}) — кто построит первым`;
-  const key = `citadel:${region}`;
+  const icon = r * 1.03;
   return (
     <g>
       {hint && <title>{hint}</title>}
       <polygon
-        points={hexPoints(c, 76)}
-        fill={citadel ? PLAYER_COLORS[citadel.owner] : ready ? 'url(#goldFill)' : '#2e2618'}
+        points={hexPoints(c, r)}
+        fill={building ? PLAYER_COLORS[building.owner] : ready ? 'url(#goldFill)' : '#2e2618'}
         stroke={ready ? '#ffe9a8' : GOLD}
         strokeOpacity={lit ? 1 : 0.55}
         strokeWidth={3}
         filter={ready ? 'url(#glow)' : 'url(#cardShadow)'}
       />
       <polygon
-        points={hexPoints(c, 62)}
+        points={hexPoints(c, r * 0.82)}
         fill="none"
-        stroke={citadel ? 'rgba(0,0,0,.4)' : ready ? '#7d5f22' : GOLD}
+        stroke={building ? 'rgba(0,0,0,.4)' : ready ? '#7d5f22' : GOLD}
         strokeOpacity={lit ? 1 : 0.35}
         strokeWidth={2.5}
       />
       <Html
-        x={c[0] - 50}
-        y={c[1] - 48}
-        w={100}
-        h={96}
+        x={c[0] - icon * 0.65}
+        y={c[1] - icon * 0.62}
+        w={icon * 1.3}
+        h={icon * 1.25}
         className={lit ? styles.starIcon : `${styles.starIcon} ${styles.dim}`}
       >
         <Icon
           name={
-            citadel?.type === 'obelisk'
+            building?.type === 'obelisk'
               ? 'obelisk'
-              : !citadel && obeliskReady
+              : !building && obeliskReady
                 ? 'obeliskOpen'
-                : citadel
+                : building
                   ? reverse
                     ? 'spire'
                     : 'citadel'
@@ -683,26 +768,10 @@ function Star({ region, obs }: { region: RegionId; obs: Observation }) {
                     ? 'spireOpen'
                     : 'citadelOpen'
           }
-          size={78}
+          size={Math.round(icon)}
         />
       </Html>
-      {/* ПО, которые принёс Шпиль за партию, — по центру под звездой. */}
-      {spireVp > 0 && (
-        <Html x={c[0] - 50} y={c[1] + SPIRE_VP_DY} w={100} h={36} className={styles.spireVp}>
-          +{spireVp}
-          <Icon name="vp" size={22} />
-        </Html>
-      )}
-      <PlotMarks id={key} c={c} r={76} />
-      {visitors.map((w, i) => (
-        <Token
-          key={w.id}
-          w={w}
-          cx={c[0] - 40 + i * 40}
-          cy={c[1] + (spireVp > 0 ? 130 : 100)}
-          r={24}
-        />
-      ))}
+      {markId && <PlotMarks id={markId} c={c} r={r} />}
     </g>
   );
 }

@@ -2,6 +2,8 @@ import {
   cityEntryPrice,
   combatStrengths,
   getScores,
+  monumentSlots,
+  monumentsAt,
   type GameState,
   type PlayerId,
   type Phase,
@@ -100,10 +102,10 @@ export function playerValue(state: GameState, player: PlayerId, w: Weights = WEI
     const inf = p.influence[region];
     value += trackValue(inf, track.vpMarks, w) * hope;
     value += inf * w.influenceExtraVp * hope;
-    // Порог Цитадели, пока она в регионе не построена (в эксперименте звезда одна — и для Обелиска).
-    const citadelFree = !state.buildings.some(
-      (b) => (b.type === 'citadel' || (reverse && b.type === 'obelisk')) && b.region === region,
-    );
+    // Порог Цитадели, пока на звезде есть место (обратные треки: Шпиль и Обелиск, до 2 мест).
+    const citadelFree = reverse
+      ? monumentsAt(state, region).length < monumentSlots(state)
+      : !state.buildings.some((b) => b.type === 'citadel' && b.region === region);
     if (citadelFree && inf >= track.citadelAt) value += w.citadelAccess * future;
     if (reverse && citadelFree && inf <= REVERSE_TRACK.min) value += w.citadelAccess * future;
     // Постоянная сила отметки −3 работает в боях до конца партии.

@@ -72,5 +72,5 @@ export const COMBAT_TOKENS_REFRESH_AFTER_ROUND = 3;
  */
 export const COMBAT_TOKENS_SIX_COUNT = 1;
 /** Автор 24.11: в наборе «6 жетонов» Приманок (Блеф) две — остальных по одному. */
-export const COMBAT_TOKENS_SIX_DECOYS = 1; // автор 24.11: снова одна
+export const COMBAT_TOKENS_SIX_DECOYS = 2; // автор 24.11 (после партии): две, чтобы не остаться с одной Доминацией
 export const COMBAT_TOKENS_SIX_REFRESH_EVERY = 2;

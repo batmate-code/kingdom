@@ -17,10 +17,19 @@ function toRound(config: GameConfigInput, round: number, seed = 3): GameState {
 const tokens = (s: GameState) => Object.values(s.locations).map((l) => l.professionToken);
 
 describe('Жетоны профессий локаций (автор, 23.11)', () => {
-  it('по умолчанию раскладываются один раз: во 2-м и 4-м раунде те же', () => {
+  it('professionTokensReroll=false: раскладываются один раз — во 2-м и 4-м раунде те же', () => {
+    const config = { rules: { professionTokensReroll: false } };
+    const first = tokens(createGame(config, 3));
+    expect(tokens(toRound(config, 2))).toEqual(first);
+    expect(tokens(toRound(config, 4))).toEqual(first);
+  });
+
+  it('по умолчанию (автор 24.11): заново после возврата жетонов боя — в 3-м и 5-м раунде', () => {
     const first = tokens(createGame({}, 3));
     expect(tokens(toRound({}, 2))).toEqual(first);
-    expect(tokens(toRound({}, 4))).toEqual(first);
+    const third = tokens(toRound({}, 3));
+    expect(third).not.toEqual(first);
+    expect(tokens(toRound({}, 4))).toEqual(third);
   });
 
   it('переключатель professionTokensOnce=false: раскладка каждый раунд (прежнее правило)', () => {

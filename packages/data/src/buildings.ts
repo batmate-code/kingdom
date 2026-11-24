@@ -52,4 +52,10 @@ export const OBELISKS_PER_PLAYER = 1;
 /** Здания на звезде региона (не на участке): Цитадель (Шпиль) и Обелиск. */
 export const MONUMENTS: readonly BuildingId[] = ['citadel', 'obelisk'];
 
+/**
+ * Мест на звезде региона под Шпиль и Обелиск (обратные треки). Автор 24.11: при 3–4 игроках — 2,
+ * при двух — 1.
+ */
+export const MONUMENT_SLOTS = { base: 1, many: 2, manyFromPlayers: 3 } as const;
+
 export const CITADEL_REGIONS: readonly RegionId[] = ['forest', 'valley', 'city'];

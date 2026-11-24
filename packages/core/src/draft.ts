@@ -84,9 +84,11 @@ export function dealDraft(c: Ctx): Task[] {
   });
 
   const order = turnOrder(d);
+  // Автор 24.11: первый круг драфта начинает последний игрок (draftStart=last), второй — обратно.
+  const draft = d.config.rules.draftStart === 'last' ? [...order].reverse() : order;
   return [
-    ...order.map((player): Task => ({ t: 'askDraft', player, circle: 1 })),
-    ...[...order].reverse().map((player): Task => ({ t: 'askDraft', player, circle: 2 })),
+    ...draft.map((player): Task => ({ t: 'askDraft', player, circle: 1 })),
+    ...[...draft].reverse().map((player): Task => ({ t: 'askDraft', player, circle: 2 })),
     ...order.map((player): Task => ({ t: 'askUpgrade', player })),
   ];
 }

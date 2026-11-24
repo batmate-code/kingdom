@@ -39,7 +39,7 @@ export function slotLines(a: SlotAction, obs: Pick<Observation, 'config'>): stri
         `${a.unit} кр → ${massRate(obs, a.rate, 'blood')} зол${a.maxTimes > 1 ? `  ×${a.maxTimes}` : ''}`,
       ];
     case 'powerToken':
-      return [`${a.count} жетон силы`, 'в любой регион'];
+      return [`${resLine(a.cost)} → ${a.count} жет. силы`.replace(/^ → /, ''), 'в любой регион'];
     case 'market':
       return a.sellGain === null
         ? [`${a.buyCost} зол/кр → ${a.ore} руд`]

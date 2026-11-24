@@ -155,6 +155,16 @@ export const PLOT_CENTERS: Record<string, Pt> = mapPt({
 
 export const HEX_R = 58;
 
+/**
+ * Два места на звезде (автор 24.11: 3–4 игрока): сдвиг каждого места от центра звезды и радиус.
+ * В Долине звезду обступают Таверна, Рынок и участки — места стоят вертикально и чуть меньше.
+ */
+export const STAR_PAIRS: Record<RegionId, { dx: number; dy: number; r: number; shiftY: number }> = {
+  city: { dx: 70, dy: 0, r: 62, shiftY: 0 },
+  forest: { dx: 70, dy: 0, r: 62, shiftY: 0 },
+  valley: { dx: 0, dy: 62, r: 54, shiftY: 10 },
+};
+
 /** Места Цитаделей — в середине пространства между локациями своего региона. */
 export const STARS: Record<RegionId, Pt> = mapPt({
   // Под Подпольем: центр Города занят Канцелярией.

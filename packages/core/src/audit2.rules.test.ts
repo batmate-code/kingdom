@@ -26,7 +26,7 @@ function passUntilUpkeep(s: GameState, stopAt: number): GameState {
 
 describe('Драфт: порядок кругов (Структура раунда, шаг 2)', () => {
   it.each([2, 3, 4])(
-    'Драфт: круг 1 с первого игрока, круг 2 в обратном порядке (%i игроков)',
+    'Драфт (автор 24.11): круг 1 с последнего игрока, круг 2 в обратном порядке (%i игроков)',
     (n) => {
       let s = createGame({ playerCount: n }, 3);
       const f = s.firstPlayer;
@@ -35,7 +35,8 @@ describe('Драфт: порядок кругов (Структура раунд
         seen.push({ player: s.pending.player, circle: s.pending.circle });
         s = act(s, firstLegal(s));
       }
-      const order = Array.from({ length: n }, (_, k) => (f + k) % n);
+      // Последний по часовой стрелке, затем к первому игроку.
+      const order = Array.from({ length: n }, (_, k) => (f + n - 1 - k) % n);
       expect(seen).toEqual([
         ...order.map((player) => ({ player, circle: 1 })),
         ...[...order].reverse().map((player) => ({ player, circle: 2 })),

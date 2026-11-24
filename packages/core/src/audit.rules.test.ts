@@ -56,7 +56,7 @@ describe('Данные: числа таблиц против rules.md и изо�
     ]);
     expect(slots('mass')).toEqual([
       { kind: 'mass', unit: 2, rate: 6, maxTimes: 1 },
-      { kind: 'powerToken', count: 1 },
+      { kind: 'powerToken', count: 2, cost: { ore: 1 } },
     ]);
     expect(slots('market')).toEqual([
       { kind: 'market', ore: 2, buyCost: 2, sellGain: null },

@@ -34,7 +34,8 @@ describe('Онлайн-отмена: просьба и согласие всех
   });
 
   it('Хост просит отмену: нужен ответ гостя; гость согласен — партия откатывается к ходу хоста', () => {
-    useGame.getState().start(['human', 'guest', 'heuristic'], 7);
+    // Драфт с первого игрока: между ходом хоста и ходом гостя нет второго хода хоста.
+    useGame.getState().start(['human', 'guest', 'heuristic'], 7, { draftStart: 'first' });
     playUntil(0);
     const atHost = useGame.getState().state!;
     useGame.getState().act(getLegalActions(atHost)[0]!);

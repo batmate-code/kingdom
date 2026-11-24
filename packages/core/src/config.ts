@@ -68,6 +68,13 @@ export interface RuleToggles {
    */
   professionTokensOnce: boolean;
   /**
+   * Автор 24.11: жетоны профессий локаций раздаются заново, когда жетоны боя возвращаются в руку
+   * (в начале следующего раунда); false — только как велит professionTokensOnce.
+   */
+  professionTokensReroll: boolean;
+  /** Автор 24.11: первый круг драфта начинает последний игрок ('last'); 'first' — прежнее. */
+  draftStart: 'first' | 'last';
+  /**
    * Размер драфта: 'fixed' — 5 персонажей и 5 профессий, по одной каждой (правила);
    * 'players' — эксперимент автора 23.11: игроков + 1 персонажей и столько же случайных профессий.
    */
@@ -116,6 +123,7 @@ export const RULE_CHOICES: Partial<Record<keyof RuleToggles, readonly string[]>>
   citadelCost: ['base', 'cheap'],
   cityEntryResource: ['gold', 'blood', 'mixed'],
   draftSize: ['fixed', 'players'],
+  draftStart: ['first', 'last'],
   combatTokenSet: ['base', 'six'],
   influenceModel: ['classic', 'reverse'],
 };
@@ -142,6 +150,8 @@ export const DEFAULT_RULES: RuleToggles = {
   cityEntryResource: 'mixed',
   trackBoosts: true,
   professionTokensOnce: true,
+  professionTokensReroll: true,
+  draftStart: 'last',
   draftSize: 'fixed',
   // Автор 23.11: 6 жетонов (по одному каждого вида), возврат каждые 2 раунда — по умолчанию.
   combatTokenSet: 'six',
@@ -215,6 +225,8 @@ export const RULE_OPTIONS: Readonly<Record<keyof RuleToggles, readonly RuleOptio
   cityEntryResource: [],
   trackBoosts: [],
   professionTokensOnce: [],
+  professionTokensReroll: [],
+  draftStart: [],
   draftSize: [
     {
       value: 'players',

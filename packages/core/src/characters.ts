@@ -9,7 +9,7 @@ import {
   type RegionId,
 } from '@vampire/data';
 import { busyWorkerIds, distinctWorkers, getWorker, regionOfWorker } from './board';
-import { combatStrengths } from './combat';
+import { combatStrengths, deployGarrison } from './combat';
 import type { Ctx } from './context';
 import { influenceMin } from './reverse';
 import { changeInfluence, changeResources } from './economy';
@@ -431,10 +431,17 @@ const EFFECTS: Record<CharacterId, CharacterEffect> = {
   },
   // Новые карты автора (24.11)
   mercenary: {
-    // Жетоны силы — на карту рабочего (не больше maxTokens); выкладываются перед боем (combat.ts).
-    apply(c, e) {
+    // Жетон силы — на карту рабочего (не больше maxTokens). Автор 24.11: решение сразу при
+    // размещении — выложить всё с карты жетонами силы в текущий регион или копить дальше.
+    options: () => [
+      { kind: 'mercenary', deploy: true },
+      { kind: 'mercenary', deploy: false },
+    ],
+    apply(c, e, choice) {
+      const { deploy } = expect(choice, 'mercenary');
       const w = getWorker(c.draft, e.workerId);
       w.garrison = Math.min(P.mercenary.maxTokens, (w.garrison ?? 0) + P.mercenary.powerTokens);
+      if (deploy) deployGarrison(c, e.player, e.region);
     },
   },
   armorer: {

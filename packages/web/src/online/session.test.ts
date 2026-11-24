@@ -167,8 +167,8 @@ describe('Онлайн: протокол хоста и гостя (трансп�
   it('Ход не в свою очередь, недопустимый и устаревший ход — отказ, партия не меняется', () => {
     const t = setup();
     const g1 = guest(t.net.connect(), t.keys.get(1)!);
-    // Драфт начинает кресло 0 (хост): ход гостя 1 — не в свою очередь.
-    expect(t.state.pending?.player).toBe(0);
+    // Драфт начинает не гость 1 (автор 24.11: последний игрок) — ход гостя не в свою очередь.
+    expect(t.state.pending?.player).not.toBe(1);
     const before = t.state;
     g1.session.act({ type: 'pass' });
     expect(g1.rejects).toEqual(['notYourTurn']);

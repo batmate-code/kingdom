@@ -1,16 +1,17 @@
 /** Эксперимент автора 23.11 (`combatTokenSet=six`): 6 жетонов боя, возврат каждые 2 раунда. */
-import { COMBAT_TOKEN_ORDER } from '@vampire/data';
+import { COMBAT_TOKEN_ORDER, COMBAT_TOKENS_SIX_DECOYS } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { combatTokensRefreshAfter } from './combat';
 import { DEFAULT_RULES } from './config';
 import { createGame } from './engine';
 
 describe('Жетоны боя: набор из 6 (combatTokenSet=six)', () => {
-  it('Жетоны боя: по одному жетону каждого вида, Приманка одна (автор 24.11)', () => {
+  it('Жетоны боя (автор 24.11): по одному каждого вида, Приманок две', () => {
     const s = createGame({ playerCount: 3, rules: { combatTokenSet: 'six' } }, 1);
+    expect(COMBAT_TOKENS_SIX_DECOYS).toBe(2);
     for (const p of s.players) {
       expect(COMBAT_TOKEN_ORDER.map((t) => p.combatTokens.hand[t])).toEqual(
-        COMBAT_TOKEN_ORDER.map(() => 1),
+        COMBAT_TOKEN_ORDER.map((t) => (t === 'decoy' ? COMBAT_TOKENS_SIX_DECOYS : 1)),
       );
     }
   });

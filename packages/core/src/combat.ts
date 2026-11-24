@@ -26,7 +26,7 @@ import type { RuleToggles } from './config';
 import type { Ctx } from './context';
 import { turnOrder } from './draft';
 import { changeInfluence, changeResources } from './economy';
-import { influenceMin, isReverse, monumentAt, ownsSpire } from './reverse';
+import { influenceMin, isReverse, monumentsAt, ownsSpire } from './reverse';
 import type { CombatPlay, CombatStrength, GameState, PlayerId, Worker } from './types';
 
 function workerStrength(w: Worker): number {
@@ -75,25 +75,24 @@ export function hospitalStrength(state: GameState): number {
 }
 
 /**
- * Склепы: +1 за каждый свой Склеп региона, рядом с которым (в соседней локации) стоит твой
- * рабочий. Рабочие у места Цитадели в локации не стоят. Второй слот — OQ-25.
+ * Склепы (автор 24.11): каждый свой Склеп региона даёт +1 за каждого своего рабочего в соседних
+ * с ним локациях (было +1 за Склеп, если рядом есть хоть один). Второй слот — OQ-25.
  */
 export function cryptStrength(state: GameState, player: PlayerId, region: RegionId): number {
   const secondSlot = state.config.rules.cryptCountsSecondSlot;
-  const occupied = new Set(
-    state.workers.flatMap((w) =>
-      w.owner === player && w.position.kind === 'slot' && (w.position.slot === 1 || secondSlot)
-        ? [w.position.location]
-        : [],
-    ),
-  );
+  const workersAt = new Map<string, number>();
+  for (const w of state.workers) {
+    if (w.owner === player && w.position.kind === 'slot' && (w.position.slot === 1 || secondSlot)) {
+      workersAt.set(w.position.location, (workersAt.get(w.position.location) ?? 0) + 1);
+    }
+  }
   let count = 0;
   for (const b of state.buildings) {
     if (b.type !== 'crypt' || b.owner !== player || b.region !== region || b.plot === null) {
       continue;
     }
     const plot = PLOTS.find((p) => p.id === b.plot);
-    if (plot?.adjacent.some((loc) => occupied.has(loc))) count += 1;
+    for (const loc of plot?.adjacent ?? []) count += workersAt.get(loc) ?? 0;
   }
   return count * BUILDING_EFFECTS.cryptStrength;
 }
@@ -256,16 +255,8 @@ export function startCombat(c: Ctx, region: RegionId): void {
         .filter((p) => participants.includes(p) && combatTokenOptions(d, p).length > 0)
         .map((player) => ({ t: 'askCombatToken' as const, player, region }))
     : [];
-  // Наёмник: до жетонов боя участники с жетонами на карте решают, выложить ли их сюда.
-  const garrisons = turnOrder(d)
-    .filter((p) => participants.includes(p) && garrisonOf(d, p, region) > 0)
-    .map((player) => ({ t: 'askGarrison' as const, player, region }));
-  d.tasks.unshift(
-    ...garrisons,
-    ...asks,
-    { t: 'revealCombat', region },
-    { t: 'combatOutcome', region },
-  );
+  // Наёмник решает при размещении (автор 24.11), перед боем вопроса больше нет.
+  d.tasks.unshift(...asks, { t: 'revealCombat', region }, { t: 'combatOutcome', region });
 }
 
 /** Сколько жетонов силы у игрока на картах Наёмников. */
@@ -413,8 +404,8 @@ export function combatOutcome(c: Ctx, region: RegionId): void {
   d.combatWinners[region] = winner;
   if (winner === null) return;
   // Обелиск: владелец получает компромат, когда бой в его регионе выигрывает соперник.
-  const monument = isReverse(d) ? monumentAt(d, region) : null;
-  if (monument?.type === 'obelisk' && monument.owner !== winner) {
+  for (const monument of isReverse(d) ? monumentsAt(d, region) : []) {
+    if (monument.type !== 'obelisk' || monument.owner === winner) continue;
     changeResources(
       c,
       monument.owner,

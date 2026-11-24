@@ -151,6 +151,8 @@ function characterChoiceLabel(s: View, c: CharacterChoice): string {
       return `Манипулятор: +${CHARACTER_PARAMS.manipulator.influenceGain} влияния в ${regionName(c.to)}`;
     case 'renegade':
       return c.gain === 'ore' ? 'Ренегат: руда' : 'Ренегат: право стройки';
+    case 'mercenary':
+      return c.deploy ? 'Наёмник: выложить жетоны сюда' : 'Наёмник: копить жетоны на карте';
     case 'blackmailer':
       return `Шантажист: забрать влияние у ${playerName(c.target)}`;
     case 'hypocrite':

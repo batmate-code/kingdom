@@ -18,7 +18,7 @@ export const CHARACTER_EFFECT_VP: Readonly<Record<CharacterId, number>> = {
   troublemaker: 0.15, // 1 жетон силы
   alchemist: 0.12, // 1 руда цены → 1 золото, ситуативно
   storekeeper: 0.24, // +2 золота
-  treasurer: 0.24, // 1 компромат → 3 золота
+  treasurer: 0.36, // 1 компромат → 4 золота
   werewolf: 0.18, // 2 жетона силы, если отстаёшь на 1+
   informant: 0.12, // +1 компромат
   manipulator: 0.2, // −1 здесь, +1 там: перенос к порогам

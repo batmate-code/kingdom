@@ -242,6 +242,8 @@ export type LocationChoice =
 export type CharacterChoice =
   | { kind: 'manipulator'; to: RegionId }
   | { kind: 'renegade'; gain: 'ore' | 'build' }
+  /** Наёмник (автор 24.11): сразу выложить жетоны с карты в текущий регион или копить дальше. */
+  | { kind: 'mercenary'; deploy: boolean }
   | { kind: 'blackmailer'; target: PlayerId }
   | { kind: 'hypocrite'; workerId: string; profession: ProfessionId }
   | { kind: 'intriguer'; location: LocationId }

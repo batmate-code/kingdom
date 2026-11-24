@@ -169,10 +169,10 @@ describe('Персонажи, содержание 1', () => {
     expect(res(s, 0).gold).toBe(2 + P.storekeeper.gold);
   });
 
-  it('Казначей: 1 компромат → 3 золота; без компромата не срабатывает', () => {
+  it('Казначей (автор 24.11): 1 компромат → 4 золота; без компромата не срабатывает', () => {
     let s = give(start({ compromat: 1 }), 'p0w0', 'treasurer');
     s = place(s, 'lair', 1, { workerId: 'p0w0' });
-    expect(res(s, 0)).toMatchObject({ gold: 5, compromat: 0 });
+    expect(res(s, 0)).toMatchObject({ gold: 2 + P.treasurer.gold, compromat: 0 });
     let t = give(start({ compromat: 0 }), 'p0w0', 'treasurer');
     t = place(t, 'lair', 1, { workerId: 'p0w0' });
     expect(res(t, 0).gold).toBe(2);

@@ -2,7 +2,7 @@
 import { CHARACTER_PARAMS as P, type CharacterId } from '@vampire/data';
 import { describe, expect, it } from 'vitest';
 import { getLegalActions } from './engine';
-import type { Action, GameState } from './types';
+import type { GameState } from './types';
 import { act, edit, newGame, place, res, setResources, setWorker, turnTo } from './testing';
 
 const give = (s: GameState, workerId: string, character: CharacterId) =>
@@ -15,6 +15,7 @@ describe('Новые карты (автор 24.11)', () => {
       d.workers.find((w) => w.id === 'p0w0')!.garrison = P.mercenary.maxTokens - 1;
     });
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
+    s = act(s, { type: 'character', choice: { kind: 'mercenary', deploy: false } });
     expect(s.workers.find((w) => w.id === 'p0w0')?.garrison).toBe(P.mercenary.maxTokens);
     s = edit(s, (d) => {
       d.workers.find((w) => w.id === 'p0w1')!.character = 'mercenary';
@@ -23,20 +24,15 @@ describe('Новые карты (автор 24.11)', () => {
     expect(s.workers.find((w) => w.id === 'p0w0')?.garrison).toBe(P.mercenary.maxTokens);
   });
 
-  it('Наёмник: перед боем региона можно выложить жетоны с карты', () => {
+  it('Наёмник (автор 24.11): сразу при размещении можно выложить жетоны с карты в регион', () => {
     let s = give(turnTo(newGame(), 0), 'p0w0', 'mercenary');
     s = edit(s, (d) => {
       d.workers.find((w) => w.id === 'p0w0')!.garrison = 2;
     });
     s = place(s, 'mine', 1, { workerId: 'p0w0' });
-    while (s.pending && s.pending.kind !== 'garrison') {
-      const a: Action =
-        s.pending.kind === 'placement' ? { type: 'pass' } : (getLegalActions(s)[0] as Action);
-      s = act(s, a);
-    }
-    expect(s.pending).toMatchObject({ kind: 'garrison', player: 0, region: 'forest' });
-    s = act(s, { type: 'garrison', deploy: true });
-    // На карте было 2 (предел): срабатывание при размещении больше не добавило.
+    expect(s.pending?.kind).toBe('character');
+    s = act(s, { type: 'character', choice: { kind: 'mercenary', deploy: true } });
+    // На карте было 2, +1 при размещении — все 3 жетона ушли в Лес.
     expect(s.powerTokens).toContainEqual({
       owner: 0,
       region: 'forest',

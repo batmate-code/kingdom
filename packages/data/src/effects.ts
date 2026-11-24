@@ -19,7 +19,7 @@ export const CHARACTER_PARAMS = {
   /** Кладовщик. */
   storekeeper: { gold: 2 }, // автор 24.11 (модель): 2 золота
   /** Казначей: compromatCost компромата → gold золота. */
-  treasurer: { compromatCost: 1, gold: 3 },
+  treasurer: { compromatCost: 1, gold: 4 }, // автор 24.11: было 3 — «супер слабый»
   /** Оборотень: жетоны силы, если у соперника сила больше на strengthGap и более. */
   werewolf: { strengthGap: 1, powerTokens: 2 }, // автор 24.11: отставание 1+
   /** Информатор: себе и каждому сопернику. */

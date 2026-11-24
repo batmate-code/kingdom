@@ -53,8 +53,8 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     slots: [
       // Автор 23.11: один обмен 2 → 5 и один обмен 1 → 2, в любую сторону (золото ↔ кровь).
       { kind: 'mass', unit: 2, rate: 6, maxTimes: 1 }, // автор 24.11: 2 → 6 (было 5)
-      // Автор 24.11: второй слот — 1 жетон силы в любой регион.
-      { kind: 'powerToken', count: 1 },
+      // Автор 24.11: второй слот — 1 руда → 2 жетона силы в любой регион (было 1 жетон бесплатно).
+      { kind: 'powerToken', count: 2, cost: { ore: 1 } },
     ],
   },
   market: {

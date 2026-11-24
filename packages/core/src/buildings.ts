@@ -23,7 +23,7 @@ import { getWorker } from './board';
 import type { Ctx } from './context';
 import { changeInfluence, changeResources, payMaybeAlchemy, paymentVariants } from './economy';
 import { addPrestige } from './prestige';
-import { isReverse, monumentAt } from './reverse';
+import { isReverse, monumentSlots, monumentsAt } from './reverse';
 import type { BuildChoice, BuildSource, GameState, PlayerId } from './types';
 
 /** Доплата за участок по текущему правилу plotSurcharge. */
@@ -152,7 +152,7 @@ function monumentAllowed(
 ): boolean {
   const influence = state.players[player]?.influence[region] ?? 0;
   const free = isReverse(state)
-    ? monumentAt(state, region) === null
+    ? monumentsAt(state, region).length < monumentSlots(state)
     : !state.buildings.some((b) => b.type === building && b.region === region);
   if (!free) return false;
   return building === 'obelisk'

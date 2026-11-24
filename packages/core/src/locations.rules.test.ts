@@ -75,10 +75,13 @@ describe('Локации Долины', () => {
     expect(res(s, 0)).toMatchObject({ gold: 0, blood: 8 });
   });
 
-  it('Месса, второй слот (автор 24.11): 1 жетон силы в любой регион', () => {
-    let s = place(start(), 'mass', 2);
+  it('Месса, второй слот (автор 24.11): 1 руда → 2 жетона силы в любой регион; без руды — нет', () => {
+    let s = place(start({ ore: 1 }), 'mass', 2);
     s = choose(s, { kind: 'powerToken', region: 'city' });
-    expect(s.powerTokens).toContainEqual({ owner: 0, region: 'city', count: 1 });
+    expect(s.powerTokens).toContainEqual({ owner: 0, region: 'city', count: 2 });
+    expect(res(s, 0).ore).toBe(0);
+    const t = place(start({ ore: 0 }), 'mass', 2);
+    expect(t.pending?.kind).not.toBe('locationAction');
   });
 
   it('Рынок, первый слот (автор 23.11): 2 золота/крови в любой комбинации → 2 руды', () => {

@@ -46,7 +46,7 @@ export type SlotAction =
   /** Месса: unit золота (крови) → rate крови (золота), до maxTimes раз. */
   | { kind: 'mass'; unit: number; rate: number; maxTimes: number }
   /** Месса, второй слот (автор 24.11): count жетонов силы в любой регион. */
-  | { kind: 'powerToken'; count: number }
+  | { kind: 'powerToken'; count: number; cost: Partial<Resources> }
   /** Рынок: один обмен — buyCost золота/крови → ore руды или ore руды → sellGain золота/крови. */
   /** Рынок: buyCost золота/крови в любом соотношении → ore руды; sellGain — продажа руды (null — нет). */
   | { kind: 'market'; ore: number; buyCost: number; sellGain: number | null }

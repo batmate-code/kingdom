@@ -1,4 +1,4 @@
-import { MONUMENTS, REVERSE_TRACK, type RegionId } from '@vampire/data';
+import { MONUMENT_SLOTS, MONUMENTS, REVERSE_TRACK, type RegionId } from '@vampire/data';
 import type { Ctx } from './context';
 import type { Building, GameState, PlayerId } from './types';
 
@@ -16,9 +16,16 @@ export function influenceMin(state: Pick<GameState, 'config'>): number {
   return isReverse(state) ? REVERSE_TRACK.min : 0;
 }
 
-/** Здание на звезде региона (Цитадель/Шпиль или Обелиск) — одно на регион в эксперименте. */
-export function monumentAt(state: Pick<GameState, 'buildings'>, region: RegionId): Building | null {
-  return state.buildings.find((b) => b.region === region && MONUMENTS.includes(b.type)) ?? null;
+/** Здания на звезде региона (Шпиль или Обелиск) в порядке постройки. */
+export function monumentsAt(state: Pick<GameState, 'buildings'>, region: RegionId): Building[] {
+  return state.buildings.filter((b) => b.region === region && MONUMENTS.includes(b.type));
+}
+
+/** Сколько мест на звезде региона (автор 24.11: 2 при 3–4 игроках, 1 при двух). */
+export function monumentSlots(state: Pick<GameState, 'players'>): number {
+  return state.players.length >= MONUMENT_SLOTS.manyFromPlayers
+    ? MONUMENT_SLOTS.many
+    : MONUMENT_SLOTS.base;
 }
 
 /** Шпиль игрока в регионе: победа там позволяет взять ПО вместо награды. */

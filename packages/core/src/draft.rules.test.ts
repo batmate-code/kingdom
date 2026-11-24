@@ -17,7 +17,10 @@ function setOffer(state: GameState, characters: CharacterId[]): GameState {
 const game = (playerCount = 3, seed = 1) =>
   setOffer(
     createGame(
-      { playerCount, rules: { randomFirstPlayer: true, disabledCharacters: false } },
+      {
+        playerCount,
+        rules: { randomFirstPlayer: true, disabledCharacters: false, draftStart: 'first' },
+      },
       seed,
     ),
     ['bloodsucker', 'storekeeper', 'officer', 'tactician', 'oreMiner'],
@@ -155,7 +158,7 @@ describe('Улучшение', () => {
   it('Отступные по таблице: 0 → 1 руда, 1 → 2 золота, 2 → 1 золото, 3 → ничего', () => {
     const severance = (character: CharacterId) => {
       const others: CharacterId[] = ['storekeeper', 'officer', 'oreMiner', 'diplomat', 'patron'];
-      let s = setOffer(createGame({}, 2), [
+      let s = setOffer(createGame({ rules: { draftStart: 'first' } }, 2), [
         character,
         ...others.filter((c) => c !== character).slice(0, 4),
       ]);

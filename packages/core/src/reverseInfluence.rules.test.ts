@@ -137,15 +137,21 @@ describe('Шпиль и Обелиск (автор 23.11, пп. 31–33)', () =>
     expect(res(s, 0)).toMatchObject({ ore: 1, compromat: 0 }); // +1 руда за отметку −1
     expect(s.players[0]?.prestige).toBe(5);
     expect(s.players[0]?.influence.forest).toBe(0);
-    // Шпиль в Лесу теперь не построит никто, даже при влиянии 4.
+    // Автор 24.11: при 3 игроках на звезде два места — Шпиль в Лесу ещё можно построить…
     s = edit(setResources(s, 1, { gold: 20, ore: 5 }), (d) => {
       d.players[1]!.influence.forest = 4;
+      d.players[2]!.influence.forest = 4;
     });
-    expect(
-      buildOptions(s, 1, { kind: 'chancery' }).some(
+    const spire = (st: typeof s, p: number) =>
+      buildOptions(st, p, { kind: 'chancery' }).some(
         (c) => c.building === 'citadel' && c.region === 'forest',
-      ),
-    ).toBe(false);
+      );
+    expect(spire(s, 1)).toBe(true);
+    // …а когда оба места заняты — уже нет.
+    s = edit(setResources(s, 2, { gold: 20, ore: 5 }), (d) => {
+      d.buildings.push({ type: 'citadel', owner: 1, region: 'forest', plot: null });
+    });
+    expect(spire(s, 2)).toBe(false);
     expect(findInvariantViolations(s).filter((e) => e !== 'нет ожидаемого решения')).toEqual([]);
   });
 

@@ -186,9 +186,19 @@ const HANDLERS: HandlerRegistry = {
 
   powerToken: {
     mandatory: false,
-    options: () => REGION_ORDER.map((region): LocationChoice => ({ kind: 'powerToken', region })),
+    options(state, player, _ctx, action) {
+      const r = res(state, player);
+      const affordable = (Object.entries(action.cost) as [keyof Resources, number][]).every(
+        ([k, v]) => r[k] >= v,
+      );
+      return affordable
+        ? REGION_ORDER.map((region): LocationChoice => ({ kind: 'powerToken', region }))
+        : [];
+    },
     apply(c, player, _ctx, action, choice) {
       if (choice.kind !== 'powerToken') mismatch(choice);
+      const cost = Object.fromEntries(Object.entries(action.cost).map(([k, v]) => [k, -v]));
+      changeResources(c, player, cost, 'location');
       const t = c.draft.powerTokens.find((x) => x.owner === player && x.region === choice.region);
       if (t) t.count += action.count;
       else c.draft.powerTokens.push({ owner: player, region: choice.region, count: action.count });

@@ -23,8 +23,13 @@ export function startRound(c: Ctx): void {
   d.phase = 'draft';
   c.events.push({ type: 'roundStarted', round: d.round, firstPlayer: d.firstPlayer });
 
-  // Жетоны профессий: один раз на партию (правило автора 23.11) или заново каждый раунд.
-  if (!d.config.rules.professionTokensOnce || d.round === 1) {
+  // Жетоны профессий: один раз на партию (правило автора 23.11) или заново каждый раунд;
+  // автор 24.11 — заново и после возврата жетонов боя в руку (в конце прошлого раунда).
+  const reroll =
+    d.config.rules.professionTokensReroll &&
+    d.round > 1 &&
+    combatTokensRefreshAfter(d.config.rules, d.round - 1);
+  if (!d.config.rules.professionTokensOnce || d.round === 1 || reroll) {
     const tokens = [...LOCATION_PROFESSION_TOKENS];
     shuffleInPlace(d, tokens);
     const dealt = {} as Record<LocationId, ProfessionId>;

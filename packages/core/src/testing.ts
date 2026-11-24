@@ -30,6 +30,8 @@ export function newGame(
         citadelCost: 'base',
         disabledCharacters: false,
         influenceModel: 'classic',
+        draftStart: 'first',
+        professionTokensReroll: false,
         ...config.rules,
       },
     },
